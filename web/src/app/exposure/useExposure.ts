@@ -66,28 +66,18 @@ export function useExposure(
         options: { quality, poolSize: workerPoolSize(hardwareConcurrency) },
         workers,
         signal: run.controller.signal,
-        onProgress: (progress) => {
-          if (activeRun.current === run)
-            setState({ status: 'running', progress });
-        },
+        // Progress only reaches a live run: abandoning one terminates its workers first.
+        onProgress: (progress) => setState({ status: 'running', progress }),
       }).then(
+        // Only an active run can resolve: abandoning one aborts it, and an aborted run rejects.
         (result) => {
-          if (activeRun.current !== run) {
-            result.dispose();
-            return;
-          }
           run.result = result;
           setState({ status: 'ready', result });
         },
         (error: unknown) => {
           if (activeRun.current !== run) return;
           activeRun.current = null;
-          const failure = toPipelineFailure(error);
-          setState(
-            failure.kind === 'cancelled'
-              ? { status: 'idle' }
-              : { status: 'failed', failure },
-          );
+          setState({ status: 'failed', failure: toPipelineFailure(error) });
         },
       );
     },

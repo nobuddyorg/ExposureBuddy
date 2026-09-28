@@ -15,13 +15,8 @@ import type {
   RgbaImage,
   Size,
 } from '../vision/types';
-import { PipelineError } from './failure';
-import {
-  isAbortError,
-  request,
-  type WorkerFactory,
-  type WorkerPort,
-} from './workerPort';
+import { PipelineError, toPipelineFailure } from './failure';
+import { request, type WorkerFactory, type WorkerPort } from './workerPort';
 
 export type PipelineStage =
   'reference' | 'aligning' | 'stacking' | 'compositing';
@@ -264,10 +259,6 @@ export async function runPipeline(
     };
   } catch (error) {
     terminateAll();
-    if (error instanceof PipelineError || isAbortError(error)) throw error;
-    throw new PipelineError({
-      kind: 'unknown',
-      message: error instanceof Error ? error.message : String(error),
-    });
+    throw new PipelineError(toPipelineFailure(error));
   }
 }

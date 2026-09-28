@@ -3,21 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { shiftGray, texturedScene } from '../features/synthetic.test-support';
 import type { AlignWorkerResponse, Decoders } from './protocol';
 import { createAlignService } from './alignService';
-import type { GrayImage, RgbaImage, Size } from '../types';
+import type { Size } from '../types';
+import { toRgba } from './images.test-support';
 
 const SCENE: Size = { width: 200, height: 150 };
 const SHIFT = { x: 6, y: -4 };
-
-function toRgba(gray: GrayImage): RgbaImage {
-  const data = new Uint8ClampedArray(gray.width * gray.height * 4);
-  for (let index = 0; index < gray.data.length; index += 1) {
-    data[index * 4] = gray.data[index];
-    data[index * 4 + 1] = gray.data[index];
-    data[index * 4 + 2] = gray.data[index];
-    data[index * 4 + 3] = 255;
-  }
-  return { width: gray.width, height: gray.height, data };
-}
 
 class Unreadable extends Error {}
 
@@ -87,6 +77,19 @@ describe('createAlignService', () => {
     >;
     expect(decoded.features.keypoints.length).toBeGreaterThan(50);
     expect(transfer).toEqual([decoded.image.data.buffer]);
+  });
+
+  it('lets a decode error that is not an unreadable file through', async () => {
+    const serve = createAlignService(
+      {
+        ...decoders,
+        decodeReference: () => Promise.reject(new Error('disk on fire')),
+      },
+      isUnreadable,
+    );
+    await expect(
+      serve({ type: 'decode-reference', id: 1, file: blob('scene'), sizing }),
+    ).rejects.toThrow('disk on fire');
   });
 
   it('reports an unreadable reference instead of failing', async () => {

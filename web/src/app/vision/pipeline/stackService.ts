@@ -18,10 +18,11 @@ export function createStackService(
   const served = (
     response: StackWorkerResponse,
     transfer: ArrayBuffer[] = [],
-  ): Promise<Served<StackWorkerResponse>> =>
-    Promise.resolve({ response, transfer });
+  ): Served<StackWorkerResponse> => ({ response, transfer });
 
-  return (request) => {
+  const dispatch = (
+    request: StackWorkerRequest,
+  ): Served<StackWorkerResponse> => {
     const { id } = request;
     switch (request.type) {
       case 'add-reference':
@@ -52,4 +53,7 @@ export function createStackService(
       }
     }
   };
+
+  // Deferred so a session error surfaces as a rejection, the one failure path the worker glue knows.
+  return (request) => Promise.resolve().then(() => dispatch(request));
 }

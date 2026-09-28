@@ -134,7 +134,11 @@ describe('applyGain', () => {
         fc.integer({ min: 0, max: 255 }),
         fc.double({ min: 0.5, max: 2, noNaN: true }),
         (value, gain) => {
-          const frame = flatRgba({ width: 2, height: 1 }, [value, value, value]);
+          const frame = flatRgba({ width: 2, height: 1 }, [
+            value,
+            value,
+            value,
+          ]);
           applyGain(frame, [gain, gain, gain], new Uint8Array([1, 1]));
           const expected = Math.min(255, Math.round(value * gain));
           expect(Array.from(frame.data.subarray(0, 3))).toEqual([

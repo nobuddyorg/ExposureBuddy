@@ -13,7 +13,6 @@ import {
   runPipeline,
   type PipelineProgress,
 } from './runPipeline';
-import { isAbortError } from './workerPort';
 
 const WORKING = { width: 8, height: 6 };
 const FEATURES = {
@@ -230,7 +229,7 @@ describe('runPipeline', () => {
   });
 
   it('fails with too_few_aligned when only the reference survives, and stops every worker', async () => {
-    const { factory, result } = run(['skip', 'bad', 'ok', 'skip']);
+    const { factory, result } = run(['skip', 'bad', 'ok', 'skip', 'bad']);
     await expect(result).rejects.toMatchObject({
       failure: { kind: 'too_few_aligned', count: 1 },
     });
@@ -254,7 +253,7 @@ describe('runPipeline', () => {
   });
 
   it('wraps a worker error as an unknown failure', async () => {
-    const { result } = run(['ok', 'crash', 'ok']);
+    const { result } = run(['crash', 'ok', 'ok']);
     await expect(result).rejects.toBeInstanceOf(PipelineError);
     await expect(result).rejects.toMatchObject({
       failure: { kind: 'unknown', message: 'kernel exploded' },
@@ -263,14 +262,34 @@ describe('runPipeline', () => {
 
   it('rejects with the abort and terminates the workers when cancelled mid-way', async () => {
     const controller = new AbortController();
-    const { factory, result } = run(['ok', 'ok', 'ok', 'ok', 'ok', 'ok'], {
+    const align = alignHandler();
+    // Alignment never answers, so the run is guaranteed to still be in flight when the abort lands.
+    const factory = createFakeFactory(
+      (request, post) =>
+        request.type === 'align'
+          ? new Promise<void>(() => {})
+          : align(request, post),
+      stackHandler(),
+    );
+    const result = runPipeline({
+      files: [file('ok'), file('ok'), file('ok')],
+      names: ['a', 'b', 'c'],
+      options: { quality: 'low', poolSize: 2 },
+      workers: factory,
+      onProgress: () => {},
       signal: controller.signal,
     });
     await vi.waitFor(() =>
-      expect(factory.aligners[0].sent.length).toBeGreaterThan(1),
+      expect(
+        factory.aligners
+          .flatMap((port) => port.sent)
+          .filter((m) => m.type === 'align'),
+      ).toHaveLength(2),
     );
     controller.abort();
-    await expect(result).rejects.toSatisfy(isAbortError);
+    await expect(result).rejects.toMatchObject({
+      failure: { kind: 'cancelled' },
+    });
     expect(factory.aligners.every((port) => port.terminated)).toBe(true);
     expect(factory.stacks[0].terminated).toBe(true);
   });

@@ -128,7 +128,7 @@ describe('useExposure', () => {
     expect(factory.stacks[0].terminated).toBe(true);
   });
 
-  it('starting again discards the earlier run, and a late result of it is disposed', async () => {
+  it('starting again aborts the earlier run and its workers', async () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
     const { result } = renderHook(() => useExposure(factory, 2));
     act(() => result.current.start([file('ok'), file('ok')], 'low'));

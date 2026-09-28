@@ -4,7 +4,13 @@ import { ransacHomography } from '../geometry/ransac';
 import { rgbaToGray } from '../image/gray';
 import { fitWithin, resizeGray } from '../image/resize';
 import { matchDescriptors } from '../matching/hamming';
-import type { AlignedFrame, FeatureSet, RgbaImage } from '../types';
+import type {
+  AlignedFrame,
+  FeatureSet,
+  Point,
+  RansacResult,
+  RgbaImage,
+} from '../types';
 import { warpRgba } from '../warp/warp';
 import { ALIGNMENT_LONG_EDGE } from './budget';
 
@@ -31,6 +37,20 @@ export function referenceFeatures(image: RgbaImage): FeatureSet {
   return detectAndDescribe(resizeGray(rgbaToGray(image), alignmentSize));
 }
 
+export type HomographyEstimator = (
+  source: readonly Point[],
+  target: readonly Point[],
+) => RansacResult | null;
+
+export interface AlignOptions {
+  /** The robust fit, RANSAC by default; injected so the failure paths can be driven deterministically. */
+  readonly estimate: HomographyEstimator;
+}
+
+const DEFAULT_ALIGN_OPTIONS: AlignOptions = {
+  estimate: (source, target) => ransacHomography(source, target),
+};
+
 function skipped(matches: number, inliers: number): AlignOutcome {
   return { kind: 'skipped', matches, inliers };
 }
@@ -39,8 +59,9 @@ function skipped(matches: number, inliers: number): AlignOutcome {
 export function alignToReference(
   image: RgbaImage,
   reference: FeatureSet,
-  random?: () => number,
+  options: Partial<AlignOptions> = {},
 ): AlignOutcome {
+  const { estimate } = { ...DEFAULT_ALIGN_OPTIONS, ...options };
   const gray = resizeGray(rgbaToGray(image), reference);
   const features = detectAndDescribe(gray);
   const matches = matchDescriptors(features, reference);
@@ -48,7 +69,7 @@ export function alignToReference(
 
   const source = matches.map((match) => features.keypoints[match.queryIndex]);
   const target = matches.map((match) => reference.keypoints[match.trainIndex]);
-  const fit = ransacHomography(source, target, random ? { random } : {});
+  const fit = estimate(source, target);
   if (!fit) return skipped(matches.length, 0);
 
   const enough =

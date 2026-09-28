@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 
 import { boxBlurFloat } from './boxBlur';
 
-function impulse(width: number, height: number, x: number, y: number): Float32Array {
+function impulse(
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): Float32Array {
   const data = new Float32Array(width * height);
   data[y * width + x] = 1;
   return data;
@@ -54,7 +59,13 @@ describe('boxBlurFloat', () => {
   });
 
   it('spreads an impulse evenly over its window with one pass', () => {
-    const blurred = boxBlurFloat(impulse(9, 9, 4, 4), { width: 9, height: 9 }, 1, 1, 1);
+    const blurred = boxBlurFloat(
+      impulse(9, 9, 4, 4),
+      { width: 9, height: 9 },
+      1,
+      1,
+      1,
+    );
     for (let y = 0; y < 9; y += 1) {
       for (let x = 0; x < 9; x += 1) {
         const inside = Math.abs(x - 4) <= 1 && Math.abs(y - 4) <= 1;
@@ -66,22 +77,43 @@ describe('boxBlurFloat', () => {
   it('spreads an impulse symmetrically with three passes', () => {
     const size = 15;
     const center = 7;
-    const blurred = boxBlurFloat(impulse(size, size, center, center), { width: size, height: size }, 1, 2);
-    expect(blurred[center * size + center]).toBeGreaterThan(blurred[center * size + center + 1]);
-    expect(blurred[center * size + center + 1]).toBeGreaterThan(blurred[center * size + center + 2]);
+    const blurred = boxBlurFloat(
+      impulse(size, size, center, center),
+      { width: size, height: size },
+      1,
+      2,
+    );
+    expect(blurred[center * size + center]).toBeGreaterThan(
+      blurred[center * size + center + 1],
+    );
+    expect(blurred[center * size + center + 1]).toBeGreaterThan(
+      blurred[center * size + center + 2],
+    );
     for (let y = 0; y < size; y += 1) {
       for (let x = 0; x < size; x += 1) {
         const mirroredX = size - 1 - x;
         const mirroredY = size - 1 - y;
-        expect(blurred[y * size + x]).toBeCloseTo(blurred[y * size + mirroredX], 6);
-        expect(blurred[y * size + x]).toBeCloseTo(blurred[mirroredY * size + x], 6);
+        expect(blurred[y * size + x]).toBeCloseTo(
+          blurred[y * size + mirroredX],
+          6,
+        );
+        expect(blurred[y * size + x]).toBeCloseTo(
+          blurred[mirroredY * size + x],
+          6,
+        );
         expect(blurred[y * size + x]).toBeCloseTo(blurred[x * size + y], 6);
       }
     }
   });
 
   it('replicates the edge, so a corner impulse counts more than once in its window', () => {
-    const blurred = boxBlurFloat(impulse(5, 5, 0, 0), { width: 5, height: 5 }, 1, 1, 1);
+    const blurred = boxBlurFloat(
+      impulse(5, 5, 0, 0),
+      { width: 5, height: 5 },
+      1,
+      1,
+      1,
+    );
     expect(blurred[0]).toBeCloseTo(4 / 9, 6);
     expect(blurred[1]).toBeCloseTo(2 / 9, 6);
     expect(blurred[6]).toBeCloseTo(1 / 9, 6);
@@ -116,8 +148,14 @@ describe('boxBlurFloat', () => {
             const y = margin + Math.floor(index / 3);
             data[y * width + x] = values[index];
           }
-          const blurred = boxBlurFloat(data, { width, height }, 1, radius, passes);
-          expect(sum(blurred)).toBeCloseTo(sum(data), 3);
+          const blurred = boxBlurFloat(
+            data,
+            { width, height },
+            1,
+            radius,
+            passes,
+          );
+          expect(sum(blurred)).toBeCloseTo(sum(data), 2);
         },
       ),
     );

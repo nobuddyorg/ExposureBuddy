@@ -62,21 +62,22 @@ export function composite(
       target += RGB;
     }
   }
-  const blurredGhost = boxBlurFloat(
-    ghost,
-    rect,
-    RGB,
-    params.ghostBlur,
-    BLUR_PASSES,
-  );
-  const blurredGlow = boxBlurFloat(
-    glowSource,
-    rect,
-    RGB,
-    2 * params.ghostBlur + GLOW_BLUR_MARGIN,
-    BLUR_PASSES,
-  );
   const glowWeight = params.glow * GLOW_SCALE;
+  // A blur whose weight is 0 cannot show, so it is not computed.
+  const blurredGhost =
+    params.ghostStrength === 0
+      ? ghost
+      : boxBlurFloat(ghost, rect, RGB, params.ghostBlur, BLUR_PASSES);
+  const blurredGlow =
+    glowWeight === 0
+      ? glowSource
+      : boxBlurFloat(
+          glowSource,
+          rect,
+          RGB,
+          2 * params.ghostBlur + GLOW_BLUR_MARGIN,
+          BLUR_PASSES,
+        );
   const output = new Uint8ClampedArray(pixelCount * RGBA);
   for (let pixel = 0; pixel < pixelCount; pixel += 1) {
     const rgb = pixel * RGB;
