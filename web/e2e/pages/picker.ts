@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
-export type Quality = 'low' | 'standard' | 'high';
+type Quality = 'low' | 'standard' | 'high';
 
 interface Picker {
   (): Locator;

@@ -32,5 +32,17 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "out",
+    ".next",
+    ".e2e-serve",
+    "coverage",
+    "coverage-e2e",
+    "reports",
+    "test-results",
+    "playwright-report",
+    "lighthouse-reports",
+    ".stryker-tmp"
+  ]
 }

@@ -24,14 +24,6 @@ export function expectNoPageProblems(problems: PageProblems) {
   expect(problems.console, 'console errors').toEqual([]);
 }
 
-/** Whether the document is wider than the window that has to show it (sideways scroll). */
-export async function horizontalOverflow(page: Page) {
-  return page.evaluate(() => ({
-    scrollWidth: document.documentElement.scrollWidth,
-    clientWidth: document.documentElement.clientWidth,
-  }));
-}
-
 /** The computed value of a custom property (or any property) on `<html>`, trimmed. */
 export function cssVariable(page: Page, name: string) {
   return page.evaluate(

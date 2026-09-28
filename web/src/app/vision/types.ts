@@ -102,11 +102,7 @@ export interface CompositeParams {
 
 /** `pending` until the frame is looked at; `unreadable` when it could not be decoded at all. */
 export type AlignmentStatus =
-  | 'pending'
-  | 'reference'
-  | 'aligned'
-  | 'skipped'
-  | 'unreadable';
+  'pending' | 'reference' | 'aligned' | 'skipped' | 'unreadable';
 
 /** What one frame contributed, shown per photo on the progress and result screens. */
 export interface FrameReport {

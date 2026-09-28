@@ -12,6 +12,7 @@ const isRemote = Boolean(process.env.E2E_BASE_URL);
 
 // A container may ship only a Chromium of another revision; CI downloads the matching one and leaves this unset.
 const chromiumExecutable = process.env.CHROMIUM_EXECUTABLE_PATH;
+const allEngines = Boolean(process.env.CI ?? process.env.E2E_ALL_ENGINES);
 const chromiumLaunch = chromiumExecutable
   ? { launchOptions: { executablePath: chromiumExecutable } }
   : {};
@@ -48,16 +49,20 @@ export default defineConfig({
       name: 'mobile',
       use: { ...devices['Pixel 7'], ...chromiumLaunch },
     },
-    // The only non-Chromium engine on the desktop; coverage collection skips it, every other assertion runs here too.
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    // iPhones are where most bursts are shot; WebKit differs in workers, canvas and file inputs.
-    {
-      name: 'webkit-mobile',
-      use: { ...devices['iPhone 14'] },
-    },
+    // Firefox and WebKit run in CI (or with E2E_ALL_ENGINES); a local checkout needs only Chromium installed.
+    ...(allEngines
+      ? [
+          {
+            name: 'firefox',
+            use: { ...devices['Desktop Firefox'] },
+          },
+          // iPhones are where most bursts are shot; WebKit differs in workers, canvas and file inputs.
+          {
+            name: 'webkit-mobile',
+            use: { ...devices['iPhone 14'] },
+          },
+        ]
+      : []),
   ],
   webServer: isRemote
     ? undefined

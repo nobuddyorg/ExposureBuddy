@@ -6,6 +6,9 @@ import { listBurst } from '../helpers';
 // Pinned, so a locale switch is not scanned as a second accessibility state.
 test.use({ locale: 'en-GB' });
 
+// Reduced motion: axe otherwise samples the dialog mid-fade and reports the blended colours as a contrast failure.
+test.use({ reducedMotion: 'reduce' });
+
 test.describe('accessibility', () => {
   test('the picker has no serious or critical violations', async ({
     on,

@@ -118,7 +118,7 @@ export type StackWorkerResponse =
   | WorkerFailure;
 
 /** Answers any request whose handler threw; `message` is the thrown error's message. */
-export interface WorkerFailure {
+interface WorkerFailure {
   readonly type: 'error';
   readonly id: number;
   readonly message: string;

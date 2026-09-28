@@ -7,7 +7,7 @@ import {
 
 import type { DecodedPng } from '../png';
 
-export type Slider = 'ghost' | 'blur' | 'glow';
+type Slider = 'ghost' | 'blur' | 'glow';
 
 interface Result {
   (): Locator;

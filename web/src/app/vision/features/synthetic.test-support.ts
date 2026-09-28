@@ -6,8 +6,8 @@ import {
 } from '../types';
 import { mulberry32 } from './random';
 
-export const SQUARE_GROUND = 30;
-export const SQUARE_BRIGHT = 220;
+const SQUARE_GROUND = 30;
+const SQUARE_BRIGHT = 220;
 
 /** Returns a width × height gray image filled with `value`. */
 export function flatGray(

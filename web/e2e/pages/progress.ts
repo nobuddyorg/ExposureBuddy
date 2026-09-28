@@ -32,17 +32,12 @@ export function initProgress(page: Page): Progress {
       await locators.buttons.cancel.click();
     },
     // True when the click landed while the pipeline still ran; false when the screen went away first.
-    tryCancel: () => {
-      const clicked = locators.buttons.cancel.click({ timeout: 5_000 }).then(
+    // The button unmounts the moment the pipeline finishes, so a click that lands is a cancellation and one that cannot land is not.
+    tryCancel: () =>
+      locators.buttons.cancel.click({ timeout: 5_000 }).then(
         () => true,
         () => false,
-      );
-      const finished = root.waitFor({ state: 'hidden', timeout: 60_000 }).then(
-        () => false,
-        () => false,
-      );
-      return Promise.race([clicked, finished]);
-    },
+      ),
   };
   return Object.assign(() => root, { locators, do: interactions });
 }

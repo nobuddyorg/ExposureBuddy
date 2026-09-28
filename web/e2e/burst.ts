@@ -12,7 +12,7 @@ export interface Similarity {
 }
 
 /** Pixel-aligned rectangle with exclusive far edges. */
-export interface Rect {
+interface Rect {
   readonly x: number;
   readonly y: number;
   readonly width: number;
@@ -93,7 +93,7 @@ export function renderThroughTransform(
 }
 
 /** The largest axis-aligned rectangle inside `rect` as `transform` moves it, inset by a few pixels. */
-export function mapRectThroughTransform(
+function mapRectThroughTransform(
   rect: Rect,
   transform: Similarity,
   size: { readonly width: number; readonly height: number },

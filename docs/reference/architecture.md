@@ -17,7 +17,8 @@ web/src/app/
   i18n/            dictionaries (de.json, en.json), I18nProvider, useI18n   -- leaf, no app deps
   useTheme.ts      light / dark / system, applied before first paint by an inline script
   useServiceWorker.ts, ServiceWorkerRegistration.tsx    registers public/sw.js
-  components/      React only: Header, PhotoPicker, Progress, Result, Help, ui/
+  components/      React only: AppShell (chrome around every page), Header, Help,
+                   PhotoPicker, Progress, Result, PipelineError, ui/ (class helpers, Dialog)
   exposure/        the pipeline as the UI sees it: runPipeline (coordinator), decode, useExposure
   vision/          pure TypeScript over typed arrays -- no React, no Next, no DOM (enforced)
     image/         gray conversion, resize, box blur, integral image
@@ -147,6 +148,8 @@ typos, gitleaks over the history, zizmor, actionlint, markdownlint), then
 vitest with coverage, Playwright on chromium / mobile / firefox / webkit-mobile
 with e2e coverage), `mutation_test` (Stryker over `mutation-targets.mjs`),
 `opengrep` (SAST, error severity blocks), `lighthouse` (against the export
-served under its base path). `pages-deploy.yml` builds and publishes `main`
-once CI has passed on it, then runs the Playwright suite against the live
-site.
+served under its base path) and `zap_baseline` (a passive OWASP ZAP scan of
+the export). A local checkout runs Playwright on Chromium only (desktop and
+Pixel 7); Firefox and WebKit need the `CI` or `E2E_ALL_ENGINES` variable and
+the browsers installed. `pages-deploy.yml` builds and publishes `main` once
+CI has passed on it, then runs the Chromium suite against the live site.

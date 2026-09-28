@@ -40,7 +40,7 @@ function finiteDouble(min: number, max: number): fc.Arbitrary<number> {
   return fc.double({ min, max, noNaN: true });
 }
 
-export const saneMotionArbitrary: fc.Arbitrary<Motion> = fc.record({
+const saneMotionArbitrary: fc.Arbitrary<Motion> = fc.record({
   angle: finiteDouble(-0.1, 0.1),
   scale: finiteDouble(0.8, 1.25),
   translateX: finiteDouble(-40, 40),

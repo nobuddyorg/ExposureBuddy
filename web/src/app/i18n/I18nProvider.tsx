@@ -170,17 +170,6 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
   // eslint-disable-next-line react-hooks/refs -- written during render, as languageRef, so t formats numbers for this render's language
   numberFormatRef.current = numberFormat;
 
-  // Keeps <html lang> and the meta description with the language, or screen readers use the wrong phonetics.
-  useEffect(() => {
-    document.documentElement.lang = language;
-    document
-      .querySelector('meta[name="description"]')
-      ?.setAttribute(
-        'content',
-        resolveTranslationKey(translations[language], 'app.description') ?? '',
-      );
-  }, [language]);
-
   const t = useCallback(
     (key: TranslationKey, values: TranslationValues = {}) =>
       interpolate(
@@ -189,6 +178,14 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
       ),
     [],
   );
+
+  // Keeps <html lang> and the meta description with the language, or screen readers use the wrong phonetics.
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute('content', t('app.description'));
+  }, [language, t]);
 
   const tCount = useCallback((baseKey: TranslationKey, count: number) => {
     const dictionary = translations[languageRef.current];

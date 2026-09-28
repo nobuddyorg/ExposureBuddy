@@ -1,0 +1,17 @@
+name: Set up the web toolchain
+description: Node.js with an npm cache keyed on web/package-lock.json, then `npm ci --ignore-scripts` in web/; the Node version is pinned here once.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: '22.x'
+        cache: npm
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: web
+      # No lifecycle scripts, so a bumped package cannot rewrite node_modules before the deploy build.
+      run: npm ci --ignore-scripts

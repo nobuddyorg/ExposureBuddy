@@ -1,0 +1,2 @@
+# Opengrep's ignore file; v1.30.0 has no flag to rename it off the Semgrep default.
+# Nothing is excused: every file under web/src, web/scripts and web/e2e is scanned. A future entry carries its reason here (developer-guide.md, Run Opengrep).

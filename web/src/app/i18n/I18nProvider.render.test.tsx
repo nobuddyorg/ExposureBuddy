@@ -176,32 +176,6 @@ describe('I18nProvider', () => {
     expect(meta.getAttribute('content')).toContain('Langzeitbelichtung');
   });
 
-  // The parity test guards only t()/tCount() literals, not this direct resolveTranslationKey call.
-  it('falls back to an empty meta description when the active language is missing app.description', async () => {
-    vi.resetModules();
-    vi.doMock('./en.json', () => ({
-      default: { ...realEn, app: { ...realEn.app, description: undefined } },
-    }));
-    const { I18nProvider: FreshProvider } = await import('./I18nProvider');
-    const { useI18n: freshUseI18n } = await import('./useI18n');
-    function FreshProbe() {
-      const { language } = freshUseI18n();
-      return <span data-testid="lang">{language}</span>;
-    }
-    localStorage.setItem('lang', 'en');
-
-    render(
-      <FreshProvider>
-        <FreshProbe />
-      </FreshProvider>,
-    );
-
-    expect(screen.getByTestId('lang')).toHaveTextContent('en');
-    expect(meta.getAttribute('content')).toBe('');
-    vi.doUnmock('./en.json');
-    vi.resetModules();
-  });
-
   it('tolerates a document with no meta description tag at all', () => {
     meta.remove();
     localStorage.setItem('lang', 'en');

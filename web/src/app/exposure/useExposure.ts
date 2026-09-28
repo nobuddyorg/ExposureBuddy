@@ -11,7 +11,7 @@ import {
 } from './runPipeline';
 import type { WorkerFactory } from './workerPort';
 
-export type ExposureState =
+type ExposureState =
   | { readonly status: 'idle' }
   | { readonly status: 'running'; readonly progress: PipelineProgress }
   | { readonly status: 'ready'; readonly result: ExposureResult }

@@ -28,7 +28,7 @@ export interface PipelineProgress {
   readonly frames: readonly FrameReport[];
 }
 
-export interface PipelineOptions {
+interface PipelineOptions {
   readonly quality: OutputQuality;
   /** Align workers to run at once; the stack worker is always one more. */
   readonly poolSize: number;

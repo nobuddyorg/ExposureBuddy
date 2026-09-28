@@ -1,0 +1,3 @@
+# gitleaks' default rules, nothing more: the app holds no credential of its own, and CI's only secrets (Codecov, the Stryker dashboard) are covered by the generic rules.
+[extend]
+useDefault = true

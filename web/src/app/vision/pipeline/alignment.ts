@@ -37,7 +37,7 @@ export function referenceFeatures(image: RgbaImage): FeatureSet {
   return detectAndDescribe(resizeGray(rgbaToGray(image), alignmentSize));
 }
 
-export type HomographyEstimator = (
+type HomographyEstimator = (
   source: readonly Point[],
   target: readonly Point[],
 ) => RansacResult | null;

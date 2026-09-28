@@ -9,8 +9,6 @@ import { initProgress } from './progress';
 import { initResult } from './result';
 
 /** Getters, so a spec that wants one screen builds only that screen's locators. */
-export type PageTree = ReturnType<typeof createPageTree>;
-
 export function createPageTree(page: Page) {
   return {
     get header() {

@@ -168,12 +168,15 @@ describe('ransacHomography', () => {
 
   it('honours the threshold: a tighter one admits fewer of the noisy correspondences', () => {
     const { source, target } = contaminate(80, 0.2, 8);
+    // A tight threshold keeps the adaptive bound high, so the iterations are capped to keep the test fast under instrumentation.
     const loose = ransacHomography(source, target, {
       threshold: 3,
+      maxIterations: 300,
       random: createRandom(1),
     });
     const tight = ransacHomography(source, target, {
       threshold: 0.2,
+      maxIterations: 300,
       random: createRandom(1),
     });
     expect(loose).not.toBeNull();

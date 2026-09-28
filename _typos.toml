@@ -1,0 +1,18 @@
+# typos' config for the `typos` hook in .pre-commit-config.yaml.
+[files]
+# German prose reads as misspelled English near word-for-word (the dictionary and the tests asserting it); the lockfile is a wall of hashes; the fixtures are generated pixels.
+extend-exclude = [
+  "web/package-lock.json",
+  "web/src/app/i18n/de.json",
+  "web/src/app/i18n/I18nProvider.render.test.tsx",
+  "web/src/app/not-found.test.tsx",
+  "web/src/app/components/AppShell/index.test.tsx",
+  "web/src/app/components/Header/index.test.tsx",
+  "web/src/app/components/PipelineError/index.test.tsx",
+  "web/src/app/components/Progress/index.test.tsx",
+  "web/e2e/fixtures",
+]
+
+[default.extend-words]
+# The PNG filter type 4 predictor is named after Alan Paeth, not a misspelt path.
+paeth = "paeth"

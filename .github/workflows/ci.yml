@@ -1,0 +1,420 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # By hand from main: re-tests the tip, and pages-deploy.yml accepts a dispatched run as CI proof.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Unconditional: hygiene must see every changed file, the secret scan every commit. The web hooks are skipped because build_and_test runs the same commands.
+  prek:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # The hook's own version (.pre-commit-config.yaml); the checksum is the release's gitleaks_<version>_checksums.txt entry.
+      - name: Install gitleaks
+        shell: bash
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 -o "$RUNNER_TEMP/gitleaks.tar.gz" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+
+      # Every commit HEAD reaches, the PR's own included even if a later one removes the secret; the hook sees only staged changes, so it is skipped below.
+      - name: Scan the history for secrets
+        run: |
+          "$RUNNER_TEMP/gitleaks" git --config .gitleaks.toml --redact --no-banner --log-opts=HEAD .
+
+      - uses: j178/prek-action@4e14d07f9231acabce116ccfca13b13dd9755ece # v3.0.0
+        with:
+          extra-args: "--all-files"
+          prek-version: "0.5.3"
+        env:
+          SKIP: no-commit-to-branch,gitleaks,prettier,eslint,tsc,depcruise,knip
+
+  # A push to main or a dispatch forces every job: Deploy Pages waits for this whole run to pass, and a merge may combine unrelated changes.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      web: ${{ steps.force.outputs.value == 'true' || steps.filter.outputs.web == 'true' }}
+    steps:
+      - name: Force a full run on pushes to main and on dispatches
+        id: force
+        run: echo "value=${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      # Whatever the jobs run on (ci.yml, the composite actions, the scan configs) is in the filter too.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'web/**'
+              - '.zap/rules.tsv'
+              - '.semgrepignore'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/**'
+
+  build_and_test:
+    needs: [prek, changes]
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ./web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-web
+
+      # The synthetic bursts the e2e suite reads; generated, never committed.
+      - name: Generate the e2e fixtures
+        run: npm run fixtures
+
+      # Source maps so e2e/coverage.ts can map the bundle back to src/app; the deploy build never sets this.
+      - name: Build Next.js application
+        run: npm run build
+        env:
+          E2E_COVERAGE_SOURCEMAPS: 'true'
+
+      # After the build: `next build` generates the gitignored next-env.d.ts that tsc and ESLint need.
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Check formatting
+        run: npx prettier --check .
+
+      - name: Lint
+        run: npm run lint
+
+      # `shell: bash` adds pipefail; the implicit `bash -e` would report tee's status, not the command's.
+      - name: Check architectural boundaries
+        shell: bash
+        run: npm run depcruise 2>&1 | tee depcruise-output.txt
+
+      - name: Add architecture check to job summary
+        if: always()
+        uses: ./.github/actions/summary-section
+        with:
+          title: '🏗️ Architectural boundaries (dependency-cruiser)'
+          file: web/depcruise-output.txt
+
+      # `--silent` drops npm's own banner: Knip prints nothing when clean, so an empty file means clean.
+      - name: Check for dead code and unused dependencies
+        shell: bash
+        run: npm run --silent knip 2>&1 | tee knip-output.txt
+
+      - name: Add dead-code check to job summary
+        if: always()
+        uses: ./.github/actions/summary-section
+        with:
+          title: '🧹 Dead code and unused dependencies (Knip)'
+          file: web/knip-output.txt
+          empty-message: '✅ No unused files, exports or dependencies.'
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage to Codecov
+        # v5.5.1 fetched Codecov's GPG key from a Keybase account Codecov has since deleted; v7 carries the key.
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: web/coverage
+          fail_ci_if_error: true
+
+      # Reads the json-summary reporter vitest.config.mts adds for this step.
+      - name: Add coverage report to job summary
+        if: always()
+        uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+        with:
+          working-directory: web
+          vite-config-path: vitest.config.mts
+          file-coverage-mode: none
+          comment-on: 'none'
+          # No threshold-icons: setting them forces one shared cutoff for all four categories and warns on every run.
+
+      # Every engine: canvas, workers and file inputs differ between them (playwright.config.ts). Playwright serves the export under the base path itself.
+      - name: Install browsers for the end-to-end suite
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      # Coverage is collected on the Chromium projects only (CDP); the gate in e2e/coverage.ts runs in the global teardown.
+      - name: Run end-to-end tests
+        run: npm run e2e
+        env:
+          E2E_COVERAGE: 'true'
+
+      - name: Publish the end-to-end results
+        if: always()
+        uses: ./.github/actions/playwright-results
+        with:
+          title: 'End-to-end tests -- chromium, mobile, firefox, webkit-mobile'
+          tag: 'e2e'
+          artifact-name: playwright-report
+          coverage-artifact-name: e2e-coverage
+          job-status: ${{ job.status }}
+
+  # Scoped to mutation-targets.mjs (stryker.config.mjs): the kernels and the pipeline orchestration, never the rendering layer.
+  mutation_test:
+    needs: [prek, changes]
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: ./web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-web
+
+      # Stryker's incremental file; a PR restores main's latest. Keyed on what incremental mode cannot see: dependencies and test config.
+      - name: Restore the incremental mutation report
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/reports/stryker-incremental.json
+          key: stryker-incremental-${{ hashFiles('web/package-lock.json', 'web/stryker.config.mjs', 'web/vitest.config.mts', 'web/vitest.mutation.config.mts', 'web/vitest.setup.ts') }}-${{ github.run_id }}
+          restore-keys: stryker-incremental-${{ hashFiles('web/package-lock.json', 'web/stryker.config.mjs', 'web/vitest.config.mts', 'web/vitest.mutation.config.mts', 'web/vitest.setup.ts') }}-
+
+      # Dashboard key only on main, so the published report and badge track one branch.
+      # main reruns every mutant (--force): incremental is blind to modules a target imports, and main's run seeds every PR's cache.
+      - name: Run mutation testing
+        run: npx stryker run ${FULL_RUN:+--force}
+        env:
+          FULL_RUN: ${{ github.ref == 'refs/heads/main' && 'true' || '' }}
+          STRYKER_DASHBOARD_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.STRYKER_DASHBOARD_API_KEY || '' }}
+
+      # Built from reports/mutation/mutation.json (scripts/mutation-summary.mjs); the console log is mostly expected per-mutant failures.
+      - name: Add mutation report to job summary
+        if: always()
+        run: npm run mutation:summary
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutation-report
+          path: web/reports/mutation
+          retention-days: 30
+
+  # Opengrep needs no node_modules, so it is its own job. The scanned tree is web/{src,scripts,e2e}.
+  opengrep:
+    needs: [prek, changes]
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The release binary install.sh picks for a glibc x86_64 runner; the release publishes no checksum file, so the hash is of that asset.
+      - name: Install Opengrep
+        shell: bash
+        env:
+          OPENGREP_VERSION: v1.30.0
+          OPENGREP_SHA256: 35779bdd72e92129c8df2a77f0c55e8c08356801ea92591ef32108d6b28d564c
+        run: |
+          mkdir -p "$RUNNER_TEMP/opengrep"
+          curl -fsSL --connect-timeout 10 --max-time 300 --retry 3 -o "$RUNNER_TEMP/opengrep/opengrep" "https://github.com/opengrep/opengrep/releases/download/${OPENGREP_VERSION}/opengrep_manylinux_x86"
+          echo "${OPENGREP_SHA256}  $RUNNER_TEMP/opengrep/opengrep" | sha256sum --check --strict
+          chmod +x "$RUNNER_TEMP/opengrep/opengrep"
+          "$RUNNER_TEMP/opengrep/opengrep" --version
+          echo "$RUNNER_TEMP/opengrep" >> "$GITHUB_PATH"
+
+      # `--config auto` fetches the public community pack anonymously. .semgrepignore is the one suppression file; Opengrep scans only git-tracked files.
+      - name: Run Opengrep
+        run: |
+          opengrep scan \
+            --config auto \
+            --sarif-output=opengrep-results.sarif \
+            --json-output=opengrep-results.json \
+            web/src web/scripts web/e2e
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          sarif_file: opengrep-results.sarif
+          category: opengrep
+
+      # Opengrep's SARIF leaves a result's `level` unset; severity lives on the rule, so results are joined to their rule once here.
+      - name: Join findings to their rule's severity
+        run: |
+          jq '
+            (reduce (.runs[].tool.driver.rules[]) as $rule ({}; .[$rule.id] = ($rule.defaultConfiguration.level // "warning"))) as $levelById
+            | [.runs[].results[] | {
+                level: ($levelById[.ruleId] // "warning"),
+                ruleId,
+                message: .message.text,
+                file: (.locations[0].physicalLocation.artifactLocation.uri // "?"),
+                line: (.locations[0].physicalLocation.region.startLine // 1)
+              }]
+          ' opengrep-results.sarif > opengrep-findings.json
+
+      - name: Add scan results to job summary
+        if: always()
+        run: |
+          {
+            echo '## 🔍 General-purpose SAST (Opengrep)'
+            echo
+            jq -r '
+              length as $total
+              | (map(select(.level == "error")) | length) as $errors
+              | "**Total findings:** \($total) (\($errors) at error severity -- blocking; full detail in the Security tab, category `opengrep`)\n"
+              + (if $total > 0
+                 then "\n| Severity | Rule | Location |\n|---|---|---|\n" + (
+                   sort_by(.level != "error", .level != "warning")
+                   | map("| \(.level) | `\(.ruleId)` | \(.file):\(.line) |")
+                   | join("\n")
+                 )
+                 else "" end)
+            ' opengrep-findings.json
+            # SARIF carries a parse error as free text only; the JSON output names its file.
+            jq -r '
+              [.errors[] | select(.path) | {
+                path,
+                line: (.spans[0].start.line // "?"),
+                kind: (.type | if type == "array" then .[0] else . end)
+              }]
+              | sort_by(.line)
+              | unique_by(.path)
+              | length as $count
+              | "\n**Partially analyzed files:** \($count) (no finding in their unparsed lines is reported; see the developer guide, Run Opengrep)\n"
+              + (if $count > 0
+                 then "\n| File | First error at line | Error |\n|---|---|---|\n"
+                   + (map("| \(.path) | \(.line) | \(.kind) |") | join("\n"))
+                 else "" end)
+            ' opengrep-results.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # After the upload, so the Security tab stays populated either way. WARNING/INFO stay report-only.
+      - name: Fail on error-severity findings
+        run: |
+          count=$(jq 'map(select(.level == "error")) | length' opengrep-findings.json)
+          if [ "$count" -gt 0 ]; then
+            jq -r '
+              map(select(.level == "error"))[]
+              | "::error file=\(.file),line=\(.line)::\(.ruleId): \(.message)"
+            ' opengrep-findings.json
+            echo "$count error-severity Opengrep finding(s) -- see the annotations above, the job summary, or the Security tab (category opengrep)."
+            exit 1
+          fi
+          echo "No error-severity findings."
+
+  # Against the production export served as Pages serves it (scripts/serve-export.mjs), never `next dev`. Accessibility is axe-core's gate (e2e/axe.ts), not asserted twice.
+  lighthouse:
+    needs: [prek, changes]
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ./web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-web
+
+      # scripts/lighthouse.mjs points chrome-launcher at Playwright's Chromium, so no second browser download.
+      - run: npx playwright install --with-deps chromium
+
+      # The script builds the export itself, then runs lhci autorun against lighthouserc.json.
+      - name: Run Lighthouse CI
+        run: npm run lighthouse
+
+      - name: Add Lighthouse scores to job summary
+        if: always()
+        run: npm run lighthouse:summary
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lighthouse-reports
+          path: web/lighthouse-reports
+          retention-days: 30
+
+  # Passive scan only, one pass: there is no signed-in state, the one screen is what a visitor gets. What it proves: TEST_STRATEGY.md §5.
+  zap_baseline:
+    needs: [prek, changes]
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ./web
+    # The tag the action's default `:stable` pointed at, pinned by digest; bumped by hand (developer-guide.md, Bump a pinned CI tool).
+    env:
+      ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:2.17.0@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-web
+
+      - name: Build the export
+        run: npm run build
+
+      # zap-baseline.py strips any path from its target and spiders the host root; the symlink makes one export answer at both `/` and `/ExposureBuddy/`.
+      - name: Serve the export at the site root
+        run: |
+          ln -s . out/ExposureBuddy
+          npx serve out -l 4173 &
+          echo $! > /tmp/zap-serve.pid
+          timeout 30 bash -c 'until curl -sf --max-time 5 http://127.0.0.1:4173/ >/dev/null; do sleep 1; done'
+
+      # `-I`: only a rule promoted to FAIL in .zap/rules.tsv fails the job; the rest lands in the report for triage.
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: 'http://127.0.0.1:4173/'
+          docker_name: ${{ env.ZAP_IMAGE }}
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-I'
+          fail_action: true
+          allow_issue_writing: false
+          artifact_name: 'zap-baseline-report'
+
+      # The action writes report_json.json into the workspace root.
+      - name: Add the ZAP results to the job summary
+        if: always()
+        run: node scripts/zap-summary.mjs --title '🕷️ OWASP ZAP baseline scan' ../report_json.json
+
+      # A lingering `serve` would hold the port; the symlink is not something `next build` expects to find.
+      - name: Stop the server
+        if: always()
+        run: |
+          kill "$(cat /tmp/zap-serve.pid)" 2>/dev/null || true
+          rm -f out/ExposureBuddy
