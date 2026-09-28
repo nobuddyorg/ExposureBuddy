@@ -1,0 +1,37 @@
+# dependencies
+/node_modules
+
+# testing
+/coverage
+/coverage-e2e
+/reports
+.stryker-tmp
+/test-results
+/playwright-report
+/blob-report
+/playwright-results.json
+# The directory scripts/serve-export.mjs builds to put out/ under the base
+# path; it holds nothing but a symlink and is removed when the server stops.
+/.e2e-serve
+# Synthetic burst fixtures: `npm run fixtures` writes them, the e2e suite reads them.
+/e2e/fixtures/generated
+
+# next.js
+/.next/
+/out/
+
+# misc
+.DS_Store
+*.pem
+*.log
+
+# env files
+.env*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Lighthouse CI: raw reports (npm run lighthouse) and lhci autorun's own scratch directory.
+/lighthouse-reports
+/.lighthouseci
