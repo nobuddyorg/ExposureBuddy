@@ -40,7 +40,10 @@ test.describe('the whole journey', () => {
     await app.picker.do.addPhotos(listBurst(BURST));
     await expect(app.picker.locators.thumbnails).toHaveCount(FRAME_COUNT);
     await expect(app.picker.locators.count).toContainText(String(FRAME_COUNT));
-    expect(await app.picker.do.thumbnailNaturalWidth(0)).toBeGreaterThan(0);
+    // WebKit decodes a blob: thumbnail a moment after it is in the DOM.
+    await expect
+      .poll(() => app.picker.do.thumbnailNaturalWidth(0))
+      .toBeGreaterThan(0);
 
     await app.picker.do.selectQuality('low');
     await app.picker.do.combine();

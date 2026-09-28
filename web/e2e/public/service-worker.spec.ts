@@ -160,7 +160,12 @@ test.describe('the service worker', () => {
     on,
     page,
     context,
+    browserName,
   }) => {
+    test.skip(
+      browserName === 'webkit',
+      "Playwright's WebKit reports an internal error on a navigation served by the service worker while offline",
+    );
     await page.goto('', { waitUntil: 'networkidle' });
     await waitForController(page);
     await page.reload({ waitUntil: 'networkidle' });

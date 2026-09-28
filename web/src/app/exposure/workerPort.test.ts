@@ -40,6 +40,14 @@ describe('request', () => {
     );
   });
 
+  it('rejects when the worker fails outright, and stops listening', async () => {
+    const port = createFakePort(() => undefined);
+    const pending = request(port, { type: 'stack', id: 1 });
+    port.emitError('Failed to load worker script');
+    await expect(pending).rejects.toThrow('Failed to load worker script');
+    port.emit({ type: 'stacked', id: 1 });
+  });
+
   it('passes the transfer list through', () => {
     const port = createFakePort(() => undefined);
     const buffer = new ArrayBuffer(4);
@@ -123,6 +131,21 @@ describe('portFromWorker', () => {
       { type: 'y', id: 2 },
       [],
     );
+  });
+
+  it("reports a worker's error event with its message, or a stand-in for a bare event", () => {
+    const worker = fakeWorker();
+    const port = portFromWorker(worker as unknown as Worker);
+    const listener = vi.fn();
+    const unsubscribe = port.onError(listener);
+    worker.handlers.forEach((handler) => handler({ message: 'boom' } as never));
+    worker.handlers.forEach((handler) => handler({ type: 'error' } as never));
+    expect(listener.mock.calls).toEqual([
+      ['boom'],
+      ['The worker failed to start.'],
+    ]);
+    unsubscribe();
+    expect(worker.handlers.size).toBe(0);
   });
 
   it('delivers event data to listeners until unsubscribed, and terminates', () => {

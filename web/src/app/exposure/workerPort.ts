@@ -5,6 +5,8 @@ export interface WorkerPort {
   postMessage(message: unknown, transfer?: readonly ArrayBuffer[]): void;
   /** Subscribes to every message; returns the unsubscribe. */
   onMessage(listener: (message: unknown) => void): () => void;
+  /** Subscribes to the worker failing outright (a script that does not load or throws at top level). */
+  onError(listener: (message: string) => void): () => void;
   terminate(): void;
 }
 
@@ -41,10 +43,15 @@ export function request<Response extends WorkerMessage>(
     }
     const finish = (settle: () => void) => {
       unsubscribe();
+      unsubscribeError();
       signal?.removeEventListener('abort', onAbort);
       settle();
     };
     const onAbort = () => finish(() => reject(abortError()));
+    // A worker that dies answers nothing, so its failure has to settle every request waiting on it.
+    const unsubscribeError = port.onError((message) =>
+      finish(() => reject(new Error(message))),
+    );
     const unsubscribe = port.onMessage((raw) => {
       const response = raw as WorkerMessage & { message?: string };
       if (response.id !== message.id) return;
@@ -70,6 +77,19 @@ export function portFromWorker(worker: Worker): WorkerPort {
       const handler = (event: MessageEvent) => listener(event.data);
       worker.addEventListener('message', handler);
       return () => worker.removeEventListener('message', handler);
+    },
+    onError: (listener) => {
+      // A script that fails to load fires a bare Event; one that throws at top level fires an ErrorEvent.
+      const handler = (event: Event) => {
+        const { message } = event as { message?: unknown };
+        listener(
+          typeof message === 'string' && message
+            ? message
+            : 'The worker failed to start.',
+        );
+      };
+      worker.addEventListener('error', handler);
+      return () => worker.removeEventListener('error', handler);
     },
     terminate: () => worker.terminate(),
   };

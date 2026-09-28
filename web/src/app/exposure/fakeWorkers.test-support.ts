@@ -13,11 +13,14 @@ export interface FakePort extends WorkerPort {
   terminated: boolean;
   /** Delivers a message as if the worker had posted it. */
   emit(message: WorkerMessage): void;
+  /** Fails the worker outright, as a script that does not load would. */
+  emitError(message: string): void;
 }
 
 /** A port whose worker is `handle`, answering on the next microtask like a real one would. */
 export function createFakePort(handle: FakeHandler): FakePort {
   const listeners = new Set<(message: unknown) => void>();
+  const errorListeners = new Set<(message: string) => void>();
   const post = (message: WorkerMessage) =>
     listeners.forEach((listener) => listener(message));
   const port: FakePort = {
@@ -25,6 +28,8 @@ export function createFakePort(handle: FakeHandler): FakePort {
     transfers: [],
     terminated: false,
     emit: post,
+    emitError: (message) =>
+      errorListeners.forEach((listener) => listener(message)),
     postMessage(message, transfer = []) {
       const request = message as WorkerMessage & Record<string, unknown>;
       port.sent.push(request);
@@ -50,6 +55,10 @@ export function createFakePort(handle: FakeHandler): FakePort {
     onMessage(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    onError(listener) {
+      errorListeners.add(listener);
+      return () => errorListeners.delete(listener);
     },
     terminate() {
       port.terminated = true;
