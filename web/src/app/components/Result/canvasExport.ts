@@ -16,6 +16,8 @@ export function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 /** Offers `blob` to the browser's download flow under `name` through a transient `<a download>` click. */
+export const REVOKE_DELAY_MS = 60_000;
+
 export function saveBlob(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -25,6 +27,6 @@ export function saveBlob(blob: Blob, name: string): void {
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
-  // Revoked on the next task: some browsers start the download only after the click handler returns.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  // Revoked only after a minute: iOS Safari reads the URL once the visitor confirms its download sheet.
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
 }

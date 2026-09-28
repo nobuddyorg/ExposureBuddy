@@ -85,8 +85,11 @@ Write this into the project's own docs with its real pieces:
    built artifact, and post-deploy against the live origin.
 5. **CI/CD → the live site.** Covered by workflow-scanning tools and review,
    not by a test.
-6. **App → the network.** Nothing but the shell itself. Enforced by a CSP
-   with no foreign origin and checked by a passive scan; a request carrying
+6. **App → the network.** Nothing but the shell itself. For the document,
+   enforced by a CSP with no foreign origin and checked by a passive scan;
+   for the workers, which a static host cannot hand a CSP of their own,
+   enforced by the module-boundary rule that the pipeline layer imports
+   nothing that reaches the network, and by review. A request carrying
    pixels anywhere is a design violation, not a bug.
 
 ---

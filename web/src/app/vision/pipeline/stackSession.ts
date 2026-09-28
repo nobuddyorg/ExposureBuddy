@@ -30,6 +30,9 @@ interface Stacked {
   readonly rect: Rect;
 }
 
+/** Thrown by `stack()` when no pixel is covered by every aligned frame; the coordinator turns it into a failure of its own. */
+export const NO_OVERLAP_MESSAGE = 'The aligned photos share no common area.';
+
 /** The rectangle `rect` of `image` as a new image. */
 export function cropRgba(image: RgbaImage, rect: Rect): RgbaImage {
   const data = new Uint8ClampedArray(rect.width * rect.height * 4);
@@ -88,15 +91,16 @@ export function createStackSession(): StackSession {
     },
     stack(onProgress) {
       const base = requireReference();
+      const frameCount = frames.length;
       const result = stackFrames(frames, { onProgress });
-      const rect = fullCoverageRect(result.coverage, base, frames.length);
+      // The frames are folded into the stack now; keeping them would hold frameCount × 5 bytes per pixel for nothing.
+      frames.length = 0;
+      const rect = fullCoverageRect(result.coverage, base, frameCount);
+      if (rect.width === 0 || rect.height === 0) {
+        throw new Error(NO_OVERLAP_MESSAGE);
+      }
       stacked = { result, rect };
-      return {
-        width: base.width,
-        height: base.height,
-        rect,
-        frameCount: frames.length,
-      };
+      return { width: base.width, height: base.height, rect, frameCount };
     },
     render(params) {
       const { result, rect } = requireStacked();

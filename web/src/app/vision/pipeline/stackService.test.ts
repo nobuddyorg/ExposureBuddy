@@ -93,6 +93,13 @@ describe('createStackService', () => {
     expect(reference.transfer).toEqual([referenceImage.data.buffer]);
   });
 
+  it('rejects a request meant for another worker, naming it', async () => {
+    const serve = createStackService(fakeSession(), () => {});
+    await expect(serve({ type: 'align', id: 7 } as never)).rejects.toThrow(
+      'The stack worker got a request it does not know: align.',
+    );
+  });
+
   it('lets a session error propagate as a rejection', async () => {
     const session = fakeSession();
     session.render = vi.fn(() => {

@@ -29,6 +29,8 @@ export function ActionRow({
         type="button"
         data-testid="download"
         onClick={onDownload}
+        // The canvas shows the single photo while comparing; exporting it as the result would mislead.
+        disabled={comparing}
         className={buttonClasses({ className: 'grow basis-40' })}
       >
         {t('result.download')}
@@ -38,6 +40,7 @@ export function ActionRow({
           type="button"
           data-testid="share"
           onClick={onShare}
+          disabled={comparing}
           className={buttonClasses({
             variant: 'secondary',
             className: 'grow basis-32',

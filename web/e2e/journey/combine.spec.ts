@@ -14,6 +14,7 @@ import {
   collectPageProblems,
   expectNoPageProblems,
   listBurst,
+  mainLandmark,
 } from '../helpers';
 
 test.use({ locale: 'en-GB' });
@@ -49,6 +50,8 @@ test.describe('the whole journey', () => {
     await app.picker.do.combine();
 
     await expect(app.progress()).toBeVisible();
+    // The combine button is gone; a keyboard user must not be dropped onto <body>.
+    await expect(mainLandmark(page)).toBeFocused();
     await expect(app.progress.locators.stage).not.toBeEmpty();
     await expect(app.progress.locators.frameStatuses).toHaveCount(FRAME_COUNT);
 

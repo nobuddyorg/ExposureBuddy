@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { installCanvasStubs, type CanvasStubs } from './canvas.test-support';
-import { canvasToJpeg, saveBlob } from './canvasExport';
+import { canvasToJpeg, saveBlob, REVOKE_DELAY_MS } from './canvasExport';
 
 let stubs: CanvasStubs;
 
@@ -58,7 +58,10 @@ describe('saveBlob', () => {
     expect(clicked[0].download).toBe('shot.jpg');
     expect(document.body.contains(clicked[0])).toBe(false);
     expect(revokeObjectURL).not.toHaveBeenCalled();
-    vi.runAllTimers();
+    // iOS Safari reads the URL only once its download sheet is confirmed, so the revoke waits a minute.
+    vi.advanceTimersByTime(REVOKE_DELAY_MS - 1);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:exposure');
     vi.unstubAllGlobals();
     vi.useRealTimers();

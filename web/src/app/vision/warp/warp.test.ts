@@ -103,14 +103,18 @@ describe('warpRgba', () => {
     fc.assert(
       fc.property(saneHomographyArbitrary, (homography) => {
         const { image, coverage } = warpRgba(constant, homography, constant);
+        // One verdict per run, not one expect per pixel: 200 runs × 1200 pixels would dominate the suite.
+        let mismatches = 0;
         for (let pixel = 0; pixel < coverage.length; pixel += 1) {
           const offset = pixel * 4;
           const expected =
             coverage[pixel] === 1 ? [37, 200, 91, 255] : [0, 0, 0, 0];
-          expect(Array.from(image.data.subarray(offset, offset + 4))).toEqual(
-            expected,
-          );
+          for (let channel = 0; channel < 4; channel += 1) {
+            if (image.data[offset + channel] !== expected[channel])
+              mismatches += 1;
+          }
         }
+        expect(mismatches).toBe(0);
       }),
     );
   });

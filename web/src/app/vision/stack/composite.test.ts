@@ -170,6 +170,17 @@ describe('clampCompositeParams', () => {
     });
   });
 
+  it('rounds the blur radius to whole pixels', () => {
+    expect(
+      clampCompositeParams({ ghostStrength: 0.5, ghostBlur: 2.5, glow: 0 })
+        .ghostBlur,
+    ).toBe(3);
+    expect(
+      clampCompositeParams({ ghostStrength: 0.5, ghostBlur: 2.4, glow: 0 })
+        .ghostBlur,
+    ).toBe(2);
+  });
+
   it('replaces NaN with the default, field by field', () => {
     expect(
       clampCompositeParams({ ghostStrength: NaN, ghostBlur: NaN, glow: NaN }),

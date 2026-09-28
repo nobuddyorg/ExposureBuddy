@@ -45,7 +45,7 @@ It runs entirely in the browser. There is no account, no upload and no server: t
 - **Ghosts, blur and glow**: three sliders set how visible moving things stay, how much they smear, and how much bright moving things bloom; the result re-renders live.
 - **Compare, save, share**: flip between the result and one original, save the JPEG, or hand it to the phone's share sheet.
 - **Runs entirely in the browser**, in Web Workers; a bigger burst comes out smaller rather than crashing the tab.
-- **Installable and offline**: a PWA whose shell works without a network once visited.
+- **Installable and offline**: a PWA whose shell is cached by a service worker, so a visit after the first opens without a network.
 - **Bilingual, themeable**: German/English and light/dark/system, both remembered per visitor.
 - Built to work with a keyboard and a screen reader, not just a touch screen.
 

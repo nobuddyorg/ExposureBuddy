@@ -102,6 +102,13 @@ describe('createAlignService', () => {
     });
   });
 
+  it('rejects a request meant for another worker, naming it', async () => {
+    const serve = createAlignService(decoders, isUnreadable);
+    await expect(serve({ type: 'add-frame', id: 9 } as never)).rejects.toThrow(
+      'The align worker got a request it does not know: add-frame.',
+    );
+  });
+
   it('refuses to align before the reference is set', async () => {
     const serve = createAlignService(decoders, isUnreadable);
     await expect(

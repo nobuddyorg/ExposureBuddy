@@ -4,8 +4,12 @@ import { describe, expect, it } from 'vitest';
 import {
   ALIGNMENT_LONG_EDGE,
   DEFAULT_BUDGET_BYTES,
+  FRAME_BYTES_PER_PIXEL,
   MIN_LONG_EDGE,
+  RENDER_BYTES_PER_PIXEL,
+  STACK_BYTES_PER_PIXEL,
   chooseWorkingSize,
+  peakBytesPerPixel,
   qualityLongEdge,
   workerPoolSize,
 } from './budget';
@@ -34,11 +38,11 @@ describe('chooseWorkingSize', () => {
   });
 
   it('shrinks below the output size when the frames would not fit the budget', () => {
-    // 13 × w × h × 4 ≤ 39 MiB → w × h ≤ 786 432 → 1024 × 768 at 4:3 exactly.
+    // 80 B/px (the render floor outranks 10 × 5 + 10) × w × h ≤ 60 MiB → w × h ≤ 786 432 → 1024 × 768 at 4:3 exactly.
     const working = chooseWorkingSize({
       source: PHONE,
       frameCount: 10,
-      budgetBytes: 39 * 1024 * 1024,
+      budgetBytes: 60 * 1024 * 1024,
       maxLongEdge: 2400,
     });
     expect(working.width).toBe(1024);
@@ -147,6 +151,15 @@ describe('chooseWorkingSize', () => {
           }
         },
       ),
+    );
+  });
+});
+
+describe('peakBytesPerPixel', () => {
+  it('is the render floor for a small burst and the frames plus the stack for a large one', () => {
+    expect(peakBytesPerPixel(10)).toBe(RENDER_BYTES_PER_PIXEL);
+    expect(peakBytesPerPixel(50)).toBe(
+      50 * FRAME_BYTES_PER_PIXEL + STACK_BYTES_PER_PIXEL,
     );
   });
 });

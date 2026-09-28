@@ -153,6 +153,21 @@ describe('I18nProvider', () => {
     expect(localStorage.getItem('lang')).toBe('de');
   });
 
+  it('does not throw when the chosen language cannot be stored', async () => {
+    localStorage.setItem('lang', 'en');
+    renderProbe();
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Deutsch' }).click();
+    });
+
+    // Nothing was stored, so the language stays as detected; the app itself survives.
+    expect(screen.getByTestId('lang')).toHaveTextContent('en');
+  });
+
   it('falls back to the key itself for a translation that does not exist', () => {
     localStorage.setItem('lang', 'en');
     renderProbe();

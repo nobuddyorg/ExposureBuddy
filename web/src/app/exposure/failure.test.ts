@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/stackSession';
 import { PipelineError, toPipelineFailure } from './failure';
 
 describe('PipelineError', () => {
@@ -7,6 +8,7 @@ describe('PipelineError', () => {
     const cases = [
       [{ kind: 'unsupported' }, /Workers/],
       [{ kind: 'too_few_aligned', count: 1 }, /Only 1 photos/],
+      [{ kind: 'no_overlap' }, /common area/],
       [{ kind: 'decode_failed', name: 'IMG_1.jpg' }, /IMG_1\.jpg/],
       [{ kind: 'cancelled' }, /cancelled/],
       [{ kind: 'unknown', message: 'weird' }, /weird/],
@@ -29,6 +31,12 @@ describe('toPipelineFailure', () => {
   it('maps an abort to cancelled', () => {
     expect(toPipelineFailure(new DOMException('x', 'AbortError'))).toEqual({
       kind: 'cancelled',
+    });
+  });
+
+  it("maps the stack's no-overlap error to its own kind", () => {
+    expect(toPipelineFailure(new Error(NO_OVERLAP_MESSAGE))).toEqual({
+      kind: 'no_overlap',
     });
   });
 

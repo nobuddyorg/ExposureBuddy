@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { WorkerMessage } from '../vision/pipeline/protocol';
+import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/stackSession';
 import { PipelineError } from './failure';
 import {
   createFakeFactory,
@@ -292,6 +293,23 @@ describe('runPipeline', () => {
     });
     expect(factory.aligners.every((port) => port.terminated)).toBe(true);
     expect(factory.stacks[0].terminated).toBe(true);
+  });
+
+  it('reports a burst with no common area as its own failure', async () => {
+    const stack = stackHandler();
+    const factory = createFakeFactory(alignHandler(), (request, post) => {
+      if (request.type === 'stack') throw new Error(NO_OVERLAP_MESSAGE);
+      return stack(request, post);
+    });
+    await expect(
+      runPipeline({
+        files: [file('ok'), file('ok')],
+        names: ['a', 'b'],
+        options: { quality: 'low', poolSize: 1 },
+        workers: factory,
+        onProgress: () => {},
+      }),
+    ).rejects.toMatchObject({ failure: { kind: 'no_overlap' } });
   });
 
   it('treats an unexpected reference response as a failure', async () => {

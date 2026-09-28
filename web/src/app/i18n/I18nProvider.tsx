@@ -143,7 +143,11 @@ function subscribeLanguage(onChange: () => void) {
 }
 
 function storeLanguage(next: Language) {
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+  } catch {
+    // Site data blocked: the choice cannot be stored, so the language stays as detected.
+  }
   window.dispatchEvent(new Event(LANGUAGE_CHANGE_EVENT));
 }
 

@@ -29,6 +29,7 @@
     "quality_low": "Klein, schnell",
     "quality_standard": "Standard",
     "quality_high": "Groß, langsam",
+    "combine_one": "{count} Foto kombinieren",
     "combine": "{count} Fotos kombinieren",
     "need_more": "Mindestens {count} Fotos hinzufügen",
     "tips_title": "So gelingt die Serie",
@@ -75,7 +76,9 @@
   },
   "errors": {
     "title": "Das hat nicht geklappt",
+    "too_few_aligned_one": "Nur {count} Foto ließ sich auf die anderen ausrichten. Die Serie von einer Stelle aus aufnehmen, ohne das Handy zu bewegen, und noch einmal versuchen.",
     "too_few_aligned": "Nur {count} Fotos ließen sich aufeinander ausrichten. Die Serie von einer Stelle aus aufnehmen, ohne das Handy zu bewegen, und noch einmal versuchen.",
+    "no_overlap": "Die Fotos überlappen sich zu wenig, um eine gemeinsame Fläche zu haben. Die Serie von einer Stelle aus aufnehmen und noch einmal versuchen.",
     "decode_failed": "{name} konnte nicht gelesen werden.",
     "cancelled": "Abgebrochen.",
     "unknown": "Etwas ist schiefgelaufen: {message}",

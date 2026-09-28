@@ -23,10 +23,13 @@ export function clampCompositeParams(params: CompositeParams): CompositeParams {
       1,
       DEFAULT_COMPOSITE_PARAMS.ghostStrength,
     ),
-    ghostBlur: clampOrDefault(
-      params.ghostBlur,
-      MAX_GHOST_BLUR,
-      DEFAULT_COMPOSITE_PARAMS.ghostBlur,
+    // Whole pixels: the box blur indexes its buffers by the radius.
+    ghostBlur: Math.round(
+      clampOrDefault(
+        params.ghostBlur,
+        MAX_GHOST_BLUR,
+        DEFAULT_COMPOSITE_PARAMS.ghostBlur,
+      ),
     ),
     glow: clampOrDefault(params.glow, 1, DEFAULT_COMPOSITE_PARAMS.glow),
   };

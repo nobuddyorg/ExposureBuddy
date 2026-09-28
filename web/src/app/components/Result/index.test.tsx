@@ -136,6 +136,8 @@ describe('Result: compare', () => {
     expect(screen.getByTestId('ghost-slider')).toBeDisabled();
     expect(screen.getByTestId('blur-slider')).toBeDisabled();
     expect(screen.getByTestId('glow-slider')).toBeDisabled();
+    // The canvas shows the single photo now; saving it as the result would mislead.
+    expect(screen.getByTestId('download')).toBeDisabled();
     await waitFor(() =>
       expect(drawnImages().at(-1)?.data).toBe(reference.data),
     );
@@ -146,6 +148,7 @@ describe('Result: compare', () => {
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByTestId('ghost-slider')).toBeEnabled();
+    expect(screen.getByTestId('download')).toBeEnabled();
     await waitFor(() =>
       expect(drawnImages().at(-1)?.data).toBe(composite.data),
     );

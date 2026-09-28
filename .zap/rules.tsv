@@ -2,7 +2,7 @@
 # Unlisted rules default to WARN and never fail the job (`-I`); only FAIL blocks. What a passive scan proves: TEST_STRATEGY.md §5.
 
 # GitHub Pages sends no custom headers, so the CSP is a <meta> tag and frame-ancestors cannot be enforced; layout.tsx frame-busts instead.
-10020	IGNORE	# X-Frame-Options Header Not Set -- static host; mitigated by the framebust script in layout.tsx
+10020	IGNORE	# X-Frame-Options Header Not Set -- static host; layout.tsx's framebust script deters casual framing only
 10038	IGNORE	# Content-Security-Policy Header Not Set -- meta CSP only, see above
 
 # HSTS is added at the Pages edge, invisible to a scan of a plain-HTTP local export.

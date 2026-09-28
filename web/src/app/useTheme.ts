@@ -48,7 +48,12 @@ function subscribePreference(onChange: () => void) {
 }
 
 function readPreference(): ThemePreference {
-  return normalizePreference(localStorage.getItem(THEME_STORAGE_KEY));
+  try {
+    return normalizePreference(localStorage.getItem(THEME_STORAGE_KEY));
+  } catch {
+    // Site data blocked: the choice cannot be stored, so the OS decides.
+    return 'system';
+  }
 }
 
 function subscribeSystem(onChange: () => void) {
@@ -82,8 +87,12 @@ export function useTheme() {
   }, [resolved]);
 
   const setThemePreference = (next: ThemePreference) => {
-    if (next === 'system') localStorage.removeItem(THEME_STORAGE_KEY);
-    else localStorage.setItem(THEME_STORAGE_KEY, next);
+    try {
+      if (next === 'system') localStorage.removeItem(THEME_STORAGE_KEY);
+      else localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // Site data blocked: the choice cannot be stored, and the toggle stays honest about it.
+    }
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   };
 

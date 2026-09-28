@@ -29,6 +29,7 @@
     "quality_low": "Small, fast",
     "quality_standard": "Standard",
     "quality_high": "Large, slow",
+    "combine_one": "Combine {count} photo",
     "combine": "Combine {count} photos",
     "need_more": "Add at least {count} photos",
     "tips_title": "How to shoot a burst",
@@ -75,7 +76,9 @@
   },
   "errors": {
     "title": "That did not work",
+    "too_few_aligned_one": "Only {count} photo lined up with the others. Shoot the burst from one spot without moving the phone, then try again.",
     "too_few_aligned": "Only {count} photos lined up with each other. Shoot the burst from one spot without moving the phone, then try again.",
+    "no_overlap": "The photos do not overlap enough to share any area. Shoot the burst from one spot, then try again.",
     "decode_failed": "{name} could not be read.",
     "cancelled": "Cancelled.",
     "unknown": "Something went wrong: {message}",

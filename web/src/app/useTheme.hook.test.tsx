@@ -96,6 +96,33 @@ describe('useTheme', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
 
+  it('falls back to the OS and keeps working when site data is blocked', () => {
+    mockMatchMedia(true);
+    const storageDisabled = () => {
+      throw new Error('storage disabled');
+    };
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(storageDisabled);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(storageDisabled);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(
+      storageDisabled,
+    );
+    const { result } = renderHook(() => useTheme());
+
+    expect(result.current.preference).toBe('system');
+    expect(result.current.resolved).toBe('dark');
+    expect(() => {
+      act(() => {
+        result.current.setThemePreference('light');
+      });
+    }).not.toThrow();
+    expect(() => {
+      act(() => {
+        result.current.setThemePreference('system');
+      });
+    }).not.toThrow();
+    vi.restoreAllMocks();
+  });
+
   it('clears the stored value when switching back to system', () => {
     localStorage.setItem(THEME_STORAGE_KEY, 'dark');
     mockMatchMedia(false);

@@ -138,7 +138,9 @@ Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),
   network-first, one cache per build (`NEXT_PUBLIC_BUILD_ID`); a new build's
   worker deletes the previous builds' caches and nothing else on the origin.
 - Response headers cannot be set on GitHub Pages, so the CSP is a `<meta>`
-  tag and a frame-busting script stands in for `frame-ancestors`.
+  tag and a frame-busting script deters casual framing in place of
+  `frame-ancestors` (a sandboxed frame that forbids top navigation defeats
+  it; no header is available to close that gap).
 
 ## CI/CD
 

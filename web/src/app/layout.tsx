@@ -37,11 +37,11 @@ const CONTENT_SECURITY_POLICY = [
   `default-src 'self'`,
   `script-src 'self' 'unsafe-inline'`,
   `style-src 'self' 'unsafe-inline'`,
-  // blob: and data: are the decoded photos and the rendered result; nothing else ever draws an image.
-  `img-src 'self' blob: data:`,
+  // blob: is the picked photos' thumbnails; the result is drawn on a canvas and leaves as a download.
+  `img-src 'self' blob:`,
   `connect-src 'self'`,
   `font-src 'self'`,
-  `worker-src 'self' blob:`,
+  `worker-src 'self'`,
   `object-src 'none'`,
   `base-uri 'self'`,
   `form-action 'self'`,

@@ -37,7 +37,7 @@ describe('PipelineError', () => {
   });
 
   it.each<[PipelineFailure, string]>([
-    [{ kind: 'too_few_aligned', count: 1 }, 'Only 1 photos lined up'],
+    [{ kind: 'too_few_aligned', count: 1 }, 'Only 1 photo lined up'],
     [
       { kind: 'decode_failed', name: 'IMG_0001.HEIC' },
       'IMG_0001.HEIC could not be read.',
@@ -64,7 +64,7 @@ describe('PipelineError', () => {
     localStorage.setItem('lang', 'de');
     renderError({ kind: 'too_few_aligned', count: 1 });
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Nur 1 Fotos ließen sich aufeinander ausrichten',
+      'Nur 1 Foto ließ sich auf die anderen ausrichten',
     );
     expect(screen.getByRole('button', { name: 'Noch einmal' })).toBeVisible();
   });

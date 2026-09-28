@@ -17,7 +17,7 @@ export default function PipelineError({
   failure,
   onRetry,
 }: PipelineErrorProps) {
-  const { t } = useI18n();
+  const { t, tCount } = useI18n();
 
   return (
     <div
@@ -39,7 +39,7 @@ export default function PipelineError({
             {t('errors.title')}
           </h2>
           <p className="break-words text-muted-foreground">
-            {failureMessage(t, failure)}
+            {failureMessage(t, tCount, failure)}
           </p>
         </div>
       </div>

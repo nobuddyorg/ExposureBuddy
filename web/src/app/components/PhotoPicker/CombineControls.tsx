@@ -21,7 +21,7 @@ export function CombineControls({
   unsupported,
   onCombine,
 }: CombineControlsProps) {
-  const { t } = useI18n();
+  const { t, tCount } = useI18n();
   const [quality, setQuality] = useState<OutputQuality>('standard');
   const selectId = useId();
   const reasonId = useId();
@@ -66,7 +66,7 @@ export function CombineControls({
           onClick={() => onCombine(quality)}
           className={buttonClasses({ className: 'w-full sm:w-auto' })}
         >
-          {t('picker.combine', { count })}
+          {tCount('picker.combine', count)}
         </button>
         {tooFew && (
           <p id={reasonId} className="text-xs text-muted-foreground">

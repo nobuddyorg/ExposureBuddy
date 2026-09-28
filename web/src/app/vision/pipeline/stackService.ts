@@ -4,6 +4,7 @@ import type {
   StackWorkerResponse,
 } from './protocol';
 import { transferablesOf } from './protocol';
+import { unexpectedRequest } from './alignService';
 import type { StackSession } from './stackSession';
 
 export type StackService = (
@@ -51,6 +52,8 @@ export function createStackService(
           transferablesOf({ image }),
         );
       }
+      default:
+        throw unexpectedRequest('stack', request);
     }
   };
 

@@ -55,14 +55,14 @@ describe('the Content-Security-Policy meta tag in layout.tsx', () => {
   });
 
   it('allows blob: and data: images, which the decoded photos and the result are', () => {
-    expect(policy).toContain("`img-src 'self' blob: data:`,");
+    expect(policy).toContain("`img-src 'self' blob:`,");
   });
 
-  it('allows a worker to be created from a blob: URL', () => {
-    expect(policy).toContain("`worker-src 'self' blob:`,");
+  it("starts workers from the app's own origin only", () => {
+    expect(policy).toContain("`worker-src 'self'`,");
   });
 
-  it("loads scripts, a worker's imports included, from the app's own origin only", () => {
+  it("loads the document's scripts from the app's own origin only", () => {
     expect(policy).toContain("`script-src 'self' 'unsafe-inline'`,");
   });
 

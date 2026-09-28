@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import AppShell from './components/AppShell';
 import PhotoPicker from './components/PhotoPicker';
@@ -47,6 +47,7 @@ export default function Home() {
   };
 
   const { state } = exposure;
+  useFocusOnScreenChange(state.status);
   return (
     <AppShell>
       {state.status === 'idle' && (
@@ -74,4 +75,14 @@ export default function Home() {
       )}
     </AppShell>
   );
+}
+
+/** Moves focus to the main landmark when the screen changes: the control that was focused has just unmounted. */
+function useFocusOnScreenChange(status: string) {
+  const previous = useRef(status);
+  useEffect(() => {
+    if (previous.current === status) return;
+    previous.current = status;
+    document.getElementById('main-content')?.focus();
+  }, [status]);
 }

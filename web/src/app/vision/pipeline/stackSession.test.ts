@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AlignedFrame, RgbaImage } from '../types';
-import { createStackSession, cropRgba } from './stackSession';
+import {
+  NO_OVERLAP_MESSAGE,
+  createStackSession,
+  cropRgba,
+} from './stackSession';
 
 const WIDTH = 6;
 const HEIGHT = 4;
@@ -103,6 +107,30 @@ describe('createStackSession', () => {
     expect(Array.from(reference.data.subarray(0, 4))).toEqual([
       10, 20, 30, 255,
     ]);
+  });
+
+  it('lets the frames go once they are folded into the stack', () => {
+    const session = createStackSession();
+    session.addReference(flat(1, 2, 3));
+    session.addFrame(covered(flat(1, 2, 3)));
+    expect(session.frameCount).toBe(2);
+    expect(session.stack().frameCount).toBe(2);
+    expect(session.frameCount).toBe(0);
+    expect(session.renderReference().width).toBe(WIDTH);
+  });
+
+  it('refuses a burst whose aligned frames share no pixel', () => {
+    const session = createStackSession();
+    session.addReference(flat(1, 2, 3));
+    // One frame covers only the left half, the other only the right: nothing is covered by both.
+    const left = covered(flat(1, 2, 3), WIDTH / 2);
+    const right = covered(flat(1, 2, 3));
+    for (let index = 0; index < right.coverage.length; index += 1) {
+      right.coverage[index] = index % WIDTH < WIDTH / 2 ? 0 : 1;
+    }
+    session.addFrame(left);
+    session.addFrame(right);
+    expect(() => session.stack()).toThrow(NO_OVERLAP_MESSAGE);
   });
 
   it('forgets everything on dispose', () => {

@@ -18,6 +18,11 @@ export function collectPageProblems(page: Page): PageProblems {
   return problems;
 }
 
+/** The main landmark, which receives focus whenever the screen changes. */
+export function mainLandmark(page: Page) {
+  return page.getByRole('main');
+}
+
 /** Console errors are held to the same standard as thrown ones. */
 export function expectNoPageProblems(problems: PageProblems) {
   expect(problems.errors, 'uncaught errors').toEqual([]);
