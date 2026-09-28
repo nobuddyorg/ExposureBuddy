@@ -26,5 +26,7 @@ export default mergeConfig(baseConfig, {
   test: {
     // Vitest auto-adds its `github-actions` reporter under GITHUB_ACTIONS; a killed mutant is an expected failure, not an annotation.
     reporters: ['dot'],
+    // Instrumented kernels run several times slower; the RANSAC-driven alignment tests need more than the 5 s default.
+    testTimeout: 15_000,
   },
 });
