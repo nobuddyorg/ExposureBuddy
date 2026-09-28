@@ -145,7 +145,8 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: web/coverage
-          fail_ci_if_error: true
+          # Without the token (a fork, or a repository that has not set it) the upload is best effort; with it, a refused upload fails the job.
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
 
       # Reads the json-summary reporter vitest.config.mts adds for this step.
       - name: Add coverage report to job summary

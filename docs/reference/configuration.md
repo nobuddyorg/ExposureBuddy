@@ -15,7 +15,7 @@ below is read by a build, a test run or a CI job.
 | `FC_SEED` | `web/vitest.setup.ts` | Replaces fast-check's fixed seed for one run ([Replay a property-test failure](../how-to/developer-guide.md#replay-a-property-test-failure)). |
 | `CHROME_PATH` | `web/scripts/lighthouse.mjs` | The browser Lighthouse launches; defaults to Playwright's Chromium so no second browser is downloaded. |
 | `STRYKER_DASHBOARD_API_KEY` | `web/stryker.config.mjs` | Present: Stryker adds its `dashboard` reporter. CI passes it on `main` only. |
-| `CODECOV_TOKEN` | `ci.yml` (`build_and_test`) | Codecov's upload token; a refused upload fails the job (`fail_ci_if_error`). |
+| `CODECOV_TOKEN` | `ci.yml` (`build_and_test`) | Codecov's upload token; when it is set a refused upload fails the job (`fail_ci_if_error`), when it is missing the upload is best effort. |
 
 Two values `next.config.ts` derives and bakes into the bundle, not inputs:
 `NEXT_PUBLIC_BASE_PATH` (the base path, for the service-worker registration
@@ -26,7 +26,7 @@ the service worker's cache).
 
 | Secret | Used by | Notes |
 | --- | --- | --- |
-| `CODECOV_TOKEN` | `ci.yml` (`build_and_test`) | Required: the repository's upload token from codecov.io. Set it as a **Dependabot** secret too, or every Dependabot PR fails `build_and_test`. |
+| `CODECOV_TOKEN` | `ci.yml` (`build_and_test`) | Optional: the repository's upload token from codecov.io. Without it the upload is best effort and never fails the job; with it, set it as a **Dependabot** secret too, or every Dependabot PR fails `build_and_test`. |
 | `STRYKER_DASHBOARD_API_KEY` | `ci.yml` (`mutation_test`, on `main` only) | Optional; without it Stryker writes a local HTML report only. |
 
 Nothing else: the deploy needs only the `github-pages` environment's OIDC

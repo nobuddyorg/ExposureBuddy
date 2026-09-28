@@ -331,10 +331,11 @@ One-time setup for a fork:
 1. Repo Settings → Pages → source **GitHub Actions**.
 2. Settings → Environments → `github-pages`: deployment branches
    **Selected branches** → `main` only.
-3. Secrets: `CODECOV_TOKEN` as a repository secret and again as a
-   **Dependabot** secret, since a Dependabot PR's run reads no other. A pull
-   request from another fork gets no secrets, so its `build_and_test` fails:
-   push the branch to the repository itself.
+3. Secrets (optional): `CODECOV_TOKEN` as a repository secret and again as
+   a **Dependabot** secret, since a Dependabot PR's run reads no other.
+   Without the token the Codecov upload is best effort and never fails the
+   job; with it, a refused upload does, so a pull request from another fork
+   (which gets no secrets) uploads best effort too.
 4. The base path: the deploy takes `basePath` from the Pages site URL, so a
    repository named `ExposureBuddy` needs nothing. A repository under another
    name serves at `/<name>/`, which the deploy handles the same way; only a
