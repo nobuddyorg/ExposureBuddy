@@ -55,7 +55,7 @@ reports a higher number and never lowered to make a change fit
 | Unit coverage, per file | same file, `PER_FILE_FLOOR`, over every file in `web/mutation-targets.mjs` | 100% on all four |
 | Unit coverage, what counts | same file, `coverage.exclude` | Product code only: `*.test-support.*` fakes and fixtures, `types.ts`, the dictionaries, the worker entry points and the browser-only decode step are excluded; the last two are verified by Playwright |
 | Mutation score | `web/stryker.config.mjs` `thresholds` | `break: 99`, `low: 99`, `high: 100`: one below a measured 100, so a single new equivalent mutant cannot block unrelated work |
-| E2E JS/CSS coverage | `web/e2e/coverage.ts` `COVERAGE_THRESHOLDS` | Placeholders of 1% until a full `E2E_COVERAGE=true` run is measured; then floors a few points under it |
+| E2E JS/CSS coverage | `web/e2e/coverage.ts` `COVERAGE_THRESHOLDS` | Floors a few points under a measured `E2E_COVERAGE=true` run on chromium + mobile: statements 73%, branches 64%, functions 84%, lines 87% |
 | Lighthouse | `web/lighthouserc.json` `assert` | Performance, best-practices and SEO at 0.9; accessibility at exactly 1.0; LCP ≤ 3000 ms, TBT ≤ 300 ms, CLS ≤ 0.1; median of 3 runs |
 
 `autoUpdate` is off in Vitest: it would write the local measurement back into

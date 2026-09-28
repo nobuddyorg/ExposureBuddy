@@ -14,6 +14,8 @@
     "!web/.next/**",
     // Written by monocart after every e2e run; gitignored, so CI never sees it but a local `prek run --all-files` did.
     "!web/coverage-e2e/**",
+    // Stryker's sandbox copies of the tree, left behind by an interrupted run.
+    "!web/.stryker-tmp/**",
     // Playwright writes an error-context.md per failed test; gitignored output, not authored docs.
     "!web/test-results/**",
     "!web/playwright-report/**",

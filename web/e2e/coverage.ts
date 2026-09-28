@@ -12,12 +12,12 @@ const coverageReports = MCR({
   sourceFilter: '**/src/app/**',
 });
 
-// Placeholders until the integrator measures a full `E2E_COVERAGE=true` run and sets floors ~3pp under it; raised by hand, never lowered (CLAUDE.md).
+// Floors ~3pp under a measured `E2E_COVERAGE=true npm run e2e` run on chromium + mobile (76.5 / 67.7 / 87.9 / 90.0); raised by hand, never lowered (CLAUDE.md).
 const COVERAGE_THRESHOLDS = {
-  statements: 1,
-  branches: 1,
-  functions: 1,
-  lines: 1,
+  statements: 73,
+  branches: 64,
+  functions: 84,
+  lines: 87,
 };
 
 // Only a build with source maps is worth collecting from; ci.yml sets both variables for that job.
