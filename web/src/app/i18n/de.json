@@ -4,12 +4,17 @@
     "tagline": "Langzeitbelichtung aus einer Serie Handyfotos",
     "description": "Macht aus einer Fotoserie vom Handy eine Langzeitbelichtung: Die Szene bleibt scharf, alles Bewegte verblasst zum Geist. Läuft komplett im Browser."
   },
+  "brand": {
+    "exposure": "Exposure",
+    "buddy": "Buddy"
+  },
   "header": {
     "theme": "Design",
     "theme_system": "System",
     "theme_light": "Hell",
     "theme_dark": "Dunkel",
     "language": "Sprache",
+    "switch_language": "Auf {language} umschalten",
     "help": "Hilfe"
   },
   "picker": {
@@ -38,7 +43,6 @@
   },
   "progress": {
     "title": "Kombinieren",
-    "decoding": "Fotos lesen",
     "reference": "Merkmale im Referenzfoto suchen",
     "aligning": "Fotos ausrichten",
     "stacking": "Stapeln",
@@ -88,7 +92,8 @@
     "sliders_title": "Die Regler",
     "sliders_body": "Geister bestimmt, wie sichtbar Bewegtes bleibt; bei null verschwindet es. Unschärfe verwischt die Geister. Leuchten legt einen Schimmer auf helle bewegte Dinge wie Scheinwerfer.",
     "privacy_title": "Datenschutz",
-    "privacy_body": "Alles läuft im Browser. Fotos verlassen das Gerät nie; es gibt kein Konto und keinen Upload."
+    "privacy_body": "Alles läuft im Browser. Fotos verlassen das Gerät nie; es gibt kein Konto und keinen Upload.",
+    "shortcut_hint": "Diese Hilfe lässt sich jederzeit mit {shortcut} öffnen."
   },
   "footer": {
     "privacy": "Deine Fotos verlassen dieses Gerät nicht.",

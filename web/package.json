@@ -16,7 +16,8 @@
     "fixtures": "node scripts/make-fixtures.mjs",
     "e2e": "playwright test",
     "lighthouse": "node scripts/lighthouse.mjs",
-    "lighthouse:summary": "node scripts/lighthouse-summary.mjs"
+    "lighthouse:summary": "node scripts/lighthouse-summary.mjs",
+    "zap:summary": "node scripts/zap-summary.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4",

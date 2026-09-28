@@ -1,26 +1,229 @@
 @import 'tailwindcss';
 
+/* Dark follows an explicit attribute, not the media query: a visitor on a dark OS may ask for light. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* Warm paper. Every pair below is measured by globals.contrast.test.ts, not eyeballed. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --background: #f5f1e8;
+  --foreground: #1c1916;
+  --card: #fffcf6;
+  --muted: #ebe4d6;
+  --muted-foreground: #5d574e;
+
+  /* Hairline for dividers only; too faint (1.3:1) to be a control's edge. */
+  --border: #e0d8c8;
+
+  /* A control's only visible edge must clear WCAG 1.4.11's 3:1 on the page and on a card. */
+  --control-border: #8b8376;
+
+  /* The one chromatic token, burnt so it clears 4.5:1 as text on paper. */
+  --accent: #9a5300;
+  --accent-foreground: #fffaf0;
+
+  --shadow-rgb: 28 25 22;
+  --shadow-contact: 0.08;
+  --shadow-ambient: 0.16;
+}
+
+/* The darkroom: near-black warm page, cards a step lighter, amber like a headlight trail. */
+[data-theme='dark'] {
+  /* Draws form controls and scrollbars dark instead of stranding light widgets on a dark page. */
+  color-scheme: dark;
+
+  --background: #0f0e0c;
+  --foreground: #f2ede3;
+  --card: #181614;
+  --muted: #242120;
+  --muted-foreground: #a59d8f;
+  --border: #2a2724;
+  --control-border: #6b645a;
+
+  --accent: #f2a33a;
+  --accent-foreground: #1a1206;
+
+  --shadow-rgb: 0 0 0;
+  --shadow-contact: 0.5;
+  --shadow-ambient: 0.45;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-control-border: var(--control-border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --font-sans: var(--font-body-family), ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    var(--font-display-family), var(--font-body-family), ui-sans-serif,
+    sans-serif;
+
+  /* Stacking order, lowest to highest, so unrelated overlays never land on the same layer by accident. */
+  --z-index-header: 400;
+  --z-index-backdrop: 500;
+  --z-index-modal: 600;
+  --z-index-overlay: 9999;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    /* Only the theme toggle's colour swap animates; layout never does. */
+    background: var(--background);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* The main landmark is focusable for skip links and dialog fallbacks, but never needs a ring. */
+  main:focus-visible {
+    outline: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* A card on a dark page is lifted by being lighter; the shadow only seats its edge. */
+  .card-lift {
+    box-shadow:
+      0 1px 2px rgb(var(--shadow-rgb) / var(--shadow-contact)),
+      0 12px 28px -10px rgb(var(--shadow-rgb) / var(--shadow-ambient));
+  }
+
+  /*
+   * One slider look in Chrome, Firefox and Safari: the native track and thumb are hidden
+   * and redrawn on the vendor pseudo-elements. The 44px box keeps the tap target, the
+   * thumb carries the 3:1 edge, the track is control-border so it stays visible on a card.
+   */
+  .range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 2.75rem;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    touch-action: pan-y;
+  }
+
+  .range:focus-visible {
+    outline: none;
+  }
+
+  .range::-webkit-slider-runnable-track {
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: var(--control-border);
+  }
+
+  .range::-moz-range-track {
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: var(--control-border);
+  }
+
+  .range::-moz-range-progress {
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: var(--accent);
+  }
+
+  .range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1.375rem;
+    height: 1.375rem;
+    /* Centres the thumb on the 4px track: (track - thumb) / 2. */
+    margin-top: -0.5625rem;
+    border-radius: 9999px;
+    border: 2px solid var(--background);
+    background: var(--accent);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  }
+
+  .range::-moz-range-thumb {
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 9999px;
+    border: 2px solid var(--background);
+    background: var(--accent);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  }
+
+  .range:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 3px var(--background),
+      0 0 0 5px var(--accent);
+  }
+
+  .range:focus-visible::-moz-range-thumb {
+    box-shadow:
+      0 0 0 3px var(--background),
+      0 0 0 5px var(--accent);
+  }
+
+  .range:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+@layer utilities {
+  @keyframes fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-up {
+    animation: fade-up 450ms ease-out backwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Spinners are a "still working" cue; frozen under Reduce Motion, sighted users would get no signal. */
+  .animate-spin {
+    animation-duration: 0.8s !important;
+  }
 }

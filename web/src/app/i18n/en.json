@@ -4,12 +4,17 @@
     "tagline": "Long exposures from a burst of phone photos",
     "description": "Turn a burst of phone photos into one long exposure: the scene stays sharp, whatever moved fades into a ghost. Runs entirely in your browser."
   },
+  "brand": {
+    "exposure": "Exposure",
+    "buddy": "Buddy"
+  },
   "header": {
     "theme": "Theme",
     "theme_system": "System",
     "theme_light": "Light",
     "theme_dark": "Dark",
     "language": "Language",
+    "switch_language": "Switch to {language}",
     "help": "Help"
   },
   "picker": {
@@ -38,7 +43,6 @@
   },
   "progress": {
     "title": "Combining",
-    "decoding": "Reading photos",
     "reference": "Finding features in the reference photo",
     "aligning": "Aligning photos",
     "stacking": "Stacking",
@@ -88,7 +92,8 @@
     "sliders_title": "The sliders",
     "sliders_body": "Ghosts sets how visible moving things stay; at zero they vanish. Blur smears the ghosts. Glow adds a bloom to bright moving things such as headlights.",
     "privacy_title": "Privacy",
-    "privacy_body": "Everything runs in your browser. Photos never leave your device; there is no account and no upload."
+    "privacy_body": "Everything runs in your browser. Photos never leave your device; there is no account and no upload.",
+    "shortcut_hint": "Open this help any time with {shortcut}."
   },
   "footer": {
     "privacy": "Your photos never leave this device.",
