@@ -10,6 +10,12 @@ const localURL = `http://127.0.0.1:${PORT}${EXPORT_BASE_PATH}/`;
 const baseURL = process.env.E2E_BASE_URL ?? localURL;
 const isRemote = Boolean(process.env.E2E_BASE_URL);
 
+// A container may ship only a Chromium of another revision; CI downloads the matching one and leaves this unset.
+const chromiumExecutable = process.env.CHROMIUM_EXECUTABLE_PATH;
+const chromiumLaunch = chromiumExecutable
+  ? { launchOptions: { executablePath: chromiumExecutable } }
+  : {};
+
 export default defineConfig({
   testDir: './e2e',
   // Merges every worker's coverage (e2e/coverage.ts) into one report once every project has finished.
@@ -35,12 +41,12 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], ...chromiumLaunch },
     },
     // Mobile-first app: a phone is the camera and the screen, so it is a target, not a variation.
     {
       name: 'mobile',
-      use: { ...devices['Pixel 7'] },
+      use: { ...devices['Pixel 7'], ...chromiumLaunch },
     },
     // The only non-Chromium engine on the desktop; coverage collection skips it, every other assertion runs here too.
     {

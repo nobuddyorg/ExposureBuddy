@@ -48,6 +48,7 @@
     "fast-check": "^4.10.2",
     "jsdom": "^30.1.1",
     "knip": "^6.38.0",
+    "monocart-coverage-reports": "^2.13.0",
     "mutation-testing-metrics": "^3.9.0",
     "playwright": "^1.63.0",
     "prettier": "^3.9.9",
