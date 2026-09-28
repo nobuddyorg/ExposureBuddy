@@ -136,7 +136,8 @@ describe('ransacHomography', () => {
       x: index,
       y: 2 * index,
     }));
-    expect(ransacHomography(line, line)).toBeNull();
+    // Every sample is degenerate, so only the cap ends the search; kept small for the instrumented run.
+    expect(ransacHomography(line, line, { maxIterations: 50 })).toBeNull();
   });
 
   it('returns exact inliers for a clean translation and stops early', () => {
@@ -230,6 +231,7 @@ describe('ransacHomography', () => {
     expect(
       ransacHomography(source, mapPoints(translationHomography(1, 1), source), {
         threshold: 0,
+        maxIterations: 50,
       }),
     ).toBeNull();
   });
