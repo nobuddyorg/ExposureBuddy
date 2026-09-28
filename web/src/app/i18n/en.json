@@ -49,6 +49,7 @@
     "frame_reference": "reference",
     "frame_aligned": "aligned",
     "frame_skipped": "skipped",
+    "frame_unreadable": "could not be read",
     "frame_detail": "{inliers} of {matches} matches"
   },
   "result": {

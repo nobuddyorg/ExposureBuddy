@@ -37,10 +37,13 @@ export default defineConfig({
         'src/app/**/*.test-support.{ts,tsx}',
         'src/app/i18n/*.json',
         '**/*.d.ts',
-        // Routing glue and worker entry points: verified by Playwright, not unit tests.
+        // Routing glue, worker entry points and the browser-only steps they run: verified by Playwright, not unit tests.
         'src/app/layout.tsx',
         'src/app/page.tsx',
-        'src/app/**/*.worker.ts',
+        'src/app/workers/*.worker.ts',
+        'src/app/exposure/decode.ts',
+        'src/app/exposure/workerScope.ts',
+        'src/app/exposure/workerFactory.ts',
       ],
       thresholds: {
         ...GLOBAL_COVERAGE_THRESHOLDS,

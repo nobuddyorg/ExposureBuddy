@@ -1,2 +1,23 @@
 // Modules under both mutation testing (stryker.config.mjs) and the per-file coverage floor (vitest.config.mts).
-export const MUTATE_TARGETS = [];
+export const MUTATE_TARGETS = [
+  'src/app/vision/image/gray.ts',
+  'src/app/vision/image/resize.ts',
+  'src/app/vision/image/integral.ts',
+  'src/app/vision/image/blur.ts',
+  'src/app/vision/features/random.ts',
+  'src/app/vision/features/fast.ts',
+  'src/app/vision/features/orientation.ts',
+  'src/app/vision/features/brief.ts',
+  'src/app/vision/features/orb.ts',
+  'src/app/vision/pipeline/protocol.ts',
+  'src/app/vision/pipeline/alignment.ts',
+  'src/app/vision/pipeline/alignService.ts',
+  'src/app/vision/pipeline/stackService.ts',
+  'src/app/vision/pipeline/stackSession.ts',
+  'src/app/exposure/failure.ts',
+  'src/app/exposure/runPipeline.ts',
+  'src/app/exposure/support.ts',
+  'src/app/exposure/useExposure.ts',
+  'src/app/exposure/workerPort.ts',
+  'src/app/exposure/workerServe.ts',
+];

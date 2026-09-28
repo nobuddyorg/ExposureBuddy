@@ -27,7 +27,7 @@ web/src/app/
     warp/          inverse-mapped bilinear warp with a coverage mask
     stack/         exposure gain, median / mean / deviation stack, crop, composite
     pipeline/      memory budget, worker message protocol, pure request handlers
-    workers/       *.worker.ts entry points: `self.onmessage` glue over pipeline/ handlers
+  workers/         *.worker.ts entry points: `self.onmessage` glue over vision/pipeline handlers
 web/public/        sw.js, site.webmanifest, icons, logo.svg
 web/e2e/           Playwright: page objects, public specs, synthetic burst fixtures
 web/scripts/       Node tools: serve-export, make-fixtures, make-icons, lighthouse, summaries
@@ -37,7 +37,8 @@ Layer rules, checked by `dependency-cruiser` and ESLint:
 
 - `vision/` imports nothing from `react`, `next`, `components/` or `i18n/`. It
   runs in a worker, in Node under Vitest, and under Stryker.
-- A `*.worker.ts` file imports only `vision/`.
+- A `*.worker.ts` file imports only `vision/` and the one DOM-bound step it
+  runs, `exposure/decode.ts`.
 - `i18n/` imports nothing from `vision/` or `components/`.
 - `e2e/` and `scripts/` never import `src/app/`; `src/app/` never imports them.
 
@@ -97,11 +98,21 @@ smaller rather than crashing the tab.
 
 `vision/pipeline/protocol.ts` declares the discriminated unions both sides
 speak. Every request carries an `id`; every response echoes it. Buffers move
-as transferables. The workers themselves are three lines of glue each; the
-logic they call lives in `vision/pipeline/` as pure functions and a
-`createStackSession()` object, both tested in Node without a browser. The
+as transferables. The workers themselves are a few lines of glue each; the
+logic they call lives in `vision/pipeline/` as pure functions
+(`referenceFeatures`, `alignToReference`) and a `createStackSession()`
+object, all tested in Node without a browser. Decoding (`exposure/decode.ts`,
+`createImageBitmap` plus `OffscreenCanvas`) is the one step only a browser can
+run; the align workers do it so the main thread never touches pixels. The
 coordinator (`exposure/runPipeline.ts`) takes a `WorkerFactory`, so its unit
 tests drive it with in-process fakes that call those same handlers.
+
+The reference frame is decoded first (its dimensions and the frame count fix
+the working size), its features are computed once, and both go out: the
+features to every align worker, the frame itself to the stack worker. Every
+other frame is decoded, aligned and warped inside one align worker and then
+forwarded, still as a transferable, to the stack worker, which applies the
+exposure gain against the reference and keeps it.
 
 ## The screen
 

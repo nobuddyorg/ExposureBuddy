@@ -49,6 +49,7 @@
     "frame_reference": "Referenz",
     "frame_aligned": "ausgerichtet",
     "frame_skipped": "übersprungen",
+    "frame_unreadable": "nicht lesbar",
     "frame_detail": "{inliers} von {matches} Treffern"
   },
   "result": {
