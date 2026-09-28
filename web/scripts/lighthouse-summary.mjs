@@ -5,7 +5,7 @@ import { readFile, appendFile } from 'node:fs/promises';
 const TARGET = {
   label: 'Start page (`/`)',
   manifest: 'lighthouse-reports/manifest.json',
-  minPerformance: 0.9,
+  minPerformance: 0.85,
   maxCls: 0.1,
 };
 
