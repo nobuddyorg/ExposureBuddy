@@ -231,7 +231,8 @@ test.describe('the service worker', () => {
 
     await context.setOffline(true);
     try {
-      await page.reload({ waitUntil: 'domcontentloaded' });
+      // The prerendered picker shows before React takes over the file input; idle means the cached chunks ran.
+      await page.reload({ waitUntil: 'networkidle' });
       const app = on(page);
       await expect(app.picker.locators.dropzone).toBeVisible();
       await app.picker.do.addPhotos(listBurst('burst-tiny'));
