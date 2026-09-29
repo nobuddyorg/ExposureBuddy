@@ -5,16 +5,20 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createFakeFactory,
   rgba,
+  type FakeFactory,
   type FakeHandler,
 } from './fakeWorkers.test-support';
 import { useExposure } from './useExposure';
 
 const WORKING = { width: 4, height: 4 };
 
+/** An align worker that reads the file's text as its verdict: 'skip', 'bad' (as the reference), or anything else for aligned. */
 function alignHandler(): FakeHandler {
   return async (request) => {
     const { id } = request;
     if (request.type === 'decode-reference') {
+      if ((await (request.file as Blob).text()) === 'bad')
+        return { response: { type: 'unreadable', id }, transfer: [] };
       const image = rgba(WORKING.width, WORKING.height);
       return {
         response: {
@@ -75,6 +79,8 @@ const stackHandler: FakeHandler = (request) => {
 const file = (verdict: string) =>
   new File([verdict], `${verdict}.jpg`, { type: 'image/jpeg' });
 
+const pending = { status: 'pending' };
+
 describe('useExposure', () => {
   it('starts idle, reports progress while running, and ends ready with the result', async () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
@@ -84,7 +90,11 @@ describe('useExposure', () => {
     act(() =>
       result.current.start([file('ok'), file('ok'), file('ok')], 'standard'),
     );
-    expect(result.current.state.status).toBe('running');
+    // The pipeline's first report, one pending frame per photo, has already replaced the initial progress.
+    expect(result.current.state).toMatchObject({
+      status: 'running',
+      progress: { stage: 'reference', frames: [pending, pending, pending] },
+    });
 
     await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
     const { state } = result.current;
@@ -104,6 +114,53 @@ describe('useExposure', () => {
     expect(result.current.state).toMatchObject({
       failure: { kind: 'too_few_aligned', count: 1 },
     });
+  });
+
+  it('shows the reference stage with no frames until the pipeline reports; a lone photo is refused before it does', async () => {
+    const factory = createFakeFactory(alignHandler(), stackHandler);
+    const { result } = renderHook(() => useExposure(factory, 2));
+    act(() => result.current.start([file('ok')], 'low'));
+    expect(result.current.state).toEqual({
+      status: 'running',
+      progress: { stage: 'reference', done: 0, total: 1, frames: [] },
+    });
+    await vi.waitFor(() => expect(result.current.state.status).toBe('failed'));
+    expect(result.current.state).toMatchObject({
+      failure: { kind: 'too_few_aligned', count: 1 },
+    });
+  });
+
+  it('names the photo that could not be decoded', async () => {
+    const factory = createFakeFactory(alignHandler(), stackHandler);
+    const { result } = renderHook(() => useExposure(factory, 2));
+    act(() =>
+      result.current.start([file('ok'), file('bad'), file('ok')], 'low'),
+    );
+    await vi.waitFor(() => expect(result.current.state.status).toBe('failed'));
+    expect(result.current.state).toMatchObject({
+      failure: { kind: 'decode_failed', name: 'bad.jpg' },
+    });
+  });
+
+  it('starts with the workers and concurrency of the latest render', async () => {
+    const first = createFakeFactory(alignHandler(), stackHandler);
+    const second = createFakeFactory(alignHandler(), stackHandler);
+    const { result, rerender } = renderHook(
+      (props: { factory: FakeFactory; concurrency: number }) =>
+        useExposure(props.factory, props.concurrency),
+      { initialProps: { factory: first, concurrency: 2 } },
+    );
+    rerender({ factory: second, concurrency: 5 });
+    act(() =>
+      result.current.start(
+        [file('ok'), file('ok'), file('ok'), file('ok')],
+        'low',
+      ),
+    );
+    await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
+    expect(first.stacks).toHaveLength(0);
+    // hardwareConcurrency 5 -> a pool of 4, capped by the three frames to align.
+    expect(second.aligners).toHaveLength(3);
   });
 
   it('reset during a run aborts it, stops the workers and goes back to idle', async () => {

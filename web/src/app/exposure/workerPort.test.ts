@@ -1,7 +1,17 @@
+import { getEventListeners } from 'node:events';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { createFakePort } from './fakeWorkers.test-support';
 import { isAbortError, portFromWorker, request } from './workerPort';
+
+/** An abort that also says so, for whoever logs it. */
+function isCancellation(error: unknown): boolean {
+  return (
+    isAbortError(error) &&
+    (error as DOMException).message === 'The pipeline was cancelled.'
+  );
+}
 
 describe('request', () => {
   it('resolves with the response that echoes the request id and ignores others', async () => {
@@ -28,6 +38,17 @@ describe('request', () => {
       type: 'stack-progress',
       id: 1,
       fraction: 0.5,
+    });
+  });
+
+  it('keeps waiting through progress messages nobody listens for', async () => {
+    const port = createFakePort((message, post) => {
+      post({ type: 'stack-progress', id: message.id, fraction: 0.5 } as never);
+      return { response: { type: 'stacked', id: message.id }, transfer: [] };
+    });
+    await expect(request(port, { type: 'stack', id: 1 })).resolves.toEqual({
+      type: 'stacked',
+      id: 1,
     });
   });
 
@@ -61,8 +82,22 @@ describe('request', () => {
     controller.abort();
     await expect(
       request(port, { type: 'stack', id: 1 }, { signal: controller.signal }),
-    ).rejects.toSatisfy(isAbortError);
+    ).rejects.toSatisfy(isCancellation);
     expect(port.sent).toEqual([]);
+  });
+
+  it('lets go of the signal once settled', async () => {
+    const port = createFakePort((message) => ({
+      response: { type: 'done', id: message.id },
+      transfer: [],
+    }));
+    const controller = new AbortController();
+    await request(
+      port,
+      { type: 'stack', id: 1 },
+      { signal: controller.signal },
+    );
+    expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0);
   });
 
   it('rejects when aborted while waiting and stops listening', async () => {
@@ -74,7 +109,7 @@ describe('request', () => {
       { signal: controller.signal },
     );
     controller.abort();
-    await expect(pending).rejects.toSatisfy(isAbortError);
+    await expect(pending).rejects.toSatisfy(isCancellation);
     // A late answer must not resurrect the settled promise or leak a listener.
     port.emit({ type: 'late', id: 1 });
   });
@@ -103,20 +138,17 @@ describe('isAbortError', () => {
 });
 
 describe('portFromWorker', () => {
+  /** A worker that is a real event target, so only the event type it fires reaches a listener. */
   function fakeWorker() {
-    const handlers = new Set<(event: MessageEvent) => void>();
-    return {
-      handlers,
+    return Object.assign(new EventTarget(), {
       postMessage: vi.fn(),
       terminate: vi.fn(),
-      addEventListener: (_: string, handler: (event: MessageEvent) => void) =>
-        handlers.add(handler),
-      removeEventListener: (
-        _: string,
-        handler: (event: MessageEvent) => void,
-      ) => handlers.delete(handler),
-    };
+    });
   }
+  const messageEvent = (data: string) => new MessageEvent('message', { data });
+  // Node has no ErrorEvent; a bare Event with a `message` is what the handler reads either way.
+  const errorEvent = (message?: string) =>
+    Object.assign(new Event('error'), message === undefined ? {} : { message });
 
   it('forwards postMessage with a fresh transfer array', () => {
     const worker = fakeWorker();
@@ -133,19 +165,23 @@ describe('portFromWorker', () => {
     );
   });
 
-  it("reports a worker's error event with its message, or a stand-in for a bare event", () => {
+  it("reports a worker's error event with its message, or a stand-in for a bare or empty one", () => {
     const worker = fakeWorker();
     const port = portFromWorker(worker as unknown as Worker);
     const listener = vi.fn();
     const unsubscribe = port.onError(listener);
-    worker.handlers.forEach((handler) => handler({ message: 'boom' } as never));
-    worker.handlers.forEach((handler) => handler({ type: 'error' } as never));
+    worker.dispatchEvent(errorEvent('boom'));
+    worker.dispatchEvent(errorEvent());
+    worker.dispatchEvent(errorEvent(''));
+    worker.dispatchEvent(messageEvent('not an error'));
     expect(listener.mock.calls).toEqual([
       ['boom'],
       ['The worker failed to start.'],
+      ['The worker failed to start.'],
     ]);
     unsubscribe();
-    expect(worker.handlers.size).toBe(0);
+    worker.dispatchEvent(errorEvent('late'));
+    expect(listener).toHaveBeenCalledTimes(3);
   });
 
   it('delivers event data to listeners until unsubscribed, and terminates', () => {
@@ -153,12 +189,12 @@ describe('portFromWorker', () => {
     const port = portFromWorker(worker as unknown as Worker);
     const listener = vi.fn();
     const unsubscribe = port.onMessage(listener);
-    worker.handlers.forEach((handler) =>
-      handler({ data: 'hello' } as MessageEvent),
-    );
-    expect(listener).toHaveBeenCalledWith('hello');
+    worker.dispatchEvent(messageEvent('hello'));
+    worker.dispatchEvent(errorEvent('boom'));
+    expect(listener.mock.calls).toEqual([['hello']]);
     unsubscribe();
-    expect(worker.handlers.size).toBe(0);
+    worker.dispatchEvent(messageEvent('late'));
+    expect(listener).toHaveBeenCalledTimes(1);
     port.terminate();
     expect(worker.terminate).toHaveBeenCalled();
   });

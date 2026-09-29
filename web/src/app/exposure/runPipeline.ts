@@ -106,7 +106,7 @@ export async function runPipeline(
     terminateAligners();
     stack.terminate();
   };
-  signal?.addEventListener('abort', terminateAll, { once: true });
+  signal?.addEventListener('abort', terminateAll);
 
   const decodeReference = async (index: number): Promise<ReferenceDecoded> => {
     const response = await request<AlignWorkerResponse>(

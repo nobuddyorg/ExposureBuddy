@@ -81,12 +81,8 @@ export function portFromWorker(worker: Worker): WorkerPort {
     onError: (listener) => {
       // A script that fails to load fires a bare Event; one that throws at top level fires an ErrorEvent.
       const handler = (event: Event) => {
-        const { message } = event as { message?: unknown };
-        listener(
-          typeof message === 'string' && message
-            ? message
-            : 'The worker failed to start.',
-        );
+        const { message } = event as { message?: string };
+        listener(message || 'The worker failed to start.');
       };
       worker.addEventListener('error', handler);
       return () => worker.removeEventListener('error', handler);

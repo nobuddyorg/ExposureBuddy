@@ -1,6 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 
 import { workerPoolSize, type OutputQuality } from '../vision/pipeline/budget';
 import { toPipelineFailure, type PipelineFailure } from './failure';
@@ -36,6 +42,15 @@ const INITIAL_PROGRESS: PipelineProgress = {
   frames: [],
 };
 
+/** Aborts the run in `activeRun`, if any, and frees its result. */
+function disposeRun(activeRun: RefObject<Run | null>): void {
+  const run = activeRun.current;
+  if (!run) return;
+  activeRun.current = null;
+  run.controller.abort();
+  run.result?.dispose();
+}
+
 /** Drives one burst through the pipeline; `hardwareConcurrency` sizes the worker pool. */
 export function useExposure(
   workers: WorkerFactory,
@@ -44,19 +59,11 @@ export function useExposure(
   const [state, setState] = useState<ExposureState>({ status: 'idle' });
   const activeRun = useRef<Run | null>(null);
 
-  const disposeRun = useCallback(() => {
-    const run = activeRun.current;
-    if (!run) return;
-    activeRun.current = null;
-    run.controller.abort();
-    run.result?.dispose();
-  }, []);
-
-  useEffect(() => disposeRun, [disposeRun]);
+  useEffect(() => () => disposeRun(activeRun), []);
 
   const start = useCallback(
     (files: readonly File[], quality: OutputQuality) => {
-      disposeRun();
+      disposeRun(activeRun);
       const run: Run = { controller: new AbortController(), result: null };
       activeRun.current = run;
       setState({ status: 'running', progress: INITIAL_PROGRESS });
@@ -81,13 +88,13 @@ export function useExposure(
         },
       );
     },
-    [disposeRun, hardwareConcurrency, workers],
+    [hardwareConcurrency, workers],
   );
 
   const reset = useCallback(() => {
-    disposeRun();
+    disposeRun(activeRun);
     setState({ status: 'idle' });
-  }, [disposeRun]);
+  }, []);
 
   return { state, start, reset };
 }

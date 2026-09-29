@@ -10,7 +10,9 @@ export type FakeHandler = (
 export interface FakePort extends WorkerPort {
   readonly sent: (WorkerMessage & Record<string, unknown>)[];
   readonly transfers: (readonly ArrayBuffer[])[];
-  terminated: boolean;
+  /** How often `terminate()` was called: a real worker ignores repeats, a test can see them. */
+  terminations: number;
+  readonly terminated: boolean;
   /** Delivers a message as if the worker had posted it. */
   emit(message: WorkerMessage): void;
   /** Fails the worker outright, as a script that does not load would. */
@@ -26,7 +28,10 @@ export function createFakePort(handle: FakeHandler): FakePort {
   const port: FakePort = {
     sent: [],
     transfers: [],
-    terminated: false,
+    terminations: 0,
+    get terminated() {
+      return port.terminations > 0;
+    },
     emit: post,
     emitError: (message) =>
       errorListeners.forEach((listener) => listener(message)),
@@ -61,7 +66,7 @@ export function createFakePort(handle: FakeHandler): FakePort {
       return () => errorListeners.delete(listener);
     },
     terminate() {
-      port.terminated = true;
+      port.terminations += 1;
     },
   };
   return port;

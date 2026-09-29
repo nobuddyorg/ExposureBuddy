@@ -1,17 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_BUDGET_BYTES } from '../vision/pipeline/budget';
 import type { WorkerMessage } from '../vision/pipeline/protocol';
 import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/protocol';
 import { PipelineError } from './failure';
 import {
   createFakeFactory,
   rgba,
+  type FakeFactory,
   type FakeHandler,
 } from './fakeWorkers.test-support';
 import {
   countAligned,
   referenceIndex,
   runPipeline,
+  type PipelineInput,
   type PipelineProgress,
 } from './runPipeline';
 
@@ -68,6 +71,13 @@ function alignHandler(): FakeHandler {
   };
 }
 
+/** An align worker that never answers `type`, so a run is guaranteed to still be waiting on it when an abort lands. */
+function alignHandlerStalledOn(type: string): FakeHandler {
+  const align = alignHandler();
+  return (request, post) =>
+    request.type === type ? new Promise<void>(() => {}) : align(request, post);
+}
+
 function stackHandler(): FakeHandler {
   return (request, post) => {
     const { id } = request;
@@ -103,22 +113,43 @@ function stackHandler(): FakeHandler {
 const file = (verdict: string, name = `${verdict}.jpg`) =>
   Object.assign(new Blob([verdict], { type: 'image/jpeg' }), { name });
 
-function run(
-  verdicts: string[],
-  overrides: Partial<Parameters<typeof runPipeline>[0]> = {},
-) {
-  const factory = createFakeFactory(alignHandler(), stackHandler());
+type RunOverrides = Partial<Omit<PipelineInput, 'workers'>> & {
+  readonly workers?: FakeFactory;
+};
+
+function run(verdicts: string[], overrides: RunOverrides = {}) {
+  const factory =
+    overrides.workers ?? createFakeFactory(alignHandler(), stackHandler());
   const progress: PipelineProgress[] = [];
   const files = verdicts.map((verdict) => file(verdict));
   const result = runPipeline({
     files,
     names: files.map((each) => each.name),
     options: { quality: 'low', poolSize: 2 },
-    workers: factory,
     onProgress: (update) => progress.push(update),
     ...overrides,
+    workers: factory,
   });
   return { factory, progress, result };
+}
+
+/** Every request the run posted, across all of its workers. */
+function everyRequest(factory: FakeFactory) {
+  return [...factory.aligners, ...factory.stacks].flatMap((port) => port.sent);
+}
+
+/** How `result` settled by the next macrotask: its failure kind, 'resolved', or 'pending' when a cancelled step hangs. */
+function outcomeOf(result: Promise<unknown>): Promise<string> {
+  return Promise.race([
+    result.then(
+      () => 'resolved',
+      (error: unknown) =>
+        error instanceof PipelineError ? error.failure.kind : String(error),
+    ),
+    new Promise<string>((resolve) => {
+      setTimeout(() => resolve('pending'));
+    }),
+  ]);
 }
 
 describe('referenceIndex', () => {
@@ -190,11 +221,24 @@ describe('runPipeline', () => {
     const stages = progress.map(
       (update) => `${update.stage}:${update.done}/${update.total}`,
     );
-    expect(stages[0]).toBe('reference:0/1');
-    expect(stages).toContain('aligning:0/4');
-    expect(stages).toContain('aligning:4/4');
-    expect(stages).toContain('stacking:50/100');
-    expect(stages.at(-1)).toBe('compositing:0/1');
+    expect(stages).toEqual([
+      'reference:0/1',
+      'aligning:0/4',
+      'aligning:1/4',
+      'aligning:2/4',
+      'aligning:3/4',
+      'aligning:4/4',
+      'stacking:0/100',
+      'stacking:50/100',
+      'compositing:0/1',
+    ]);
+    expect(progress[0].frames.map((frame) => frame.status)).toEqual([
+      'pending',
+      'pending',
+      'pending',
+      'pending',
+      'pending',
+    ]);
     expect(progress.at(-1)?.frames[2].status).toBe('reference');
 
     const rendered = await exposure.render({
@@ -211,6 +255,49 @@ describe('runPipeline', () => {
     expect(reference.data[0]).toBe(7);
     exposure.dispose();
     expect(stack.terminated).toBe(true);
+  });
+
+  it('sizes the reference decode from the burst length, the quality and the given budget', async () => {
+    const budgetBytes = 64 * 1024 * 1024;
+    const { factory, result } = run(['ok', 'ok', 'ok'], {
+      options: { quality: 'standard', poolSize: 2, budgetBytes },
+    });
+    await result;
+    expect(factory.aligners[0].sent[0]).toMatchObject({
+      type: 'decode-reference',
+      sizing: { frameCount: 3, budgetBytes, maxLongEdge: 1600 },
+    });
+  });
+
+  it('decodes the reference within the default budget when none is given', async () => {
+    const { factory, result } = run(['ok', 'ok']);
+    await result;
+    expect(factory.aligners[0].sent[0]).toMatchObject({
+      sizing: {
+        frameCount: 2,
+        budgetBytes: DEFAULT_BUDGET_BYTES,
+        maxLongEdge: 1024,
+      },
+    });
+  });
+
+  it('aligns every frame onto the working size of the decoded reference', async () => {
+    const { factory, result } = run(['ok', 'ok', 'ok']);
+    await result;
+    const aligns = everyRequest(factory).filter(
+      (message) => message.type === 'align',
+    );
+    expect(aligns).toHaveLength(2);
+    expect(aligns.map((message) => message.target)).toEqual([WORKING, WORKING]);
+  });
+
+  it('gives every request across all workers its own id, numbered from 1', async () => {
+    const { factory, result } = run(['ok', 'ok', 'ok', 'skip']);
+    await result;
+    const ids = everyRequest(factory)
+      .map((message) => message.id)
+      .sort((a, b) => a - b);
+    expect(ids).toEqual(ids.map((_, position) => position + 1));
   });
 
   it('never opens more aligners than there are frames to align', async () => {
@@ -263,28 +350,16 @@ describe('runPipeline', () => {
 
   it('rejects with the abort and terminates the workers when cancelled mid-way', async () => {
     const controller = new AbortController();
-    const align = alignHandler();
-    // Alignment never answers, so the run is guaranteed to still be in flight when the abort lands.
-    const factory = createFakeFactory(
-      (request, post) =>
-        request.type === 'align'
-          ? new Promise<void>(() => {})
-          : align(request, post),
-      stackHandler(),
-    );
-    const result = runPipeline({
-      files: [file('ok'), file('ok'), file('ok')],
-      names: ['a', 'b', 'c'],
-      options: { quality: 'low', poolSize: 2 },
-      workers: factory,
-      onProgress: () => {},
+    const { factory, result } = run(['ok', 'ok', 'ok'], {
+      workers: createFakeFactory(
+        alignHandlerStalledOn('align'),
+        stackHandler(),
+      ),
       signal: controller.signal,
     });
     await vi.waitFor(() =>
       expect(
-        factory.aligners
-          .flatMap((port) => port.sent)
-          .filter((m) => m.type === 'align'),
+        everyRequest(factory).filter((m) => m.type === 'align'),
       ).toHaveLength(2),
     );
     controller.abort();
@@ -295,66 +370,117 @@ describe('runPipeline', () => {
     expect(factory.stacks[0].terminated).toBe(true);
   });
 
+  it('cancels promptly when the abort lands while the reference is still decoding', async () => {
+    const controller = new AbortController();
+    const { factory, result } = run(['ok', 'ok'], {
+      workers: createFakeFactory(
+        alignHandlerStalledOn('decode-reference'),
+        stackHandler(),
+      ),
+      signal: controller.signal,
+    });
+    await vi.waitFor(() =>
+      expect(factory.aligners[0].sent.map((m) => m.type)).toEqual([
+        'decode-reference',
+      ]),
+    );
+    controller.abort();
+    expect(await outcomeOf(result)).toBe('cancelled');
+    expect(factory.aligners[0].terminated).toBe(true);
+  });
+
+  it('cancels promptly when the abort lands while the aligners are taking the reference', async () => {
+    const controller = new AbortController();
+    const { factory, result } = run(['ok', 'ok', 'ok'], {
+      workers: createFakeFactory(
+        alignHandlerStalledOn('set-reference'),
+        stackHandler(),
+      ),
+      signal: controller.signal,
+    });
+    await vi.waitFor(() =>
+      expect(
+        everyRequest(factory).filter((m) => m.type === 'set-reference'),
+      ).toHaveLength(2),
+    );
+    controller.abort();
+    expect(await outcomeOf(result)).toBe('cancelled');
+  });
+
+  it('stops the stack worker when the signal aborts after the result is ready', async () => {
+    const controller = new AbortController();
+    const { factory, result } = run(['ok', 'ok'], {
+      signal: controller.signal,
+    });
+    await result;
+    const [stack] = factory.stacks;
+    expect(stack.terminated).toBe(false);
+    controller.abort();
+    expect(stack.terminated).toBe(true);
+  });
+
+  it('lets go of the signal on dispose, so a later abort no longer touches the workers', async () => {
+    const controller = new AbortController();
+    const { factory, result } = run(['ok', 'ok'], {
+      signal: controller.signal,
+    });
+    const exposure = await result;
+    exposure.dispose();
+    controller.abort();
+    expect(factory.stacks[0].terminations).toBe(1);
+    expect(factory.aligners.map((port) => port.terminations)).toEqual([1]);
+  });
+
   it('reports a burst with no common area as its own failure', async () => {
     const stack = stackHandler();
-    const factory = createFakeFactory(alignHandler(), (request, post) => {
-      if (request.type === 'stack') throw new Error(NO_OVERLAP_MESSAGE);
-      return stack(request, post);
+    const { result } = run(['ok', 'ok'], {
+      workers: createFakeFactory(alignHandler(), (request, post) => {
+        if (request.type === 'stack') throw new Error(NO_OVERLAP_MESSAGE);
+        return stack(request, post);
+      }),
     });
-    await expect(
-      runPipeline({
-        files: [file('ok'), file('ok')],
-        names: ['a', 'b'],
-        options: { quality: 'low', poolSize: 1 },
-        workers: factory,
-        onProgress: () => {},
-      }),
-    ).rejects.toMatchObject({ failure: { kind: 'no_overlap' } });
-  });
-
-  it('treats an unexpected reference response as a failure', async () => {
-    const factory = createFakeFactory(
-      (request) => ({
-        response: { type: 'reference-set', id: request.id },
-        transfer: [],
-      }),
-      stackHandler(),
-    );
-    await expect(
-      runPipeline({
-        files: [file('ok'), file('ok')],
-        names: ['a', 'b'],
-        options: { quality: 'low', poolSize: 1 },
-        workers: factory,
-        onProgress: () => {},
-      }),
-    ).rejects.toMatchObject({
-      failure: { kind: 'unknown', message: /reference-set/ },
+    await expect(result).rejects.toMatchObject({
+      failure: { kind: 'no_overlap' },
     });
   });
 
-  it('treats an unexpected align response as a failure', async () => {
+  it('treats an unexpected reference response as a failure naming it', async () => {
+    const { result } = run(['ok', 'ok'], {
+      workers: createFakeFactory(
+        (request) => ({
+          response: { type: 'reference-set', id: request.id },
+          transfer: [],
+        }),
+        stackHandler(),
+      ),
+    });
+    await expect(result).rejects.toMatchObject({
+      failure: {
+        kind: 'unknown',
+        message: 'Unexpected reference-set while decoding the reference.',
+      },
+    });
+  });
+
+  it('treats an unexpected align response as a failure naming it', async () => {
     const align = alignHandler();
-    const factory = createFakeFactory(
-      (request, post) =>
-        request.type === 'align'
-          ? {
-              response: { type: 'reference-set', id: request.id },
-              transfer: [],
-            }
-          : align(request, post),
-      stackHandler(),
-    );
-    await expect(
-      runPipeline({
-        files: [file('ok'), file('ok')],
-        names: ['a', 'b'],
-        options: { quality: 'low', poolSize: 1 },
-        workers: factory,
-        onProgress: () => {},
-      }),
-    ).rejects.toMatchObject({
-      failure: { kind: 'unknown', message: /reference-set/ },
+    const { result } = run(['ok', 'ok'], {
+      workers: createFakeFactory(
+        (request, post) =>
+          request.type === 'align'
+            ? {
+                response: { type: 'reference-set', id: request.id },
+                transfer: [],
+              }
+            : align(request, post),
+        stackHandler(),
+      ),
+    });
+    await expect(result).rejects.toMatchObject({
+      failure: {
+        kind: 'unknown',
+        message: 'Unexpected reference-set while aligning.',
+      },
     });
   });
 });
