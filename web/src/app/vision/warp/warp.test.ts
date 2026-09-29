@@ -119,8 +119,38 @@ describe('warpRgba', () => {
     );
   });
 
+  it('transposes a square image under the axis-swapping homography', () => {
+    const square = makeImage(10, 10, (x, y) => [
+      x * 20,
+      y * 20,
+      x * 3 + y * 5,
+      255,
+    ]);
+    const swapAxes = new Float64Array([0, 1, 0, 1, 0, 0, 0, 0, 1]);
+    const { image, coverage } = warpRgba(square, swapAxes, square);
+    expect(coveredCount(coverage)).toBe(100);
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 10; x += 1) {
+        expect(pixelAt(image, x, y)).toEqual(pixelAt(square, y, x));
+      }
+    }
+  });
+
+  it('is unchanged by a scalar multiple of the homography', () => {
+    const identity = warpRgba(patterned, identityHomography(), patterned);
+    const doubled = identityHomography().map((entry) => entry * 2);
+    const scaled = warpRgba(patterned, doubled, patterned);
+    expect(scaled.image.data).toEqual(identity.image.data);
+    expect(scaled.coverage).toEqual(identity.coverage);
+  });
+
   it('interpolates a gradient bilinearly at a half-pixel offset in both axes', () => {
-    const gradient = makeImage(12, 10, (x, y) => [x * 20, y * 20, 0, 255]);
+    const gradient = makeImage(12, 10, (x, y) => [
+      x * 20,
+      y * 20,
+      (x + y) * 10,
+      255,
+    ]);
     const { image, coverage } = warpRgba(
       gradient,
       translationHomography(0.5, 0.5),
@@ -130,9 +160,10 @@ describe('warpRgba', () => {
     expect(coverage[1 * 12 + 1]).toBe(1);
     for (let y = 1; y < 10; y += 1) {
       for (let x = 1; x < 12; x += 1) {
-        const [r, g] = pixelAt(image, x, y);
+        const [r, g, b] = pixelAt(image, x, y);
         expect(Math.abs(r - (x - 0.5) * 20)).toBeLessThanOrEqual(1);
         expect(Math.abs(g - (y - 0.5) * 20)).toBeLessThanOrEqual(1);
+        expect(Math.abs(b - (x + y - 1) * 10)).toBeLessThanOrEqual(1);
       }
     }
   });

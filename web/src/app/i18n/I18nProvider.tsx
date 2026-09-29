@@ -95,7 +95,7 @@ const LANGUAGE_STORAGE_KEY = 'lang';
 const DEFAULT_LANGUAGE: Language = 'en';
 
 function isLanguage(value: string | null): value is Language {
-  return value === 'de' || value === 'en';
+  return (LANGUAGES as readonly (string | null)[]).includes(value);
 }
 
 /** A stored choice, else the browser's language, else English; `LANG_INIT_SCRIPT` in layout.tsx decides the same way. */

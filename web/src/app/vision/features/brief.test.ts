@@ -214,6 +214,49 @@ describe('computeDescriptors', () => {
     expect(Math.abs(total / pairs - 128)).toBeLessThan(40);
   });
 
+  it('compares the y offsets of each pair as they are, on a vertical gradient at angle 0', () => {
+    const size = 2 * BRIEF_PATCH_RADIUS + 3;
+    const data = Uint8Array.from({ length: size * size }, (_, index) =>
+      Math.floor(index / size),
+    );
+    const centre = BRIEF_PATCH_RADIUS + 1;
+    const descriptors = computeDescriptors(
+      { width: size, height: size, data },
+      [{ x: centre, y: centre, score: 1, angle: 0 }],
+    );
+    const expected = new Uint32Array(DESCRIPTOR_WORDS);
+    for (let pair = 0; pair < BRIEF_PAIR_COUNT; pair += 1) {
+      const firstY = BRIEF_PATTERN[pair * 4 + 1];
+      const secondY = BRIEF_PATTERN[pair * 4 + 3];
+      if (firstY < secondY) expected[pair >> 5] |= 1 << (pair % 32);
+    }
+    expect(Array.from(descriptors)).toEqual(Array.from(expected));
+  });
+
+  it('clamps at the far edges exactly as if the edge pixels were replicated', () => {
+    const scene = texturedScene();
+    const margin = BRIEF_PATCH_RADIUS + 2;
+    const width = scene.width + margin;
+    const height = scene.height + margin;
+    const padded = new Uint8Array(width * height);
+    for (let y = 0; y < height; y += 1) {
+      const sourceY = Math.min(y, scene.height - 1);
+      for (let x = 0; x < width; x += 1) {
+        padded[y * width + x] =
+          scene.data[sourceY * scene.width + Math.min(x, scene.width - 1)];
+      }
+    }
+    const corner = {
+      x: scene.width - 1,
+      y: scene.height - 1,
+      score: 1,
+      angle: 0.3,
+    };
+    expect(computeDescriptors(scene, [corner])).toEqual(
+      computeDescriptors({ width, height, data: padded }, [corner]),
+    );
+  });
+
   it('clamps samples at the image edge instead of reading outside', () => {
     const scene = texturedScene();
     const descriptors = computeDescriptors(scene, [

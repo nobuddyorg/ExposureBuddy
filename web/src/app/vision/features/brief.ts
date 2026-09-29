@@ -13,12 +13,9 @@ export const BRIEF_PATTERN: Int8Array = generatePattern();
 
 function generatePattern(): Int8Array {
   const nextUniform = mulberry32(PATTERN_SEED);
-  const pattern = new Int8Array(BRIEF_PAIR_COUNT * 4);
-  for (let index = 0; index < pattern.length; index += 1) {
-    const offset = Math.round(standardNormal(nextUniform) * SAMPLE_SIGMA);
-    pattern[index] = clampToPatch(offset);
-  }
-  return pattern;
+  return Int8Array.from({ length: BRIEF_PAIR_COUNT * 4 }, () =>
+    clampToPatch(Math.round(standardNormal(nextUniform) * SAMPLE_SIGMA)),
+  );
 }
 
 function clampToPatch(offset: number): number {

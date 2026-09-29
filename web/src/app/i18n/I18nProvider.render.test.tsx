@@ -153,6 +153,42 @@ describe('I18nProvider', () => {
     expect(localStorage.getItem('lang')).toBe('de');
   });
 
+  it('announces a chosen language on its own window event, for the same tab', async () => {
+    localStorage.setItem('lang', 'en');
+    renderProbe();
+    const heard = vi.fn();
+    window.addEventListener('exposurebuddy:lang', heard);
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Deutsch' }).click();
+    });
+
+    expect(heard).toHaveBeenCalledTimes(1);
+    window.removeEventListener('exposurebuddy:lang', heard);
+  });
+
+  it('picks up a language chosen in another tab', async () => {
+    localStorage.setItem('lang', 'en');
+    renderProbe();
+    expect(screen.getByTestId('lang')).toHaveTextContent('en');
+
+    await act(async () => {
+      localStorage.setItem('lang', 'de');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'lang' }));
+    });
+
+    expect(screen.getByTestId('lang')).toHaveTextContent('de');
+  });
+
+  it('stops listening for either kind of change once unmounted', () => {
+    const removed = vi.spyOn(window, 'removeEventListener');
+    const { unmount } = renderProbe();
+    unmount();
+    const names = removed.mock.calls.map(([name]) => name);
+    expect(names).toContain('storage');
+    expect(names).toContain('exposurebuddy:lang');
+  });
+
   it('does not throw when the chosen language cannot be stored', async () => {
     localStorage.setItem('lang', 'en');
     renderProbe();
