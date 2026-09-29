@@ -16,21 +16,21 @@ export function composite(
 ): RgbaImage {
   const { width, height } = rect;
   const pixelCount = width * height;
-  const median = cropChannels(stack.median, stack.width, rect);
+  const rowStarts = rectRowStarts(stack.width, rect);
   const ghost = new Float32Array(pixelCount * RGB);
   const glowSource = new Float32Array(pixelCount * RGB);
-  for (let row = 0; row < height; row += 1) {
-    let source = ((rect.y + row) * stack.width + rect.x) * RGBA;
-    let target = row * width * RGB;
+  let target = 0;
+  for (const rowStart of rowStarts) {
+    let source = rowStart;
     for (let x = 0; x < width; x += 1) {
       for (let channel = 0; channel < RGB; channel += 1) {
         const difference =
-          stack.mean[source + channel] - median[target + channel];
-        ghost[target + channel] = difference;
-        glowSource[target + channel] = difference > 0 ? difference : 0;
+          stack.mean[source + channel] - stack.median[source + channel];
+        ghost[target] = difference;
+        glowSource[target] = Math.max(difference, 0);
+        target += 1;
       }
       source += RGBA;
-      target += RGB;
     }
   }
   const glowWeight = params.glow * GLOW_SCALE;
@@ -50,38 +50,32 @@ export function composite(
           BLUR_PASSES,
         );
   const output = new Uint8ClampedArray(pixelCount * RGBA);
-  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
-    const rgb = pixel * RGB;
-    const rgba = pixel * RGBA;
-    for (let channel = 0; channel < RGB; channel += 1) {
-      output[rgba + channel] = Math.round(
-        median[rgb + channel] +
-          params.ghostStrength * blurredGhost[rgb + channel] +
-          glowWeight * blurredGlow[rgb + channel],
-      );
+  const rowBytes = width * RGBA;
+  let rgb = 0;
+  let rgba = 0;
+  for (const rowStart of rowStarts) {
+    // Each row starts as the median; the ghost and the glow are added in place.
+    output.set(stack.median.subarray(rowStart, rowStart + rowBytes), rgba);
+    for (let x = 0; x < width; x += 1) {
+      output[rgba + 3] = OPAQUE;
+      for (let channel = 0; channel < RGB; channel += 1) {
+        output[rgba + channel] = Math.round(
+          output[rgba + channel] +
+            params.ghostStrength * blurredGhost[rgb] +
+            glowWeight * blurredGlow[rgb],
+        );
+        rgb += 1;
+      }
+      rgba += RGBA;
     }
-    output[rgba + 3] = OPAQUE;
   }
   return { width, height, data: output };
 }
 
-// The RGB of `rect` from an RGBA buffer `sourceWidth` pixels wide, alpha dropped.
-function cropChannels(
-  source: Uint8ClampedArray,
-  sourceWidth: number,
-  rect: Rect,
-): Uint8Array {
-  const cropped = new Uint8Array(rect.width * rect.height * RGB);
-  let target = 0;
-  for (let row = 0; row < rect.height; row += 1) {
-    let offset = ((rect.y + row) * sourceWidth + rect.x) * RGBA;
-    for (let x = 0; x < rect.width; x += 1) {
-      cropped[target] = source[offset];
-      cropped[target + 1] = source[offset + 1];
-      cropped[target + 2] = source[offset + 2];
-      target += RGB;
-      offset += RGBA;
-    }
-  }
-  return cropped;
+// The RGBA offset at which each row of `rect` starts in a buffer `sourceWidth` pixels wide.
+function rectRowStarts(sourceWidth: number, rect: Rect): number[] {
+  return Array.from(
+    { length: rect.height },
+    (_, row) => ((rect.y + row) * sourceWidth + rect.x) * RGBA,
+  );
 }

@@ -101,18 +101,95 @@ describe('composite', () => {
 
   it('reads the right pixels for an offset rect', () => {
     const rect: Rect = { x: 5, y: 3, width: 10, height: 7 };
+    const scene = composite(stack, params({}), rect);
     const image = composite(stack, params({ ghostStrength: 1 }), rect);
     expect(image.width).toBe(rect.width);
     expect(image.height).toBe(rect.height);
     for (let row = 0; row < rect.height; row += 1) {
       for (let x = 0; x < rect.width; x += 1) {
         const sourcePixel = (rect.y + row) * SIZE.width + rect.x + x;
+        expect(rgbOf(scene.data, row * rect.width + x)).toEqual(
+          rgbOf(stack.median, sourcePixel),
+        );
         expect(rgbOf(image.data, row * rect.width + x)).toEqual(
           rgbOf(stack.mean, sourcePixel),
         );
         expect(image.data[(row * rect.width + x) * 4 + 3]).toBe(255);
       }
     }
+  });
+
+  it('spreads the glow well beyond the block with the ghost blur widened', () => {
+    const plain = composite(stack, params({ ghostBlur: 3 }), FULL);
+    const glowing = composite(stack, params({ ghostBlur: 3, glow: 1 }), FULL);
+    const besideBlock =
+      (BRIGHT_RECT.y + 1) * SIZE.width + BRIGHT_RECT.x + BRIGHT_RECT.width + 2;
+    expect(rgbOf(glowing.data, besideBlock)[0]).toBeGreaterThan(
+      rgbOf(plain.data, besideBlock)[0],
+    );
+  });
+
+  it('adds glow to the channel whose mean exceeds the median, not to the others', () => {
+    const frames = [
+      flatFrame(SIZE, BACKGROUND),
+      flatFrame(SIZE, BACKGROUND),
+      flatFrame(SIZE, BACKGROUND),
+    ];
+    paintRect(frames[1].image, BRIGHT_RECT, [
+      BACKGROUND[0],
+      BACKGROUND[1],
+      250,
+    ]);
+    const blueGhost = stackFrames(frames);
+    const glowing = composite(blueGhost, params({ glow: 1 }), FULL);
+    let brightened = 0;
+    for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+      const [red, green, blue] = rgbOf(glowing.data, pixel);
+      expect([red, green]).toEqual([BACKGROUND[0], BACKGROUND[1]]);
+      expect(blue).toBeGreaterThanOrEqual(BACKGROUND[2]);
+      if (blue > BACKGROUND[2]) brightened += 1;
+    }
+    expect(brightened).toBeGreaterThan(0);
+  });
+
+  it('matches the documented formula on a uniform ghost for any strength, blur and glow', () => {
+    // A blur leaves a uniform layer unchanged, so the formula holds exactly whatever the radius.
+    const frames = [
+      flatFrame(SIZE, BACKGROUND),
+      flatFrame(SIZE, BACKGROUND),
+      flatFrame(SIZE, BRIGHT),
+    ];
+    const uniform = stackFrames(frames);
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.integer({ min: 0, max: 4 }),
+        (ghostStrength, glow, ghostBlur) => {
+          const image = composite(
+            uniform,
+            { ghostStrength, ghostBlur, glow },
+            FULL,
+          );
+          for (let index = 0; index < image.data.length; index += 1) {
+            if (index % 4 === 3) {
+              expect(image.data[index]).toBe(255);
+              continue;
+            }
+            const ghost = uniform.mean[index] - uniform.median[index];
+            expect(ghost).toBeGreaterThan(0);
+            expect(image.data[index]).toBe(
+              Math.round(
+                uniform.median[index] +
+                  ghostStrength * ghost +
+                  glow * 1.5 * ghost,
+              ),
+            );
+          }
+        },
+      ),
+      { numRuns: 30 },
+    );
   });
 
   it('matches the per-pixel formula without blur or glow for any ghost strength', () => {
