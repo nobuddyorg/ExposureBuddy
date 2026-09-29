@@ -20,6 +20,7 @@ export const MUTATE_TARGETS = [
   'src/app/vision/stack/stack.ts',
   'src/app/vision/stack/composite.ts',
   'src/app/vision/stack/compositeParams.ts',
+  'src/app/vision/indices.ts',
   'src/app/vision/pipeline/budget.ts',
   'src/app/vision/pipeline/protocol.ts',
   'src/app/vision/pipeline/alignment.ts',

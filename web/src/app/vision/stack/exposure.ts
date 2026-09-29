@@ -1,4 +1,5 @@
 import type { RgbaImage } from '../types';
+import { indices } from '../indices';
 
 const UNIT_GAIN: readonly [number, number, number] = [1, 1, 1];
 const MIN_GAIN = 0.5;
@@ -17,7 +18,7 @@ export function estimateGain(
   const referenceData = reference.data;
   const frameSums = [0, 0, 0];
   const referenceSums = [0, 0, 0];
-  for (let y = 0; y < height; y += SAMPLE_STRIDE) {
+  for (const y of indices(height, SAMPLE_STRIDE)) {
     for (let x = 0; x < width; x += SAMPLE_STRIDE) {
       const pixel = y * width + x;
       if (coverage[pixel] !== 1) continue;

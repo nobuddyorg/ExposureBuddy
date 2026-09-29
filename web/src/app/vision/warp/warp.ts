@@ -1,5 +1,6 @@
 import { invertHomography } from '../geometry/homography';
 import type { AlignedFrame, Homography, RgbaImage, Size } from '../types';
+import { indices } from '../indices';
 
 const CHANNELS = 4;
 const OPAQUE = 255;
@@ -22,7 +23,7 @@ export function warpRgba(
   const maxX = sourceWidth - 1;
   const maxY = source.height - 1;
   const [stepX, , , stepY, , , stepW] = inverse;
-  for (let y = 0; y < height; y += 1) {
+  for (const y of indices(height)) {
     // Homogeneous source coordinates of (0, y), advanced by one column per step.
     let homogeneousX = inverse[1] * y + inverse[2];
     let homogeneousY = inverse[4] * y + inverse[5];

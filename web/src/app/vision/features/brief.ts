@@ -1,5 +1,6 @@
 import { DESCRIPTOR_WORDS, type GrayImage, type Keypoint } from '../types';
 import { mulberry32, standardNormal } from './random';
+import { indices } from '../indices';
 
 /** Half the side of the square patch a descriptor samples; keypoints need this much room plus one pixel. */
 export const BRIEF_PATCH_RADIUS = 15;
@@ -10,6 +11,7 @@ const BITS_PER_WORD = 32;
 
 /** 256 test pairs as (x1, y1, x2, y2) offsets from the keypoint, Gaussian (σ = radius / 5) and clipped to ±BRIEF_PATCH_RADIUS. */
 export const BRIEF_PATTERN: Int8Array = generatePattern();
+const PAIRS = indices(BRIEF_PAIR_COUNT);
 
 function generatePattern(): Int8Array {
   const nextUniform = mulberry32(PATTERN_SEED);
@@ -52,7 +54,7 @@ function describeKeypoint(
   const centerY = Math.round(keypoint.y);
   const lastX = width - 1;
   const lastY = height - 1;
-  for (let pair = 0; pair < BRIEF_PAIR_COUNT; pair += 1) {
+  for (const pair of PAIRS) {
     const patternOffset = pair * 4;
     const firstX = BRIEF_PATTERN[patternOffset];
     const firstY = BRIEF_PATTERN[patternOffset + 1];

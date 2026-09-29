@@ -1,10 +1,11 @@
 import type { GrayImage } from '../types';
+import { indices } from '../indices';
 
 /** Returns `image` box-blurred with a (2·radius + 1)² window, edges replicated; radius 0 is a copy. */
 export function boxBlurGray(image: GrayImage, radius: number): GrayImage {
   const { width, height, data } = image;
   const rowSums = new Uint32Array(width * height);
-  for (let y = 0; y < height; y += 1) {
+  for (const y of indices(height)) {
     slidingWindowSum(data, rowSums, {
       start: y * width,
       step: 1,

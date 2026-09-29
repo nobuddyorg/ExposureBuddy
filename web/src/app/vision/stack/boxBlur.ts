@@ -1,4 +1,5 @@
 import type { Size } from '../types';
+import { indices } from '../indices';
 
 const DEFAULT_PASSES = 3;
 
@@ -16,7 +17,7 @@ export function boxBlurFloat(
   const scratch = new Float32Array(data.length);
   const columnSums = new Float64Array(rowLength);
   for (let pass = 0; pass < passes; pass += 1) {
-    for (let y = 0; y < size.height; y += 1) {
+    for (const y of indices(size.height)) {
       for (let channel = 0; channel < channels; channel += 1) {
         blurLine(front, scratch, {
           start: y * rowLength + channel,

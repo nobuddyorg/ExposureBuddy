@@ -29,6 +29,7 @@ web/src/app/
     warp/          inverse-mapped bilinear warp with a coverage mask
     stack/         exposure gain, median / mean / deviation stack, crop, composite
     pipeline/      memory budget, worker message protocol, pure request handlers
+    indices.ts     the row and sample index lists kernels walk, so their loops carry no bound
   workers/         exposure.worker.ts, the one entry point: `self.onmessage` glue over vision/pipeline handlers
 web/public/        sw.js (precaches out/precache.json at install), site.webmanifest, icons, logo.svg
 web/e2e/           Playwright: page objects, public specs, synthetic burst fixtures

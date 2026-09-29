@@ -1,3 +1,5 @@
+import { indices } from '../indices';
+
 export interface SymmetricEigen {
   /** Eigenvalue k belongs to column k of `vectors`; not sorted. */
   readonly values: Float64Array;
@@ -9,6 +11,8 @@ interface JacobiWorkspace {
   readonly matrix: Float64Array;
   readonly vectors: Float64Array;
   readonly size: number;
+  /** 0 … size − 1, listed once for the rotation loops. */
+  readonly rows: readonly number[];
 }
 
 const MAX_SWEEPS = 60;
@@ -25,19 +29,17 @@ function identity(size: number): Float64Array {
 function isDiagonal(matrix: Float64Array, size: number): boolean {
   let offDiagonal = 0;
   let total = 0;
-  for (let row = 0; row < size; row += 1) {
-    for (let column = 0; column < size; column += 1) {
-      const squared = matrix[row * size + column] ** 2;
-      total += squared;
-      if (row !== column) offDiagonal += squared;
-    }
-  }
+  matrix.forEach((entry, index) => {
+    const squared = entry ** 2;
+    total += squared;
+    if (index % (size + 1) !== 0) offDiagonal += squared;
+  });
   return offDiagonal <= CONVERGENCE_RATIO * total;
 }
 
 // Applies the Givens rotation that zeroes matrix[p][q]: A ← Jᵀ A J and V ← V J.
 function rotatePair(workspace: JacobiWorkspace, p: number, q: number): void {
-  const { matrix, vectors, size } = workspace;
+  const { matrix, vectors, size, rows } = workspace;
   const offDiagonal = matrix[p * size + q];
   if (offDiagonal === 0) return;
   const theta =
@@ -46,19 +48,19 @@ function rotatePair(workspace: JacobiWorkspace, p: number, q: number): void {
   const tangent = sign / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
   const cosine = 1 / Math.sqrt(tangent * tangent + 1);
   const sine = tangent * cosine;
-  for (let row = 0; row < size; row += 1) {
+  for (const row of rows) {
     const entryP = matrix[row * size + p];
     const entryQ = matrix[row * size + q];
     matrix[row * size + p] = cosine * entryP - sine * entryQ;
     matrix[row * size + q] = sine * entryP + cosine * entryQ;
   }
-  for (let column = 0; column < size; column += 1) {
+  for (const column of rows) {
     const entryP = matrix[p * size + column];
     const entryQ = matrix[q * size + column];
     matrix[p * size + column] = cosine * entryP - sine * entryQ;
     matrix[q * size + column] = sine * entryP + cosine * entryQ;
   }
-  for (let row = 0; row < size; row += 1) {
+  for (const row of rows) {
     const entryP = vectors[row * size + p];
     const entryQ = vectors[row * size + q];
     vectors[row * size + p] = cosine * entryP - sine * entryQ;
@@ -76,14 +78,16 @@ export function jacobiEigen(
       `jacobiEigen: expected ${size * size} entries, got ${matrix.length}`,
     );
   }
+  const rows = indices(size);
   const workspace: JacobiWorkspace = {
     matrix: Float64Array.from(matrix),
     vectors: identity(size),
     size,
+    rows,
   };
   for (let sweep = 0; sweep < MAX_SWEEPS; sweep += 1) {
     if (isDiagonal(workspace.matrix, size)) break;
-    for (let p = 0; p < size; p += 1) {
+    for (const p of rows) {
       for (let q = p + 1; q < size; q += 1) {
         rotatePair(workspace, p, q);
       }
