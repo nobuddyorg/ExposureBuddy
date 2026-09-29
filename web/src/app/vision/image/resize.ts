@@ -14,7 +14,7 @@ export function fitWithin(
   maxLongEdge: number,
 ): Size & { scale: number } {
   const longEdge = Math.max(size.width, size.height);
-  const scale = longEdge > maxLongEdge ? maxLongEdge / longEdge : 1;
+  const scale = Math.min(1, maxLongEdge / longEdge);
   return {
     width: Math.max(1, Math.round(size.width * scale)),
     height: Math.max(1, Math.round(size.height * scale)),
@@ -22,14 +22,14 @@ export function fitWithin(
   };
 }
 
-/** Returns `image` resampled to `target`: area-averaged when no edge grows, bilinear otherwise, a copy at equal size. */
+/** Returns `image` resampled to `target`: area-averaged when no edge grows (an exact copy at equal size), bilinear otherwise. */
 export function resizeRgba(image: RgbaImage, target: Size): RgbaImage {
   const data = new Uint8ClampedArray(target.width * target.height * 4);
   resample(image, 4, target, data);
   return { width: target.width, height: target.height, data };
 }
 
-/** Returns `image` resampled to `target`: area-averaged when no edge grows, bilinear otherwise, a copy at equal size. */
+/** Returns `image` resampled to `target`: area-averaged when no edge grows (an exact copy at equal size), bilinear otherwise. */
 export function resizeGray(image: GrayImage, target: Size): GrayImage {
   const data = new Uint8Array(target.width * target.height);
   resample(image, 1, target, data);
@@ -42,28 +42,41 @@ function resample(
   target: Size,
   output: PixelBuffer,
 ): void {
-  if (source.width === target.width && source.height === target.height) {
-    output.set(source.data);
-    return;
-  }
   const shrinks =
     target.width <= source.width && target.height <= source.height;
-  if (shrinks) {
+  if (source.width === target.width && source.height === target.height) {
+    output.set(source.data);
+  } else if (shrinks) {
     areaAverage(source, channels, target, output);
   } else {
     bilinear(source, channels, target, output);
   }
 }
 
-interface AxisShrink {
-  readonly sourceLength: number;
-  readonly targetLength: number;
-  readonly lineCount: number;
-  readonly sourceStep: number;
-  readonly sourceLineStep: number;
-  readonly targetStep: number;
-  readonly targetLineStep: number;
-  readonly channels: number;
+interface SourceSpan {
+  readonly firstSource: number;
+  readonly weights: readonly number[];
+}
+
+// Target sample `t` covers source [t·S, (t+1)·S) in units of 1/T source samples; each weight is one source sample's overlap, an integer.
+function sourceSpans(sourceLength: number, targetLength: number): SourceSpan[] {
+  return Array.from({ length: targetLength }, (_, target) => {
+    const spanStart = target * sourceLength;
+    const spanEnd = spanStart + sourceLength;
+    const firstSource = Math.floor(spanStart / targetLength);
+    const weights: number[] = [];
+    for (
+      let source = firstSource;
+      source * targetLength < spanEnd;
+      source += 1
+    ) {
+      weights.push(
+        Math.min(spanEnd, (source + 1) * targetLength) -
+          Math.max(spanStart, source * targetLength),
+      );
+    }
+    return { firstSource, weights };
+  });
 }
 
 function areaAverage(
@@ -72,66 +85,57 @@ function areaAverage(
   target: Size,
   output: PixelBuffer,
 ): void {
-  const { width, height } = source;
-  const rowsShrunk = new Float32Array(target.width * height * channels);
-  shrinkAxis(source.data, rowsShrunk, {
-    sourceLength: width,
-    targetLength: target.width,
-    lineCount: height,
-    sourceStep: channels,
-    sourceLineStep: width * channels,
-    targetStep: channels,
-    targetLineStep: target.width * channels,
-    channels,
-  });
-  const shrunk = new Float32Array(target.width * target.height * channels);
-  shrinkAxis(rowsShrunk, shrunk, {
-    sourceLength: height,
-    targetLength: target.height,
-    lineCount: target.width,
-    sourceStep: target.width * channels,
-    sourceLineStep: channels,
-    targetStep: target.width * channels,
-    targetLineStep: channels,
-    channels,
-  });
-  for (let index = 0; index < shrunk.length; index += 1) {
-    output[index] = Math.round(shrunk[index]);
+  const { width, data } = source;
+  const columns = sourceSpans(width, target.width);
+  const rows = sourceSpans(source.height, target.height);
+  // Integer weights sum to the source area per target sample, so one division normalises and the result is exactly rounded.
+  const area = width * source.height;
+  const rowSums = new Float64Array(target.width * channels);
+  let outputOffset = 0;
+  for (const row of rows) {
+    rowSums.fill(0);
+    let sourceRowOffset = row.firstSource * width;
+    for (const rowWeight of row.weights) {
+      let targetOffset = 0;
+      for (const column of columns) {
+        let inputOffset = (sourceRowOffset + column.firstSource) * channels;
+        for (const columnWeight of column.weights) {
+          const weight = rowWeight * columnWeight;
+          for (let channel = 0; channel < channels; channel += 1) {
+            rowSums[targetOffset + channel] +=
+              weight * data[inputOffset + channel];
+          }
+          inputOffset += channels;
+        }
+        targetOffset += channels;
+      }
+      sourceRowOffset += width;
+    }
+    for (const sum of rowSums) {
+      output[outputOffset] = Math.round(sum / area);
+      outputOffset += 1;
+    }
   }
 }
 
-// Each target sample averages the source span [t·ratio, (t+1)·ratio) with fractional end weights; `output` must start zeroed.
-function shrinkAxis(
-  input: ArrayLike<number>,
-  output: Float32Array,
-  axis: AxisShrink,
-): void {
-  const ratio = axis.sourceLength / axis.targetLength;
-  const normalisation = 1 / ratio;
-  for (let line = 0; line < axis.lineCount; line += 1) {
-    const sourceLineOffset = line * axis.sourceLineStep;
-    const targetLineOffset = line * axis.targetLineStep;
-    for (let target = 0; target < axis.targetLength; target += 1) {
-      const spanStart = target * ratio;
-      const spanEnd = Math.min(axis.sourceLength, (target + 1) * ratio);
-      const outputOffset = targetLineOffset + target * axis.targetStep;
-      const lastSource = Math.ceil(spanEnd);
-      for (
-        let source = Math.floor(spanStart);
-        source < lastSource;
-        source += 1
-      ) {
-        const overlap =
-          Math.min(spanEnd, source + 1) - Math.max(spanStart, source);
-        const weight = overlap * normalisation;
-        const inputOffset = sourceLineOffset + source * axis.sourceStep;
-        for (let channel = 0; channel < axis.channels; channel += 1) {
-          output[outputOffset + channel] +=
-            weight * input[inputOffset + channel];
-        }
-      }
-    }
-  }
+interface AxisSample {
+  readonly near: number;
+  readonly far: number;
+  readonly fraction: number;
+}
+
+// Centre-aligned: target `t` reads source (t+0.5)·scale−0.5, which stays below `sourceLength`, so only the low edge is clamped.
+function axisSamples(sourceLength: number, targetLength: number): AxisSample[] {
+  const scale = sourceLength / targetLength;
+  return Array.from({ length: targetLength }, (_, target) => {
+    const coordinate = Math.max(0, (target + 0.5) * scale - 0.5);
+    const near = Math.floor(coordinate);
+    return {
+      near,
+      far: Math.min(near + 1, sourceLength - 1),
+      fraction: coordinate - near,
+    };
+  });
 }
 
 function bilinear(
@@ -140,40 +144,30 @@ function bilinear(
   target: Size,
   output: PixelBuffer,
 ): void {
-  const { width, height, data } = source;
-  const scaleX = width / target.width;
-  const scaleY = height / target.height;
-  for (let targetY = 0; targetY < target.height; targetY += 1) {
-    const sourceY = clampCoordinate((targetY + 0.5) * scaleY - 0.5, height);
-    const y0 = Math.floor(sourceY);
-    const y1 = Math.min(y0 + 1, height - 1);
-    const fractionY = sourceY - y0;
-    for (let targetX = 0; targetX < target.width; targetX += 1) {
-      const sourceX = clampCoordinate((targetX + 0.5) * scaleX - 0.5, width);
-      const x0 = Math.floor(sourceX);
-      const x1 = Math.min(x0 + 1, width - 1);
-      const fractionX = sourceX - x0;
-      const topLeft = (y0 * width + x0) * channels;
-      const topRight = (y0 * width + x1) * channels;
-      const bottomLeft = (y1 * width + x0) * channels;
-      const bottomRight = (y1 * width + x1) * channels;
-      const outputOffset = (targetY * target.width + targetX) * channels;
+  const { width, data } = source;
+  const columns = axisSamples(width, target.width);
+  const rows = axisSamples(source.height, target.height);
+  let outputOffset = 0;
+  for (const row of rows) {
+    const nearRow = row.near * width;
+    const farRow = row.far * width;
+    for (const column of columns) {
+      const topLeft = (nearRow + column.near) * channels;
+      const topRight = (nearRow + column.far) * channels;
+      const bottomLeft = (farRow + column.near) * channels;
+      const bottomRight = (farRow + column.far) * channels;
       for (let channel = 0; channel < channels; channel += 1) {
         const top =
           data[topLeft + channel] +
-          fractionX * (data[topRight + channel] - data[topLeft + channel]);
+          column.fraction *
+            (data[topRight + channel] - data[topLeft + channel]);
         const bottom =
           data[bottomLeft + channel] +
-          fractionX *
+          column.fraction *
             (data[bottomRight + channel] - data[bottomLeft + channel]);
-        output[outputOffset + channel] = Math.round(
-          top + fractionY * (bottom - top),
-        );
+        output[outputOffset] = Math.round(top + row.fraction * (bottom - top));
+        outputOffset += 1;
       }
     }
   }
-}
-
-function clampCoordinate(coordinate: number, length: number): number {
-  return Math.min(Math.max(coordinate, 0), length - 1);
 }
