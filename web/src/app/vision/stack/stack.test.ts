@@ -44,6 +44,14 @@ function frameOfValues(values: readonly number[]): AlignedFrame[] {
   );
 }
 
+function progressOf(size: Size): number[] {
+  const fractions: number[] = [];
+  stackFrames([flatFrame(size, BACKGROUND)], {
+    onProgress: (fraction) => fractions.push(fraction),
+  });
+  return fractions;
+}
+
 describe('stackFrames', () => {
   const stack = stackFrames(burstWithPerson(5));
   const pixelCount = SIZE.width * SIZE.height;
@@ -130,6 +138,21 @@ describe('stackFrames', () => {
     expect(() => stackFrames([])).toThrow(/at least one/);
   });
 
+  it('rejects a frame whose image differs in one dimension even when its coverage length matches', () => {
+    const base = flatFrame({ width: 2, height: 3 }, BACKGROUND);
+    const coverage = fullCoverage({ width: 2, height: 3 });
+    const wider = {
+      image: flatRgba({ width: 3, height: 3 }, BACKGROUND),
+      coverage,
+    };
+    const taller = {
+      image: flatRgba({ width: 2, height: 4 }, BACKGROUND),
+      coverage,
+    };
+    expect(() => stackFrames([base, wider])).toThrow(/one size/);
+    expect(() => stackFrames([base, taller])).toThrow(/one size/);
+  });
+
   it('reports monotone progress that reaches 1 exactly once, at the end', () => {
     const fractions: number[] = [];
     stackFrames(burstWithPerson(3), {
@@ -143,11 +166,25 @@ describe('stackFrames', () => {
   });
 
   it('reports intermediate progress every few percent on a tall image', () => {
-    const fractions: number[] = [];
-    const tall = flatFrame({ width: 1, height: 200 }, BACKGROUND);
-    stackFrames([tall], { onProgress: (fraction) => fractions.push(fraction) });
+    const fractions = progressOf({ width: 1, height: 200 });
     expect(fractions.length).toBeGreaterThan(20);
     expect(fractions.length).toBeLessThan(60);
+  });
+
+  it('reports the fraction of rows done after every row when each row is a full step', () => {
+    expect(progressOf({ width: 1, height: 10 })).toEqual([
+      0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1,
+    ]);
+  });
+
+  it('reports a row that lands exactly on the step size', () => {
+    expect(progressOf({ width: 1, height: 50 })[0]).toBe(0.02);
+  });
+
+  it('reports 1 after the last row even when it is less than a step past the previous report', () => {
+    const fractions = progressOf({ width: 1, height: 51 });
+    expect(fractions.at(-2)).toBe(50 / 51);
+    expect(fractions.at(-1)).toBe(1);
   });
 
   it('gives the constant back for a constant stack and keeps the median within the range', () => {
@@ -209,6 +246,11 @@ describe('selectMedian', () => {
         },
       ),
     );
+  });
+
+  it('ignores the values beyond count that a longer scratch array still holds', () => {
+    const scratch = new Uint8Array([10, 20, 30, 40, 0]);
+    expect(selectMedian(scratch, 4)).toBe(25);
   });
 });
 

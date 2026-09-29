@@ -23,8 +23,10 @@ export function stackFrames(
   const blue = new Uint8Array(frameCount);
   const report = options.onProgress ?? noProgress;
   let reported = 0;
-  for (let y = 0; y < height; y += 1) {
-    for (let pixel = y * width; pixel < (y + 1) * width; pixel += 1) {
+  let pixel = 0;
+  while (pixel < pixelCount) {
+    const rowEnd = pixel + width;
+    for (; pixel < rowEnd; pixel += 1) {
       const offset = pixel * CHANNELS;
       let count = 0;
       let redSum = 0;
@@ -61,13 +63,12 @@ export function stackFrames(
       );
       deviation[pixel] = Math.min(OPAQUE, Math.round(spread));
     }
-    const fraction = (y + 1) / height;
-    if (fraction < 1 && fraction - reported >= PROGRESS_STEP) {
+    const fraction = pixel / pixelCount;
+    if (fraction === 1 || fraction - reported >= PROGRESS_STEP) {
       reported = fraction;
       report(fraction);
     }
   }
-  report(1);
   return { width, height, median, mean, deviation, coverage, frameCount };
 }
 
@@ -96,7 +97,7 @@ export function selectMedian(values: Uint8Array, count: number): number {
   if (count % 2 === 1) return lower;
   let upper = OPAQUE;
   for (let index = lowerMiddle + 1; index < count; index += 1) {
-    if (values[index] < upper) upper = values[index];
+    upper = Math.min(upper, values[index]);
   }
   return Math.round((lower + upper) / 2);
 }
@@ -120,9 +121,9 @@ function quickselect(values: Uint8Array, count: number, k: number): void {
         j -= 1;
       }
     }
-    if (k <= j) right = j;
-    else if (k >= i) left = i;
-    else return;
+    // Keep the side holding k; when k sits between j and i it already holds the pivot and both moves empty the window.
+    if (j < k) left = i;
+    if (k < i) right = j;
   }
 }
 
@@ -146,15 +147,20 @@ export function fullCoverageRect(
   size: Size,
   required: number,
 ): Rect {
-  const { width, height } = size;
+  const { width } = size;
   const heights = new Int32Array(width);
   const stack = new Int32Array(width + 1);
   let best = EMPTY_RECT;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      heights[x] = coverage[y * width + x] >= required ? heights[x] + 1 : 0;
+  let x = 0;
+  let y = 0;
+  for (const count of coverage) {
+    heights[x] = count >= required ? heights[x] + 1 : 0;
+    x += 1;
+    if (x === width) {
+      best = largerRect(best, widestRectOnRow(heights, stack, y));
+      x = 0;
+      y += 1;
     }
-    best = largerRect(best, widestRectOnRow(heights, stack, y));
   }
   return best;
 }
@@ -170,8 +176,9 @@ function widestRectOnRow(
   let top = 0;
   for (let x = 0; x <= width; x += 1) {
     const currentHeight = x < width ? heights[x] : 0;
-    while (top > 0 && heights[stack[top - 1]] >= currentHeight) {
+    while (top > 0) {
       const barHeight = heights[stack[top - 1]];
+      if (barHeight < currentHeight) break;
       top -= 1;
       const left = top > 0 ? stack[top - 1] + 1 : 0;
       best = largerRect(best, {
