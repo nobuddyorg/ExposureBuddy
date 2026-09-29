@@ -56,6 +56,7 @@ describe('saveBlob', () => {
     expect(clicked).toHaveLength(1);
     expect(clicked[0].getAttribute('href')).toBe('blob:exposure');
     expect(clicked[0].download).toBe('shot.jpg');
+    expect(clicked[0].rel).toBe('noopener');
     expect(document.body.contains(clicked[0])).toBe(false);
     expect(revokeObjectURL).not.toHaveBeenCalled();
     // iOS Safari reads the URL only once its download sheet is confirmed, so the revoke waits a minute.

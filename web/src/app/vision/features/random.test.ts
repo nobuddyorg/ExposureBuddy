@@ -13,6 +13,13 @@ describe('mulberry32', () => {
     expect(sequence(42, 20)).toEqual(sequence(42, 20));
   });
 
+  it('is the reference mulberry32 stream, so a seed means the same draws everywhere', () => {
+    const [first, second, third] = sequence(1, 3);
+    expect(first).toBeCloseTo(0.627073940588, 12);
+    expect(second).toBeCloseTo(0.00273572118, 12);
+    expect(third).toBeCloseTo(0.52744703996, 12);
+  });
+
   it('differs between seeds', () => {
     expect(sequence(1, 5)).not.toEqual(sequence(2, 5));
   });

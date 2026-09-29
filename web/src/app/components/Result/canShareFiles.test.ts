@@ -9,6 +9,10 @@ describe('canShareFiles', () => {
     expect(canShareFiles({}, file)).toBe(false);
   });
 
+  it('is false when share exists but canShare does not', () => {
+    expect(canShareFiles({ share: vi.fn() }, file)).toBe(false);
+  });
+
   it('is false when canShare exists but share does not', () => {
     expect(canShareFiles({ canShare: () => true }, file)).toBe(false);
   });

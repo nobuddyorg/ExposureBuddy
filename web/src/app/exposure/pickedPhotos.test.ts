@@ -46,6 +46,10 @@ describe('isImageFile', () => {
     },
   );
 
+  it('refuses an untyped file whose image extension is not its last one', () => {
+    expect(isImageFile(new File([], 'a.jpg.txt', { type: '' }))).toBe(false);
+  });
+
   it('refuses an untyped file with another extension', () => {
     expect(isImageFile(new File([], 'notes.txt', { type: '' }))).toBe(false);
     expect(isImageFile(new File([], 'jpg', { type: '' }))).toBe(false);

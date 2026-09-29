@@ -86,6 +86,7 @@ describe('createStackService', () => {
     expect(rendered.transfer).toEqual([renderedImage.data.buffer]);
 
     const reference = await serve({ type: 'render-reference', id: 5 });
+    expect(reference.response).toMatchObject({ type: 'rendered', id: 5 });
     const referenceImage = (
       reference.response as { image: { data: Uint8ClampedArray } }
     ).image;

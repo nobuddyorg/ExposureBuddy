@@ -32,8 +32,8 @@ export function useFocusTrap(
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Tab') return;
+      // With nothing focusable both ends are undefined and neither comparison below holds.
       const focusable = getFocusable(containerRef.current);
-      if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (event.shiftKey && document.activeElement === first) {

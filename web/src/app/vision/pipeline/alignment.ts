@@ -18,6 +18,16 @@ import { ALIGNMENT_LONG_EDGE } from './budget';
 export const MIN_INLIERS = 20;
 export const MIN_INLIER_RATIO = 0.25;
 
+/** Whether `inlierCount` inliers out of `matchCount` matches are enough to trust a fit. */
+export function explainsEnough(
+  inlierCount: number,
+  matchCount: number,
+): boolean {
+  return (
+    inlierCount >= MIN_INLIERS && inlierCount >= MIN_INLIER_RATIO * matchCount
+  );
+}
+
 export type AlignOutcome =
   | {
       readonly kind: 'aligned';
@@ -65,17 +75,20 @@ export function alignToReference(
   const gray = resizeGray(rgbaToGray(image), reference);
   const features = detectAndDescribe(gray);
   const matches = matchDescriptors(features, reference);
-  if (matches.length < MIN_INLIERS) return skipped(matches.length, 0);
+  // Even a perfect fit could not be trusted on too few matches, so none is attempted.
+  if (!explainsEnough(matches.length, matches.length)) {
+    return skipped(matches.length, 0);
+  }
 
   const source = matches.map((match) => features.keypoints[match.queryIndex]);
   const target = matches.map((match) => reference.keypoints[match.trainIndex]);
   const fit = estimate(source, target);
   if (!fit) return skipped(matches.length, 0);
 
-  const enough =
-    fit.inlierCount >= MIN_INLIERS &&
-    fit.inlierCount >= MIN_INLIER_RATIO * matches.length;
-  if (!enough || !isSaneHomography(fit.homography, reference)) {
+  if (
+    !explainsEnough(fit.inlierCount, matches.length) ||
+    !isSaneHomography(fit.homography, reference)
+  ) {
     return skipped(matches.length, fit.inlierCount);
   }
 

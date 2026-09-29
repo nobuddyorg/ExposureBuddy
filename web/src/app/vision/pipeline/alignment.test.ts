@@ -7,6 +7,7 @@ import {
   MIN_INLIERS,
   MIN_INLIER_RATIO,
   alignToReference,
+  explainsEnough,
   referenceFeatures,
 } from './alignment';
 import { toRgba } from './images.test-support';
@@ -20,6 +21,19 @@ function fit(inlierCount: number, scale = 1): RansacResult {
   homography[4] = scale;
   return { homography, inlierMask: new Uint8Array(0), inlierCount };
 }
+
+describe('explainsEnough', () => {
+  it('needs the minimum count and the minimum share, both inclusive', () => {
+    expect(explainsEnough(MIN_INLIERS, MIN_INLIERS / MIN_INLIER_RATIO)).toBe(
+      true,
+    );
+    expect(explainsEnough(MIN_INLIERS - 1, MIN_INLIERS - 1)).toBe(false);
+    expect(
+      explainsEnough(MIN_INLIERS, MIN_INLIERS / MIN_INLIER_RATIO + 1),
+    ).toBe(false);
+    expect(explainsEnough(MIN_INLIERS + 5, MIN_INLIERS + 5)).toBe(true);
+  });
+});
 
 describe('alignToReference', () => {
   it('skips a frame with nothing to match, without estimating anything', () => {

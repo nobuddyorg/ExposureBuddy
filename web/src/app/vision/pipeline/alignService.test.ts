@@ -53,7 +53,15 @@ async function primed() {
     AlignWorkerResponse,
     { type: 'reference-decoded' }
   >;
-  await serve({ type: 'set-reference', id: 2, features: response.features });
+  const acknowledged = await serve({
+    type: 'set-reference',
+    id: 2,
+    features: response.features,
+  });
+  expect(acknowledged).toEqual({
+    response: { type: 'reference-set', id: 2 },
+    transfer: [],
+  });
   return { serve, reference: response };
 }
 

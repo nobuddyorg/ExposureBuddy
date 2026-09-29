@@ -5,11 +5,12 @@ export function integralImage(image: GrayImage): Uint32Array {
   const { width, height, data } = image;
   const stride = width + 1;
   const integral = new Uint32Array(stride * (height + 1));
-  for (let y = 0; y < height; y += 1) {
+  // Table row `row` holds the sums through image row `row - 1`; row 0 stays zero.
+  for (let row = 1; row <= height; row += 1) {
     let rowSum = 0;
-    const sourceRow = y * width;
-    const previousRow = y * stride;
-    const targetRow = previousRow + stride;
+    const sourceRow = (row - 1) * width;
+    const targetRow = row * stride;
+    const previousRow = targetRow - stride;
     for (let x = 0; x < width; x += 1) {
       rowSum += data[sourceRow + x];
       integral[targetRow + x + 1] = integral[previousRow + x + 1] + rowSum;
