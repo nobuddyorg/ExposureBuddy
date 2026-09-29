@@ -55,11 +55,13 @@ describe('estimateGain', () => {
     const frame = flatRgba(size, [0, 0, 0]);
     // Rows 0..3 at 40, rows 4..7 at 80: the sampled rows 0 and 4 average to 60.
     for (let pixel = 0; pixel < size.width * size.height; pixel += 1) {
-      frame.data[pixel * 4] = pixel < size.width * 4 ? 40 : 80;
+      const value = pixel < size.width * 4 ? 40 : 80;
+      frame.data.set([value, value, value, 255], pixel * 4);
     }
     const reference = flatRgba(size, [60, 60, 60]);
-    const [red] = estimateGain(frame, reference, fullCoverage(size));
-    expect(red).toBeCloseTo(1, 12);
+    expect(estimateGain(frame, reference, fullCoverage(size))).toEqual([
+      1, 1, 1,
+    ]);
   });
 
   it('samples every fourth pixel in each direction, so odd columns are ignored', () => {

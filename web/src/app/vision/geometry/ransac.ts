@@ -64,31 +64,27 @@ function iterationsFor(inlierRatio: number, confidence: number): number {
   );
 }
 
-interface Sampler {
+interface Sample {
   readonly source: Point[];
   readonly target: Point[];
-  draw(): void;
 }
 
-// Partial Fisher–Yates over a persistent index permutation: no allocation per draw.
-function createSampler(problem: Problem, random: () => number): Sampler {
+// Partial Fisher–Yates over a persistent index permutation; only the four-point sample is allocated per draw.
+function createSampler(problem: Problem, random: () => number): () => Sample {
   const count = problem.source.length;
   const indices = Int32Array.from({ length: count }, (_, index) => index);
-  const source: Point[] = new Array<Point>(SAMPLE_SIZE);
-  const target: Point[] = new Array<Point>(SAMPLE_SIZE);
-  return {
-    source,
-    target,
-    draw() {
-      for (let slot = 0; slot < SAMPLE_SIZE; slot += 1) {
-        const pick = slot + Math.floor(random() * (count - slot));
-        const chosen = indices[pick];
-        indices[pick] = indices[slot];
-        indices[slot] = chosen;
-        source[slot] = problem.source[chosen];
-        target[slot] = problem.target[chosen];
-      }
-    },
+  return () => {
+    const source: Point[] = [];
+    const target: Point[] = [];
+    for (let slot = 0; slot < SAMPLE_SIZE; slot += 1) {
+      const pick = slot + Math.floor(random() * (count - slot));
+      const chosen = indices[pick];
+      indices[pick] = indices[slot];
+      indices[slot] = chosen;
+      source.push(problem.source[chosen]);
+      target.push(problem.target[chosen]);
+    }
+    return { source, target };
   };
 }
 
@@ -97,13 +93,13 @@ function searchModel(
   options: Omit<RansacOptions, 'threshold'>,
 ): Model | null {
   const count = problem.source.length;
-  const sampler = createSampler(problem, options.random);
+  const drawSample = createSampler(problem, options.random);
   let best: Model | null = null;
   let scratchMask: Uint8Array = new Uint8Array(count);
   let iterationBound = options.maxIterations;
   for (let iteration = 0; iteration < iterationBound; iteration += 1) {
-    sampler.draw();
-    const candidate = estimateHomography(sampler.source, sampler.target);
+    const sample = drawSample();
+    const candidate = estimateHomography(sample.source, sample.target);
     if (candidate === null) continue;
     const inlierCount = countInliers(problem, candidate, scratchMask);
     // A model must explain more than the best so far, and at least its own sample.

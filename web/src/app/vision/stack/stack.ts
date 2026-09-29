@@ -174,8 +174,7 @@ function widestRectOnRow(
 ): Rect {
   let best = EMPTY_RECT;
   let top = 0;
-  for (let x = 0; x < heights.length; x += 1) {
-    const currentHeight = heights[x];
+  heights.forEach((currentHeight, x) => {
     while (top > 0) {
       const barHeight = heights[stack[top - 1]];
       if (barHeight < currentHeight) break;
@@ -190,7 +189,7 @@ function widestRectOnRow(
     }
     stack[top] = x;
     top += 1;
-  }
+  });
   return best;
 }
 
