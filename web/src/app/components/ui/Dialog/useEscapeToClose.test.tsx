@@ -1,0 +1,89 @@
+// @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+
+import { useEscapeToClose } from './useEscapeToClose';
+
+function Harness({
+  enabled,
+  onClose,
+}: {
+  enabled: boolean;
+  onClose: () => void;
+}) {
+  useEscapeToClose(enabled, onClose);
+  return <div>dialog</div>;
+}
+
+describe('useEscapeToClose', () => {
+  it('closes on Escape', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<Harness enabled onClose={onClose} />);
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('ignores every other key', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<Harness enabled onClose={onClose} />);
+
+    await user.keyboard('{Enter}');
+    await user.keyboard('{Tab}');
+    await user.keyboard('a');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does nothing while it is disabled', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<Harness enabled={false} onClose={onClose} />);
+
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('stops listening once it is unmounted', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const { unmount } = render(<Harness enabled onClose={onClose} />);
+
+    unmount();
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('stops listening as soon as it is disabled again', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const { rerender } = render(<Harness enabled onClose={onClose} />);
+
+    rerender(<Harness enabled={false} onClose={onClose} />);
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not close when a nested handler already called preventDefault()', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    function NestedHandler() {
+      useEscapeToClose(true, onClose);
+      return (
+        <input
+          aria-label="inner"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') event.preventDefault();
+          }}
+        />
+      );
+    }
+    render(<NestedHandler />);
+
+    await user.click(document.querySelector('input') as HTMLInputElement);
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});

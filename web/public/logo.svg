@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="exposurebuddy-logo-title">
+  <title id="exposurebuddy-logo-title">ExposureBuddy</title>
+  <defs>
+    <linearGradient id="trail" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#f2a33a" stop-opacity="0"/>
+      <stop offset="0.45" stop-color="#f2a33a" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ffd58a"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#ffd58a" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#f2a33a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- The darkroom: the same near-black as the page and the manifest background. -->
+  <circle cx="256" cy="256" r="248" fill="#0f0e0c"/>
+  <!-- Lens rings, off-white laid on thin. -->
+  <circle cx="256" cy="256" r="176" fill="none" stroke="#f2ede3" stroke-opacity="0.22" stroke-width="10"/>
+  <circle cx="256" cy="256" r="116" fill="none" stroke="#f2ede3" stroke-opacity="0.12" stroke-width="6"/>
+  <circle cx="256" cy="256" r="46" fill="#f2ede3" fill-opacity="0.08"/>
+  <!-- One headlight trail sweeping across the lens, fading in from the lower left. -->
+  <circle cx="408" cy="168" r="64" fill="url(#glow)"/>
+  <path d="M121 369 A176 176 0 0 1 408 168" fill="none" stroke="url(#trail)" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="408" cy="168" r="17" fill="#ffd58a"/>
+</svg>

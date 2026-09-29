@@ -1,0 +1,69 @@
+name: Publish Playwright results
+description: Job summary for one Playwright run plus its e2e coverage, and the HTML report kept as an artifact on failure.
+
+inputs:
+  title:
+    description: Heading the results table gets in the job summary.
+    required: true
+  tag:
+    description: Identifies the run within the summary action.
+    required: true
+  artifact-name:
+    description: Name of the report artifact uploaded when the run failed.
+    required: true
+  job-status:
+    description: The calling job's `job.status`; status functions inside a composite action see only its own steps.
+    required: true
+  coverage-artifact-name:
+    description: Name of the e2e coverage artifact (web/coverage-e2e), uploaded on every run. Empty when the run collects no coverage.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - uses: daun/playwright-report-summary@31ed947ec7a623d18a66cfd20ef546dc66ef8063 # v4.1.0
+      with:
+        report-file: web/playwright-results.json
+        # report-tag only identifies a PR comment; comment-title is what shows as the summary heading.
+        report-tag: ${{ inputs.tag }}
+        comment-title: ${{ inputs.title }}
+        job-summary: true
+        create-comment: false
+        # The default octicons style fetches each icon from a third-party host at render time.
+        icon-style: emojis
+
+    - name: Keep the report from a failed run
+      if: inputs.job-status == 'failure'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: web/playwright-report
+        retention-days: 7
+
+    # mcr.generate() writes the report before the coverage gate (e2e/coverage.ts) can throw, so it exists on failed runs too. Missing on a passing run means the gate never ran.
+    - name: Add e2e coverage report to job summary
+      if: always() && inputs.coverage-artifact-name != ''
+      shell: bash
+      env:
+        JOB_STATUS: ${{ inputs.job-status }}
+      run: |
+        if [ ! -f web/coverage-e2e/coverage-summary.md ]; then
+          [ "$JOB_STATUS" = 'success' ] || exit 0
+          echo "::error::web/coverage-e2e/coverage-summary.md is missing on a passing run, so the e2e coverage gate did not execute."
+          exit 1
+        fi
+        {
+          echo '## 🎭 e2e JS/CSS coverage'
+          echo
+          cat web/coverage-e2e/coverage-summary.md
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Keep the e2e coverage report
+      if: always() && inputs.coverage-artifact-name != ''
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.coverage-artifact-name }}
+        path: web/coverage-e2e
+        retention-days: 7
+        if-no-files-found: ignore

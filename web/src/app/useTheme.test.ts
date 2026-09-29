@@ -1,0 +1,110 @@
+import { readFileSync } from 'node:fs';
+import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
+
+import {
+  THEME_MEDIA_QUERY,
+  THEME_PREFERENCES,
+  THEME_STORAGE_KEY,
+  nextThemePreference,
+  normalizePreference,
+  resolveTheme,
+} from './useTheme';
+
+describe('normalizePreference', () => {
+  it('keeps an explicit choice', () => {
+    expect(normalizePreference('light')).toBe('light');
+    expect(normalizePreference('dark')).toBe('dark');
+  });
+
+  it('falls back to system when nothing is stored', () => {
+    expect(normalizePreference(null)).toBe('system');
+  });
+
+  it('falls back to system for a value that is not a theme', () => {
+    expect(normalizePreference('')).toBe('system');
+    expect(normalizePreference('sepia')).toBe('system');
+    expect(normalizePreference('Dark')).toBe('system');
+  });
+
+  it('treats a stored "system" as no choice at all', () => {
+    expect(normalizePreference('system')).toBe('system');
+  });
+
+  it('never answers anything but one of the three preferences', () => {
+    fc.assert(
+      fc.property(fc.string(), (stored) => {
+        expect(THEME_PREFERENCES).toContain(normalizePreference(stored));
+      }),
+    );
+  });
+});
+
+describe('resolveTheme', () => {
+  it('follows the OS while the preference is system', () => {
+    expect(resolveTheme('system', true)).toBe('dark');
+    expect(resolveTheme('system', false)).toBe('light');
+  });
+
+  it('overrides the OS with an explicit choice', () => {
+    expect(resolveTheme('light', true)).toBe('light');
+    expect(resolveTheme('dark', false)).toBe('dark');
+  });
+
+  it('leaves an explicit choice alone when the OS agrees with it', () => {
+    expect(resolveTheme('dark', true)).toBe('dark');
+    expect(resolveTheme('light', false)).toBe('light');
+  });
+});
+
+describe('nextThemePreference', () => {
+  it('cycles system, light, dark and back to system', () => {
+    expect(nextThemePreference('system')).toBe('light');
+    expect(nextThemePreference('light')).toBe('dark');
+    expect(nextThemePreference('dark')).toBe('system');
+  });
+
+  it('visits every preference exactly once per cycle', () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...THEME_PREFERENCES), (start) => {
+        const visited = new Set([start]);
+        let current = nextThemePreference(start);
+        while (current !== start) {
+          visited.add(current);
+          current = nextThemePreference(current);
+        }
+        expect(visited.size).toBe(THEME_PREFERENCES.length);
+      }),
+    );
+  });
+});
+
+// The pre-paint script is an inlined string that restates the key and query by hand; both copies must agree.
+describe('the pre-paint script in layout.tsx', () => {
+  const layout = readFileSync(new URL('layout.tsx', import.meta.url), 'utf8');
+  const initScript = layout.slice(layout.indexOf('const THEME_INIT_SCRIPT'));
+
+  // Both sides spelled out: interpolating the constant could not fail when the constant is what changed.
+  it('reads the same storage key the hook writes', () => {
+    expect(THEME_STORAGE_KEY).toBe('theme');
+    expect(initScript).toContain(`localStorage.getItem('theme')`);
+  });
+
+  it('asks the OS the same question the hook asks', () => {
+    expect(THEME_MEDIA_QUERY).toBe('(prefers-color-scheme: dark)');
+    expect(initScript).toContain(`matchMedia('(prefers-color-scheme: dark)')`);
+  });
+
+  it('writes the attribute the dark variant in globals.css selects on', () => {
+    const css = readFileSync(new URL('globals.css', import.meta.url), 'utf8');
+    expect(initScript).toContain(`setAttribute('data-theme'`);
+    expect(css).toContain(`[data-theme='dark']`);
+  });
+});
+
+describe('THEME_PREFERENCES', () => {
+  // Order is cycle order; system leads because it is the default.
+  it('offers system, light and dark in that order', () => {
+    expect(THEME_PREFERENCES).toEqual(['system', 'light', 'dark']);
+  });
+});

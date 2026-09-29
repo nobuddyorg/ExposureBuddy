@@ -1,0 +1,112 @@
+{
+  "app": {
+    "name": "ExposureBuddy",
+    "tagline": "Langzeitbelichtung aus einer Serie Handyfotos",
+    "description": "Macht aus einer Fotoserie vom Handy eine Langzeitbelichtung: Die Szene bleibt scharf, alles Bewegte verblasst zum Geist. Läuft komplett im Browser."
+  },
+  "brand": {
+    "exposure": "Exposure",
+    "buddy": "Buddy"
+  },
+  "header": {
+    "theme": "Design",
+    "theme_system": "System",
+    "theme_light": "Hell",
+    "theme_dark": "Dunkel",
+    "switch_language": "Auf {language} umschalten",
+    "help": "Hilfe"
+  },
+  "picker": {
+    "title": "Fotoserie auswählen",
+    "subtitle": "Fotos einer Szene, von einer Stelle aus aufgenommen. Die Szene wird scharf, alles Bewegte verblasst zum Geist.",
+    "choose": "Fotos auswählen",
+    "add_more": "Mehr hinzufügen",
+    "drop_hint": "oder hier ablegen",
+    "clear": "Leeren",
+    "count_one": "{count} Foto",
+    "count": "{count} Fotos",
+    "quality": "Ausgabegröße",
+    "quality_low": "Klein, schnell",
+    "quality_standard": "Standard",
+    "quality_high": "Groß, langsam",
+    "combine_one": "{count} Foto kombinieren",
+    "combine": "{count} Fotos kombinieren",
+    "need_more": "Mindestens {count} Fotos hinzufügen",
+    "tips_title": "So gelingt die Serie",
+    "tip_1": "Das Handy so ruhig wie möglich halten und 10 bis 50 Fotos hintereinander machen. Serienbild ist ideal.",
+    "tip_2": "Die Belichtung gleich lassen: Fokus und Belichtung sperren, wenn die Kamera-App das kann.",
+    "tip_3": "Am besten eine ruhige Szene mit bewegten Menschen oder Verkehr. Mehr Fotos, weichere Geister.",
+    "unsupported": "Dieser Browser kann die Verarbeitung nicht ausführen: Er braucht Web Worker und OffscreenCanvas. Bitte ein aktuelles Chrome, Firefox, Safari oder Edge verwenden.",
+    "too_many": "Das sind mehr als {count} Fotos, deshalb werden nur die ersten {count} verwendet.",
+    "not_image": "{name} ist kein Bild und wurde ausgelassen.",
+    "thumbnail_alt": "Foto {index}"
+  },
+  "progress": {
+    "title": "Kombinieren",
+    "reference": "Merkmale im Referenzfoto suchen",
+    "aligning": "Fotos ausrichten",
+    "stacking": "Stapeln",
+    "compositing": "Rendern",
+    "count": "{done} von {total}",
+    "cancel": "Abbrechen",
+    "frame_pending": "wartet",
+    "frame_reference": "Referenz",
+    "frame_aligned": "ausgerichtet",
+    "frame_skipped": "übersprungen",
+    "frame_unreadable": "nicht lesbar",
+    "frame_detail": "{inliers} von {matches} Treffern"
+  },
+  "result": {
+    "title": "Deine Langzeitbelichtung",
+    "stats": "{aligned} von {total} Fotos ausgerichtet · {width} × {height} px",
+    "ghost": "Geister",
+    "ghost_help": "Wie sichtbar Bewegtes bleibt",
+    "blur": "Unschärfe",
+    "blur_help": "Wie stark die Geister verwischen",
+    "glow": "Leuchten",
+    "glow_help": "Lichtspur-Schimmer auf hellen bewegten Dingen",
+    "compare": "Mit einem Einzelfoto vergleichen",
+    "download": "Bild speichern",
+    "share": "Teilen",
+    "start_over": "Von vorn",
+    "alt": "Kombinierte Langzeitbelichtung",
+    "single_alt": "Eines der Originalfotos",
+    "saved": "Gespeichert als {name}",
+    "share_failed": "Teilen hat nicht geklappt, das Bild wurde stattdessen gespeichert."
+  },
+  "errors": {
+    "title": "Das hat nicht geklappt",
+    "too_few_aligned_one": "Nur {count} Foto ließ sich auf die anderen ausrichten. Die Serie von einer Stelle aus aufnehmen, ohne das Handy zu bewegen, und noch einmal versuchen.",
+    "too_few_aligned": "Nur {count} Fotos ließen sich aufeinander ausrichten. Die Serie von einer Stelle aus aufnehmen, ohne das Handy zu bewegen, und noch einmal versuchen.",
+    "no_overlap": "Die Fotos überlappen sich zu wenig, um eine gemeinsame Fläche zu haben. Die Serie von einer Stelle aus aufnehmen und noch einmal versuchen.",
+    "decode_failed": "{name} konnte nicht gelesen werden.",
+    "cancelled": "Abgebrochen.",
+    "unknown": "Etwas ist schiefgelaufen: {message}",
+    "retry": "Noch einmal"
+  },
+  "help": {
+    "title": "So funktioniert ExposureBuddy",
+    "close": "Schließen",
+    "what_title": "Was passiert",
+    "what_body": "Jedes Foto wird auf die unbewegte Szene ausgerichtet, dann wird gemittelt. Was still stand, addiert sich scharf; was sich bewegt hat, wird zum durchscheinenden Geist wie bei einer Langzeitbelichtung.",
+    "shoot_title": "Aufnehmen",
+    "shoot_body": "Das Handy abstützen oder ein Stativ nehmen. Gleicher Ausschnitt, gleiche Belichtung, 10 bis 50 Fotos. Serienbild ist ideal.",
+    "sliders_title": "Die Regler",
+    "sliders_body": "Geister bestimmt, wie sichtbar Bewegtes bleibt; bei null verschwindet es. Unschärfe verwischt die Geister. Leuchten legt einen Schimmer auf helle bewegte Dinge wie Scheinwerfer.",
+    "privacy_title": "Datenschutz",
+    "privacy_body": "Alles läuft im Browser. Fotos verlassen das Gerät nie; es gibt kein Konto und keinen Upload.",
+    "shortcut_hint": "Diese Hilfe lässt sich jederzeit mit {shortcut} öffnen."
+  },
+  "footer": {
+    "privacy": "Deine Fotos verlassen dieses Gerät nicht.",
+    "source": "Quellcode"
+  },
+  "not_found": {
+    "title": "404",
+    "body": "Unter dieser Adresse gibt es nichts.",
+    "home": "Zurück zum Start"
+  },
+  "page": {
+    "skip_to_content": "Zum Inhalt springen"
+  }
+}

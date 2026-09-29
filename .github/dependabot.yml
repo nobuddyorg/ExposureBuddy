@@ -1,0 +1,61 @@
+version: 2
+updates:
+  # Actions are pinned by commit hash, in the workflows and the composite actions alike; tools a job downloads are not covered here (developer-guide.md, Bump a pinned CI tool).
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # .pre-commit-config.yaml pins each hook to a commit SHA; Dependabot resolves the next tag and rewrites its `# frozen:` comment.
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      hooks:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      # @stryker-mutator/vitest-runner needs a matching core major; listed first because Dependabot uses the first matching group.
+      stryker:
+        patterns:
+          - "@stryker-mutator/*"
+      # Split by dependency-type: a bump of something `next build` loads (`dependencies`) is reviewed apart from CI-only tooling.
+      patch-updates-dev:
+        dependency-type: "development"
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+      patch-updates-prod:
+        dependency-type: "production"
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+    # @stryker-mutator/core@10 bundles @babel/generator@8, which crashes on this project's TS function-type annotations (`Printer._parameters`). Re-enable once fixed upstream.
+    ignore:
+      - dependency-name: "@stryker-mutator/*"
+        update-types: ["version-update:semver-major"]

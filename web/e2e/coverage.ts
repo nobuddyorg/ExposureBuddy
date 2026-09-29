@@ -1,0 +1,99 @@
+import { type Page, test as base } from '@playwright/test';
+import MCR from 'monocart-coverage-reports';
+
+// Playwright's Coverage API is Chromium-only (CDP); the fixture skips collection on other engines.
+const coverageReports = MCR({
+  name: 'ExposureBuddy e2e coverage',
+  outputDir: 'coverage-e2e',
+  reports: ['v8', 'console-summary', 'markdown-summary'],
+  // The export's own bundle, not the service worker registered alongside it.
+  entryFilter: '**/_next/**',
+  // Needs E2E_COVERAGE_SOURCEMAPS (next.config.ts); without source maps the bundle has no `src/app` paths.
+  sourceFilter: '**/src/app/**',
+});
+
+// Floors ~3pp under a measured `E2E_COVERAGE=true npm run e2e` run on chromium + mobile (76.5 / 67.7 / 87.9 / 90.0); raised by hand, never lowered (CLAUDE.md).
+const COVERAGE_THRESHOLDS = {
+  statements: 73,
+  branches: 64,
+  functions: 84,
+  lines: 87,
+};
+
+// Only a build with source maps is worth collecting from; ci.yml sets both variables for that job.
+const COLLECT = process.env.E2E_COVERAGE === 'true';
+
+type PageCoverage = Page['coverage'];
+
+function startCollecting(coverage: PageCoverage) {
+  return Promise.all([
+    coverage.startJSCoverage({ resetOnNavigation: false }),
+    coverage.startCSSCoverage({ resetOnNavigation: false }),
+  ]);
+}
+
+async function flushCollected(coverage: PageCoverage) {
+  const [jsCoverage, cssCoverage] = await Promise.all([
+    coverage.stopJSCoverage(),
+    coverage.stopCSSCoverage(),
+  ]);
+  const entries = [...jsCoverage, ...cssCoverage];
+  // Before the first navigation nothing is loaded, and monocart logs an error for an empty list.
+  if (entries.length > 0) await coverageReports.add(entries);
+}
+
+// V8 discards a document's counts on a full navigation whatever `resetOnNavigation` says, so flush first.
+function flushBeforeNavigation(page: Page) {
+  const goto = page.goto.bind(page);
+  const reload = page.reload.bind(page);
+  page.goto = async (url, options) => {
+    await flushCollected(page.coverage);
+    await startCollecting(page.coverage);
+    return goto(url, options);
+  };
+  page.reload = async (options) => {
+    await flushCollected(page.coverage);
+    await startCollecting(page.coverage);
+    return reload(options);
+  };
+}
+
+export const test = base.extend<{ autoCoverage: void }>({
+  autoCoverage: [
+    async ({ page, browserName }, use) => {
+      const collect = COLLECT && browserName === 'chromium';
+      if (collect) {
+        flushBeforeNavigation(page);
+        await startCollecting(page.coverage);
+      }
+
+      await use();
+
+      if (collect) await flushCollected(page.coverage);
+    },
+    { auto: true },
+  ],
+});
+
+// Called once from globalTeardown; throwing here fails the whole run.
+export async function generateCoverageReport() {
+  if (!COLLECT) return;
+  const results = await coverageReports.generate();
+  if (!results) return;
+
+  const failures = Object.entries(COVERAGE_THRESHOLDS)
+    .map(([metric, floor]) => {
+      const percentage =
+        results.summary[metric as keyof typeof COVERAGE_THRESHOLDS]?.pct;
+      return typeof percentage === 'number' && percentage < floor
+        ? `${metric}: ${percentage.toFixed(2)}% is below the ${floor}% floor`
+        : null;
+    })
+    .filter((failure) => failure !== null);
+
+  if (failures.length > 0) {
+    throw new Error(
+      `e2e coverage dropped below its floor:\n${failures.join('\n')}`,
+    );
+  }
+}
