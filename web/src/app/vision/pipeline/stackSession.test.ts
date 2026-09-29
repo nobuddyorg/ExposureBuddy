@@ -54,6 +54,26 @@ describe('createStackSession', () => {
     expect(() =>
       session.addFrame({ image: small, coverage: new Uint8Array(4) }),
     ).toThrow(/working size/);
+    // Either dimension alone is enough to refuse the frame.
+    const narrow = flat(1, 1, 1);
+    const wrongWidth = {
+      width: narrow.width - 2,
+      height: narrow.height,
+      data: new Uint8ClampedArray((narrow.width - 2) * narrow.height * 4),
+    };
+    const wrongHeight = {
+      width: narrow.width,
+      height: narrow.height + 2,
+      data: new Uint8ClampedArray(narrow.width * (narrow.height + 2) * 4),
+    };
+    for (const image of [wrongWidth, wrongHeight]) {
+      expect(() =>
+        session.addFrame({
+          image,
+          coverage: new Uint8Array(image.width * image.height),
+        }),
+      ).toThrow(/working size/);
+    }
   });
 
   it('normalises each frame’s exposure to the reference before stacking', () => {

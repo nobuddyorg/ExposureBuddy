@@ -1,11 +1,8 @@
 import type { GrayImage } from '../types';
 
-/** Returns `image` box-blurred with a (2·radius + 1)² window, edges replicated; radius 0 returns a copy. */
+/** Returns `image` box-blurred with a (2·radius + 1)² window, edges replicated; radius 0 is a copy. */
 export function boxBlurGray(image: GrayImage, radius: number): GrayImage {
   const { width, height, data } = image;
-  if (radius <= 0) {
-    return { width, height, data: new Uint8Array(data) };
-  }
   const rowSums = new Uint32Array(width * height);
   for (let y = 0; y < height; y += 1) {
     slidingWindowSum(data, rowSums, {
@@ -25,10 +22,9 @@ export function boxBlurGray(image: GrayImage, radius: number): GrayImage {
     });
   }
   const windowArea = (2 * radius + 1) * (2 * radius + 1);
-  const blurred = new Uint8Array(width * height);
-  for (let index = 0; index < blurred.length; index += 1) {
-    blurred[index] = Math.round(windowSums[index] / windowArea);
-  }
+  const blurred = Uint8Array.from(windowSums, (sum) =>
+    Math.round(sum / windowArea),
+  );
   return { width, height, data: blurred };
 }
 
@@ -52,7 +48,7 @@ function slidingWindowSum(
     sum += input[start + clampIndex(offset, last) * step];
   }
   output[start] = sum;
-  for (let position = 1; position < length; position += 1) {
+  for (let position = 1; position <= last; position += 1) {
     const entering = clampIndex(position + radius, last);
     const leaving = clampIndex(position - radius - 1, last);
     sum += input[start + entering * step] - input[start + leaving * step];

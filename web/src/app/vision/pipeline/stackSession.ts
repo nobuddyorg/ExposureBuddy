@@ -96,9 +96,8 @@ export function createStackSession(): StackSession {
       // The frames are folded into the stack now; keeping them would hold frameCount × 5 bytes per pixel for nothing.
       frames.length = 0;
       const rect = fullCoverageRect(result.coverage, base, frameCount);
-      if (rect.width === 0 || rect.height === 0) {
-        throw new Error(NO_OVERLAP_MESSAGE);
-      }
+      // No pixel covered by every frame: fullCoverageRect answers with the zero rect.
+      if (rect.width === 0) throw new Error(NO_OVERLAP_MESSAGE);
       stacked = { result, rect };
       return { width: base.width, height: base.height, rect, frameCount };
     },

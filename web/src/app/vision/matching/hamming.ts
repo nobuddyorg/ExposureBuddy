@@ -102,7 +102,7 @@ export function matchDescriptors(
     queryIndex += 1
   ) {
     const trainIndex = neighbours.bestTrain[queryIndex];
-    if (trainIndex === NO_MATCH) continue;
+    // With no train descriptor the best distance is still Infinity, which the cap rejects.
     const distance = neighbours.bestDistance[queryIndex];
     if (distance > maxDistance) continue;
     if (distance >= ratio * neighbours.secondDistance[queryIndex]) continue;

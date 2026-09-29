@@ -64,7 +64,7 @@ function detectCornersWithFallback(
   });
 }
 
-// Keeps the strongest ceil(maxFeatures / cells) corners per grid cell, then trims to maxFeatures by score.
+// Keeps the strongest ceil(maxFeatures / cells) corners per grid cell, then the strongest maxFeatures of those, by score.
 function spreadOverGrid(
   corners: readonly Keypoint[],
   size: Size,
@@ -74,15 +74,10 @@ function spreadOverGrid(
   const cellCount = gridColumns * gridRows;
   const perCell = Math.ceil(maxFeatures / cellCount);
   const cells: Keypoint[][] = Array.from({ length: cellCount }, () => []);
+  // A corner lies inside the border, so its cell index is always in range.
   for (const corner of corners) {
-    const column = Math.min(
-      gridColumns - 1,
-      Math.floor((corner.x * gridColumns) / size.width),
-    );
-    const row = Math.min(
-      gridRows - 1,
-      Math.floor((corner.y * gridRows) / size.height),
-    );
+    const column = Math.floor((corner.x * gridColumns) / size.width);
+    const row = Math.floor((corner.y * gridRows) / size.height);
     cells[row * gridColumns + column].push(corner);
   }
   const kept: Keypoint[] = [];
@@ -92,7 +87,6 @@ function spreadOverGrid(
       kept.push(cell[index]);
     }
   }
-  if (kept.length <= maxFeatures) return kept;
   return kept.toSorted(byScoreDescending).slice(0, maxFeatures);
 }
 

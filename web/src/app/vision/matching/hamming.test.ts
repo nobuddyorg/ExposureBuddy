@@ -124,6 +124,30 @@ describe('matchDescriptors', () => {
     ]);
   });
 
+  it('rejects a best exactly at the ratio of its second best, and keeps one just under', () => {
+    const query = featureSet([[0]]);
+    const train = featureSet([[lowBits(4)], [lowBits(8)]]);
+    expect(matchDescriptors(query, train, { ratio: 0.5 })).toEqual([]);
+    expect(matchDescriptors(query, train, { ratio: 0.51 })).toEqual([
+      { queryIndex: 0, trainIndex: 0, distance: 4 },
+    ]);
+  });
+
+  it('keeps the second-best distance at the second best, whatever comes after it', () => {
+    // Distances 4, 5, 30 in train order: the 30 must not replace the 5 as second best.
+    const query = featureSet([[0]]);
+    const train = featureSet([[lowBits(4)], [lowBits(5)], [lowBits(30)]]);
+    expect(matchDescriptors(query, train)).toEqual([]);
+  });
+
+  it('gives a contested train descriptor to the first query that reached it', () => {
+    const query = featureSet([[lowBits(1)], [lowBits(1)]]);
+    const train = featureSet([[lowBits(1)], [lowBits(30)]]);
+    expect(matchDescriptors(query, train)).toEqual([
+      { queryIndex: 0, trainIndex: 0, distance: 0 },
+    ]);
+  });
+
   it('drops a best match farther than maxDistance', () => {
     const query = featureSet([[lowBits(32), lowBits(32), lowBits(32)]]);
     const train = featureSet([[0], [lowBits(32), lowBits(32), 0]]);

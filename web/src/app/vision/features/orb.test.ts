@@ -183,6 +183,10 @@ describe('detectAndDescribe', () => {
     expect(detectAndDescribe(faint, { minFeatures: 0 }).keypoints).toHaveLength(
       atStrictThreshold,
     );
+    // The first detection runs at fastThreshold, not at FAST's own default.
+    expect(
+      detectAndDescribe(faint, { minFeatures: 0, fastThreshold: 8 }).keypoints,
+    ).toHaveLength(atFallback);
   });
 
   it('computes descriptors on the smoothed image', () => {
