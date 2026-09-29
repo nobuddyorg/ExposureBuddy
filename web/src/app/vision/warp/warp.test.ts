@@ -5,7 +5,11 @@ import {
   saneHomographyArbitrary,
   translationHomography,
 } from '../geometry/homography.test-support';
-import { identityHomography, invertHomography } from '../geometry/homography';
+import {
+  applyHomography,
+  identityHomography,
+  invertHomography,
+} from '../geometry/homography';
 import type { RgbaImage } from '../types';
 import { warpRgba } from './warp';
 
@@ -33,6 +37,24 @@ function pixelAt(image: RgbaImage, x: number, y: number): Pixel {
     image.data[offset + 2],
     image.data[offset + 3],
   ];
+}
+
+// The reference: bilinear over the 2×2 neighbourhood with the far sample clamped to the image.
+function sampleBilinear(image: RgbaImage, x: number, y: number): number[] {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = Math.min(x0 + 1, image.width - 1);
+  const y1 = Math.min(y0 + 1, image.height - 1);
+  const fx = x - x0;
+  const fy = y - y0;
+  const at = (px: number, py: number) => pixelAt(image, px, py);
+  return [0, 1, 2].map(
+    (channel) =>
+      (1 - fx) * (1 - fy) * at(x0, y0)[channel] +
+      fx * (1 - fy) * at(x1, y0)[channel] +
+      (1 - fx) * fy * at(x0, y1)[channel] +
+      fx * fy * at(x1, y1)[channel],
+  );
 }
 
 function coveredCount(coverage: Uint8Array): number {
@@ -136,12 +158,36 @@ describe('warpRgba', () => {
     }
   });
 
-  it('is unchanged by a scalar multiple of the homography', () => {
-    const identity = warpRgba(patterned, identityHomography(), patterned);
-    const doubled = identityHomography().map((entry) => entry * 2);
-    const scaled = warpRgba(patterned, doubled, patterned);
-    expect(scaled.image.data).toEqual(identity.image.data);
-    expect(scaled.coverage).toEqual(identity.coverage);
+  it('divides by the projective depth: a perspective warp matches a reference sampler', () => {
+    const targetToSource = new Float64Array([
+      1, 0, 0.5, 0, 1, 0.5, 0.01, 0.005, 1,
+    ]);
+    const homography = invertHomography(targetToSource);
+    expect(homography).not.toBeNull();
+    if (homography === null) return;
+    const { image, coverage } = warpRgba(patterned, homography, patterned);
+    let checked = 0;
+    for (let y = 0; y < patterned.height; y += 1) {
+      for (let x = 0; x < patterned.width; x += 1) {
+        const source = applyHomography(targetToSource, { x, y });
+        const inside =
+          source.x >= 0 &&
+          source.x <= patterned.width - 1 &&
+          source.y >= 0 &&
+          source.y <= patterned.height - 1;
+        expect(coverage[y * patterned.width + x]).toBe(inside ? 1 : 0);
+        if (!inside) continue;
+        const expected = sampleBilinear(patterned, source.x, source.y);
+        const actual = pixelAt(image, x, y);
+        for (let channel = 0; channel < 3; channel += 1) {
+          expect(
+            Math.abs(actual[channel] - expected[channel]),
+          ).toBeLessThanOrEqual(1);
+        }
+        checked += 1;
+      }
+    }
+    expect(checked).toBeGreaterThan(50);
   });
 
   it('interpolates a gradient bilinearly at a half-pixel offset in both axes', () => {

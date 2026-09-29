@@ -40,8 +40,6 @@ export const DEFAULT_MATCH_OPTIONS: MatchOptions = {
   maxDistance: 80,
 };
 
-const NO_MATCH = -1;
-
 interface NearestNeighbours {
   readonly bestTrain: Int32Array;
   readonly bestDistance: Float64Array;
@@ -55,10 +53,11 @@ function findNearestNeighbours(
 ): NearestNeighbours {
   const queryCount = query.keypoints.length;
   const trainCount = train.keypoints.length;
-  const bestTrain = new Int32Array(queryCount).fill(NO_MATCH);
+  // A query with no train descriptor keeps an infinite best distance, which the cap rejects before its index is read.
+  const bestTrain = new Int32Array(queryCount);
   const bestDistance = new Float64Array(queryCount).fill(Infinity);
   const secondDistance = new Float64Array(queryCount).fill(Infinity);
-  const trainBestQuery = new Int32Array(trainCount).fill(NO_MATCH);
+  const trainBestQuery = new Int32Array(trainCount);
   const trainBestDistance = new Float64Array(trainCount).fill(Infinity);
   for (let queryIndex = 0; queryIndex < queryCount; queryIndex += 1) {
     for (let trainIndex = 0; trainIndex < trainCount; trainIndex += 1) {

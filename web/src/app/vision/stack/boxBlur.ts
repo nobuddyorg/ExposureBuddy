@@ -97,7 +97,7 @@ function blurColumns(
   for (let index = 0; index < rowLength; index += 1) {
     output[index] = columnSums[index] * windowScale;
   }
-  for (let y = 1; y < height; y += 1) {
+  for (const y of indices(height).slice(1)) {
     const enteringRow = clampIndex(y + radius, last) * rowLength;
     const leavingRow = clampIndex(y - radius - 1, last) * rowLength;
     const outputRow = y * rowLength;

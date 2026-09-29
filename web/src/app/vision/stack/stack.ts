@@ -148,8 +148,9 @@ export function fullCoverageRect(
   required: number,
 ): Rect {
   const { width } = size;
-  const heights = new Int32Array(width);
-  const stack = new Int32Array(width + 1);
+  // One closing bar of height 0 after the last column, so every run of bars ends inside the histogram.
+  const heights = new Int32Array(width + 1);
+  const stack = new Int32Array(width + 2);
   let best = EMPTY_RECT;
   let x = 0;
   let y = 0;
@@ -171,11 +172,10 @@ function widestRectOnRow(
   stack: Int32Array,
   y: number,
 ): Rect {
-  const width = heights.length;
   let best = EMPTY_RECT;
   let top = 0;
-  for (let x = 0; x <= width; x += 1) {
-    const currentHeight = x < width ? heights[x] : 0;
+  for (let x = 0; x < heights.length; x += 1) {
+    const currentHeight = heights[x];
     while (top > 0) {
       const barHeight = heights[stack[top - 1]];
       if (barHeight < currentHeight) break;
