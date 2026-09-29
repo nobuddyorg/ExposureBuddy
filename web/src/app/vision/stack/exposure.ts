@@ -17,7 +17,6 @@ export function estimateGain(
   const referenceData = reference.data;
   const frameSums = [0, 0, 0];
   const referenceSums = [0, 0, 0];
-  let sampleCount = 0;
   for (let y = 0; y < height; y += SAMPLE_STRIDE) {
     for (let x = 0; x < width; x += SAMPLE_STRIDE) {
       const pixel = y * width + x;
@@ -29,10 +28,9 @@ export function estimateGain(
       referenceSums[0] += referenceData[offset];
       referenceSums[1] += referenceData[offset + 1];
       referenceSums[2] += referenceData[offset + 2];
-      sampleCount += 1;
     }
   }
-  if (sampleCount === 0) return UNIT_GAIN;
+  // No overlap leaves every sum at 0, so it is one case of the empty channel.
   const hasEmptyChannel = frameSums
     .concat(referenceSums)
     .some((sum) => sum === 0);
@@ -58,21 +56,18 @@ export function applyGain(
   const greenTable = gainTable(gain[1]);
   const blueTable = gainTable(gain[2]);
   const { data } = frame;
-  const pixelCount = frame.width * frame.height;
-  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
-    if (coverage[pixel] !== 1) continue;
+  coverage.forEach((covered, pixel) => {
+    if (covered !== 1) return;
     const offset = pixel * CHANNELS;
     data[offset] = redTable[data[offset]];
     data[offset + 1] = greenTable[data[offset + 1]];
     data[offset + 2] = blueTable[data[offset + 2]];
-  }
+  });
 }
 
 // Uint8ClampedArray rounds and clamps on assignment, so the table holds the whole transfer curve.
 function gainTable(gain: number): Uint8ClampedArray {
-  const table = new Uint8ClampedArray(256);
-  for (let value = 0; value < 256; value += 1) {
-    table[value] = Math.round(value * gain);
-  }
-  return table;
+  return Uint8ClampedArray.from({ length: 256 }, (_, value) =>
+    Math.round(value * gain),
+  );
 }

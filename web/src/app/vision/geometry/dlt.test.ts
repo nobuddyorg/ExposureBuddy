@@ -48,6 +48,31 @@ describe('hasCollinearTriple', () => {
     ).toBe(true);
   });
 
+  it('sees a line that is not axis-aligned, and a nearly straight triple at scale', () => {
+    expect(
+      hasCollinearTriple([
+        { x: 0, y: -1 },
+        { x: 1, y: 1 },
+        { x: 2, y: 3 },
+      ]),
+    ).toBe(true);
+    // A sine of 5e-7 between the two legs is under the tolerance, whatever the legs' lengths.
+    expect(
+      hasCollinearTriple([
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 2000, y: 0.001 },
+      ]),
+    ).toBe(true);
+    expect(
+      hasCollinearTriple([
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 2000, y: 3 },
+      ]),
+    ).toBe(false);
+  });
+
   it('holds for any three points, two of which coincide, and never for a proper triangle', () => {
     fc.assert(
       fc.property(pointArbitrary(100), pointArbitrary(100), (a, b) => {
@@ -98,6 +123,9 @@ describe('normalisePoints', () => {
     expect(sumX).toBeCloseTo(0, 12);
     expect(sumY).toBeCloseTo(0, 12);
     expect(meanDistance / points.length).toBeCloseTo(Math.SQRT2, 12);
+    // Orientation is kept: the point right of and below the centroid stays so.
+    expect(coordinates[4]).toBeCloseTo(1, 12);
+    expect(coordinates[5]).toBeCloseTo(1, 12);
   });
 
   it('returns transforms that agree with the coordinates and undo each other, for any points', () => {

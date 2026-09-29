@@ -50,6 +50,18 @@ describe('estimateGain', () => {
     expect(estimateGain(lit, black, fullCoverage(SIZE))).toEqual([1, 1, 1]);
   });
 
+  it('samples whole rows, not just the first: a frame brighter lower down averages both', () => {
+    const size: Size = { width: 8, height: 8 };
+    const frame = flatRgba(size, [0, 0, 0]);
+    // Rows 0..3 at 40, rows 4..7 at 80: the sampled rows 0 and 4 average to 60.
+    for (let pixel = 0; pixel < size.width * size.height; pixel += 1) {
+      frame.data[pixel * 4] = pixel < size.width * 4 ? 40 : 80;
+    }
+    const reference = flatRgba(size, [60, 60, 60]);
+    const [red] = estimateGain(frame, reference, fullCoverage(size));
+    expect(red).toBeCloseTo(1, 12);
+  });
+
   it('samples every fourth pixel in each direction, so odd columns are ignored', () => {
     const reference = flatRgba(SIZE, [100, 100, 100]);
     const frame = flatRgba(SIZE, [100, 100, 100]);
@@ -103,6 +115,15 @@ describe('applyGain', () => {
     applyGain(frame, [1.25, 1.25, 0.5], fullCoverage(SIZE));
     expect(Array.from(frame.data.subarray(0, 4))).toEqual([13, 14, 50, 77]);
     expect(Array.from(frame.data.subarray(4, 8))).toEqual([13, 14, 50, 255]);
+  });
+
+  it('scales each channel by its own gain on every pixel, the last one included', () => {
+    const size: Size = { width: 3, height: 2 };
+    const frame = flatRgba(size, [10, 20, 30]);
+    applyGain(frame, [2, 1, 1.5], fullCoverage(size));
+    const last = frame.data.subarray((size.width * size.height - 1) * 4);
+    expect(Array.from(last)).toEqual([20, 20, 45, 255]);
+    expect(Array.from(frame.data.subarray(0, 4))).toEqual([20, 20, 45, 255]);
   });
 
   it('clamps at 255', () => {

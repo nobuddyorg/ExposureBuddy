@@ -14,17 +14,13 @@ const COLLINEAR_SINE = 1e-6;
 
 /** Returns true when any three of `points` lie on one line (or coincide), which makes a 4-point homography undetermined. */
 export function hasCollinearTriple(points: readonly Point[]): boolean {
-  const count = points.length;
-  for (let first = 0; first < count; first += 1) {
-    for (let second = first + 1; second < count; second += 1) {
-      for (let third = second + 1; third < count; third += 1) {
-        if (isCollinear(points[first], points[second], points[third])) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
+  return points.some((a, first) =>
+    points.some(
+      (b, second) =>
+        second > first &&
+        points.some((c, third) => third > second && isCollinear(a, b, c)),
+    ),
+  );
 }
 
 function isCollinear(a: Point, b: Point, c: Point): boolean {
@@ -114,11 +110,9 @@ export function accumulateDltSystem(
 }
 
 function addOuterProduct(system: Float64Array, row: Float64Array): void {
-  for (let i = 0; i < HOMOGRAPHY_ENTRIES; i += 1) {
-    const rowI = row[i];
-    if (rowI === 0) continue;
+  row.forEach((rowI, i) => {
     for (let j = 0; j < HOMOGRAPHY_ENTRIES; j += 1) {
       system[i * HOMOGRAPHY_ENTRIES + j] += rowI * row[j];
     }
-  }
+  });
 }
