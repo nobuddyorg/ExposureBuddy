@@ -9,6 +9,7 @@ import type {
   StackResult,
 } from '../types';
 import type { StackSummary } from './protocol';
+import { NO_OVERLAP_MESSAGE } from './protocol';
 
 export interface StackSession {
   /** The frame every other frame was aligned to; must come first. */
@@ -31,7 +32,6 @@ interface Stacked {
 }
 
 /** Thrown by `stack()` when no pixel is covered by every aligned frame; the coordinator turns it into a failure of its own. */
-export const NO_OVERLAP_MESSAGE = 'The aligned photos share no common area.';
 
 /** The rectangle `rect` of `image` as a new image. */
 export function cropRgba(image: RgbaImage, rect: Rect): RgbaImage {

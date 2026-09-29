@@ -5,16 +5,8 @@ import type {
   Decoders,
   Served,
 } from './protocol';
-import { transferablesOf } from './protocol';
+import { transferablesOf, unexpectedRequest } from './protocol';
 import type { FeatureSet } from '../types';
-
-/** A message the worker was never meant to get: says which worker and what arrived, so a misrouted port is diagnosable. */
-export function unexpectedRequest(worker: string, request: unknown): Error {
-  const type = (request as { type?: unknown } | null)?.type;
-  return new Error(
-    `The ${worker} worker got a request it does not know: ${String(type)}.`,
-  );
-}
 
 export type AlignService = (
   request: AlignWorkerRequest,
@@ -104,7 +96,7 @@ export function createAlignService(
       case 'align':
         return align(request);
       default:
-        return Promise.reject(unexpectedRequest('align', request));
+        return Promise.reject(unexpectedRequest('align service', request));
     }
   };
 }

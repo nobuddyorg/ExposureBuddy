@@ -1,4 +1,4 @@
-import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/stackSession';
+import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/protocol';
 import { isAbortError } from './workerPort';
 
 export type PipelineFailure =

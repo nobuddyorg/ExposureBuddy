@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_COMPOSITE_PARAMS } from '../../vision/stack/composite';
+import { DEFAULT_COMPOSITE_PARAMS } from '../../vision/stack/compositeParams';
 import {
   SLIDER_MAX,
   toCompositeParams,

@@ -12,8 +12,11 @@ const run = (command, args) =>
     cwd: webDirectory,
     env: {
       ...process.env,
-      // chrome-launcher reads CHROME_PATH; the e2e suite's Chromium spares a second browser download.
-      CHROME_PATH: process.env.CHROME_PATH ?? chromium.executablePath(),
+      // chrome-launcher reads CHROME_PATH; the e2e suite's Chromium (or its override) spares a second browser download.
+      CHROME_PATH:
+        process.env.CHROME_PATH ??
+        process.env.CHROMIUM_EXECUTABLE_PATH ??
+        chromium.executablePath(),
     },
     stdio: 'inherit',
   });

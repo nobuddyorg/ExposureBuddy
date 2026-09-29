@@ -42,17 +42,16 @@ npx playwright test --ui                        # pick tests, watch, step throug
 npx playwright test e2e/public/theme.spec.ts
 npx playwright test --project=mobile            # the Pixel 7 viewport only
 npx playwright install firefox webkit           # once, for the other engines
-npx playwright test --project=webkit-mobile
+E2E_ALL_ENGINES=true npx playwright test --project=webkit-mobile
 npx playwright show-report                      # after a failed run
 ```
 
 Four engines, because the pipeline lives on browser APIs that differ between
 them: `chromium`, `mobile` (Pixel 7), `firefox` and `webkit-mobile` (iPhone
-14). CI runs all four. Locally, Firefox and WebKit need a one-time
-`npx playwright install firefox webkit`, and that download is blocked on some
-networks; without them, run the Chromium projects only
-(`npm run e2e -- --project=chromium --project=mobile`), since a project whose
-browser is missing fails rather than skips, and let CI run the other two
+14). CI runs all four. Locally, a plain run is the Chromium projects: the
+other two exist only when `E2E_ALL_ENGINES` (or `CI`) is set, and need a
+one-time `npx playwright install firefox webkit`, a download some networks
+block. Without them, keep to the Chromium projects and let CI run the other two
 ([why](../explanation/design-decisions.md#why-firefox-and-webkit-run-in-ci-only)).
 
 The same suite runs against the deployed site after every release, on

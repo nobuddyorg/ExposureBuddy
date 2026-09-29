@@ -10,6 +10,8 @@ below is read by a build, a test run or a CI job.
 | `PAGES_BASE_URL` | `web/next.config.ts` (build) | Unset: the export is built for `/ExposureBuddy`, the Pages project URL. `pages-deploy.yml` sets it to the Pages site URL from `actions/configure-pages`, whose path becomes `basePath`; empty on a custom domain. `next dev` always serves from `/`. |
 | `E2E_BASE_URL` | `web/playwright.config.ts` | Unset: the suite serves `web/out` under the base path and tests it. Set: tests that origin instead, starts no server, `retries: 2`. |
 | `E2E_PORT` | `web/playwright.config.ts` | Port of the local export server, default `4173`. |
+| `E2E_ALL_ENGINES` | `web/playwright.config.ts` | Set (as `CI` always is): the `firefox` and `webkit-mobile` projects join the run. Unset: the Chromium projects only, so a checkout without those browsers still runs the suite. |
+| `CHROMIUM_EXECUTABLE_PATH` | `web/playwright.config.ts`, `web/scripts/lighthouse.mjs`, `web/scripts/make-icons.mjs` | A Chromium binary to launch instead of the one Playwright downloaded, for a machine where that download is blocked. |
 | `E2E_COVERAGE` | `web/e2e/coverage.ts` | `true` collects JS/CSS coverage on the Chromium projects and applies the floor in the global teardown. Only worth it on a build made with `E2E_COVERAGE_SOURCEMAPS`. |
 | `E2E_COVERAGE_SOURCEMAPS` | `web/next.config.ts` (build) | `true` makes `next build` emit browser source maps so the coverage report maps to `src/app/**`. The deploy build never sets it. |
 | `FC_SEED` | `web/vitest.setup.ts` | Replaces fast-check's fixed seed for one run ([Replay a property-test failure](../how-to/developer-guide.md#replay-a-property-test-failure)). |
@@ -53,7 +55,7 @@ reports a higher number and never lowered to make a change fit
 | --- | --- | --- |
 | Unit coverage, global | `web/vitest.config.mts` `GLOBAL_COVERAGE_THRESHOLDS` | 95% statements, 90% branches, 95% functions, 95% lines |
 | Unit coverage, per file | same file, `PER_FILE_FLOOR`, over every file in `web/mutation-targets.mjs` | 100% on all four |
-| Unit coverage, what counts | same file, `coverage.exclude` | Product code only: `*.test-support.*` fakes and fixtures, `types.ts`, the dictionaries, the worker entry points and the browser-only decode step are excluded; the last two are verified by Playwright |
+| Unit coverage, what counts | same file, `coverage.exclude` | Product code only: `*.test-support.*` fakes and fixtures, `types.ts` and the dictionaries are excluded, as are the routing glue (`layout.tsx`, `page.tsx`), the worker entry point and the browser-only steps it runs (`decode.ts`, `workerScope.ts`, `workerFactory.ts`), which Playwright verifies instead |
 | Mutation score | `web/stryker.config.mjs` `thresholds` | `break: 99`, `low: 99`, `high: 100`: one below a measured 100, so a single new equivalent mutant cannot block unrelated work |
 | E2E JS/CSS coverage | `web/e2e/coverage.ts` `COVERAGE_THRESHOLDS` | Floors a few points under a measured `E2E_COVERAGE=true` run on chromium + mobile: statements 73%, branches 64%, functions 84%, lines 87% |
 | Lighthouse | `web/lighthouserc.json` `assert` | Performance at 0.85 (measured 0.93–0.94), best-practices and SEO at 0.9; accessibility at exactly 1.0; LCP ≤ 4000 ms (measured ~2.9 s under Lighthouse's mobile throttling), TBT ≤ 300 ms (measured ~150), CLS ≤ 0.1; median of 3 runs |
@@ -75,7 +77,7 @@ The numbers the pipeline is sized by, each in the module that owns it.
 | --- | --- | --- |
 | Photos per burst | the picker | 100; extra files are dropped with a notice (`picker.too_many`) |
 | Minimum photos | `web/src/app/exposure/runPipeline.ts` | 2; the picker's Combine button says how many it still needs |
-| Memory budget | `web/src/app/vision/pipeline/budget.ts` `DEFAULT_BUDGET_BYTES` | 256 MiB for `(frameCount + 3) × width × height × 4` bytes at the working size |
+| Memory budget | `web/src/app/vision/pipeline/budget.ts` `DEFAULT_BUDGET_BYTES` | 256 MiB for the peak, `max(frameCount × 5 + 10, 80) × width × height` bytes at the working size (`peakBytesPerPixel`) |
 | Output long edge | same file, `qualityLongEdge` | Small 1024, Standard 1600, Large 2400 px; never upscaled |
 | Smallest working long edge | same file, `MIN_LONG_EDGE` | 640 px: the budget never pushes below it; a burst that still does not fit is refused, not crashed |
 | Alignment long edge | same file, `ALIGNMENT_LONG_EDGE` | 960 px: the grayscale copy features are detected on |
@@ -118,10 +120,11 @@ nothing posts a PR comment, and Codecov's comment is off in
 `web/e2e/`: `public/` (shell, PWA, service worker, theme, i18n, help,
 accessibility) and `journey/` (a whole burst through the pipeline, and the
 error screen). Projects: `chromium` (Desktop Chrome), `mobile` (Pixel 7),
-`firefox` (Desktop Firefox), `webkit-mobile` (iPhone 14). Locally, Firefox and
-WebKit need `npx playwright install firefox webkit`; the suite otherwise runs
-the projects whose browser is installed. Retries are `0` locally: a page that
-fails one run in ten fails for a tenth of visitors.
+`firefox` (Desktop Firefox), `webkit-mobile` (iPhone 14). The last two join a
+run only when `CI` or `E2E_ALL_ENGINES` is set, and locally they need
+`npx playwright install firefox webkit` first; a plain local run is the
+Chromium projects. Retries are `0` locally: a page that fails one run in ten
+fails for a tenth of visitors.
 
 Fixtures come from `npm run fixtures` (`web/scripts/make-fixtures.mjs`), which
 writes synthetic bursts into `web/e2e/fixtures/generated/` (gitignored): a

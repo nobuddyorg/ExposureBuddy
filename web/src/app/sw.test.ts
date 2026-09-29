@@ -34,7 +34,9 @@ describe('isHashedStaticAsset', () => {
       true,
     );
     expect(
-      isHashedStaticAsset('/ExposureBuddy/_next/static/chunks/align.worker.js'),
+      isHashedStaticAsset(
+        '/ExposureBuddy/_next/static/chunks/exposure.worker.js',
+      ),
     ).toBe(true);
   });
 

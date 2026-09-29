@@ -1,5 +1,5 @@
 import type { CompositeParams } from '../../vision/types';
-import { clampCompositeParams } from '../../vision/stack/composite';
+import { clampCompositeParams } from '../../vision/stack/compositeParams';
 
 /** The three sliders as the visitor sees them: ghosts and glow in percent, blur in pixels. */
 export interface SliderValues {

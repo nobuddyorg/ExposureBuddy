@@ -96,7 +96,7 @@ describe('createStackService', () => {
   it('rejects a request meant for another worker, naming it', async () => {
     const serve = createStackService(fakeSession(), () => {});
     await expect(serve({ type: 'align', id: 7 } as never)).rejects.toThrow(
-      'The stack worker got a request it does not know: align.',
+      'The stack service got a request it does not know: align.',
     );
   });
 

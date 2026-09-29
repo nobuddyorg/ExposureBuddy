@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { ExposureResult } from '../../exposure/runPipeline';
-import { DEFAULT_COMPOSITE_PARAMS } from '../../vision/stack/composite';
+import { DEFAULT_COMPOSITE_PARAMS } from '../../vision/stack/compositeParams';
 import type { CompositeParams, RgbaImage } from '../../vision/types';
 import { errorMessage } from './errorMessage';
 

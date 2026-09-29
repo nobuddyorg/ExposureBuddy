@@ -1,11 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AlignedFrame, RgbaImage } from '../types';
-import {
-  NO_OVERLAP_MESSAGE,
-  createStackSession,
-  cropRgba,
-} from './stackSession';
+import { NO_OVERLAP_MESSAGE } from './protocol';
+import { createStackSession, cropRgba } from './stackSession';
 
 const WIDTH = 6;
 const HEIGHT = 4;

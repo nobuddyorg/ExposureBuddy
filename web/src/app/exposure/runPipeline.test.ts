@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { WorkerMessage } from '../vision/pipeline/protocol';
-import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/stackSession';
+import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/protocol';
 import { PipelineError } from './failure';
 import {
   createFakeFactory,

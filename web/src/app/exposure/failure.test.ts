@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/stackSession';
+import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/protocol';
 import { PipelineError, toPipelineFailure } from './failure';
 
 describe('PipelineError', () => {

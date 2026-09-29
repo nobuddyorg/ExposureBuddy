@@ -126,7 +126,19 @@ interface WorkerFailure {
 
 export type WorkerMessage = { readonly type: string; readonly id: number };
 
+/** The stack worker's message when no pixel is covered by every aligned frame; the coordinator maps it to its own failure. */
+export const NO_OVERLAP_MESSAGE = 'The aligned photos share no common area.';
+
 export type WorkerRequest = AlignWorkerRequest | StackWorkerRequest;
+export type WorkerResponse = AlignWorkerResponse | StackWorkerResponse;
+
+/** A message `handler` was never meant to get: names what arrived, so a misrouted port is diagnosable. */
+export function unexpectedRequest(handler: string, request: unknown): Error {
+  const type = (request as { type?: unknown } | null)?.type;
+  return new Error(
+    `The ${handler} got a request it does not know: ${String(type)}.`,
+  );
+}
 
 export type StackProgress = Extract<
   StackWorkerResponse,

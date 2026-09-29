@@ -28,7 +28,7 @@ web/src/app/
     warp/          inverse-mapped bilinear warp with a coverage mask
     stack/         exposure gain, median / mean / deviation stack, crop, composite
     pipeline/      memory budget, worker message protocol, pure request handlers
-  workers/         *.worker.ts entry points: `self.onmessage` glue over vision/pipeline handlers
+  workers/         exposure.worker.ts, the one entry point: `self.onmessage` glue over vision/pipeline handlers
 web/public/        sw.js, site.webmanifest, icons, logo.svg
 web/e2e/           Playwright: page objects, public specs, synthetic burst fixtures
 web/scripts/       Node tools: serve-export, make-fixtures, make-icons, lighthouse, summaries
@@ -38,8 +38,9 @@ Layer rules, checked by `dependency-cruiser` and ESLint:
 
 - `vision/` imports nothing from `react`, `next`, `components/` or `i18n/`. It
   runs in a worker, in Node under Vitest, and under Stryker.
-- A `*.worker.ts` file imports only `vision/` and the one DOM-bound step it
-  runs, `exposure/decode.ts`.
+- The worker entry point imports only `vision/` and the three browser-bound
+  glue files it needs: `exposure/decode.ts`, `exposure/workerScope.ts` and
+  `exposure/workerServe.ts`. No React, no UI, no coordinator.
 - `i18n/` imports nothing from `vision/` or `components/`.
 - `e2e/` and `scripts/` never import `src/app/`; `src/app/` never imports them.
 
@@ -52,9 +53,12 @@ One burst goes through five stages. Each stage reports progress to the UI as
    (`imageOrientation: 'from-image'`, so EXIF rotation is applied) and drawn
    onto an `OffscreenCanvas` at the *working size*. The working size comes
    from the first frame's dimensions, the frame count and a memory budget
-   (`vision/pipeline/budget.ts`): `frameCount × width × height × 4` bytes of
-   aligned frames must fit the budget, and the long edge never exceeds the
-   chosen output size (small 1024, standard 1600, large 2400).
+   (`vision/pipeline/budget.ts`): the pipeline's peak,
+   `max(frameCount × 5 + 10, 80) × width × height` bytes (every aligned
+   frame as RGBA plus its coverage mask, the stack's buffers on top; or the
+   render's float layers once the frames are gone), must fit the budget, and
+   the long edge never exceeds the chosen output size (small 1024, standard
+   1600, large 2400).
 2. **Reference features.** The middle frame of the burst is the reference:
    it minimises the largest camera drift to any other frame. Its grayscale
    copy at the *alignment size* (long edge ≤ 960) goes through ORB:
@@ -89,20 +93,25 @@ link.
 ### Memory
 
 Everything at working resolution is a `Uint8ClampedArray` in one worker; the
-main thread only forwards transferable buffers. Peak memory is roughly
-`frameCount × working pixels × 4` for the aligned frames plus three
-working-size buffers for the stack. The budget defaults to 256 MiB and is the
-input to the working-size choice, so a fifty-photo burst simply comes out
-smaller rather than crashing the tab.
+main thread only forwards transferable buffers. Peak memory is
+`max(frameCount × 5 + 10, 80)` bytes per working pixel: while stacking, every
+aligned frame (RGBA plus a coverage mask) and the stack's own buffers; while
+rendering, the float layers and scratch of the composite, by which time the
+frames have been released. The budget defaults to 256 MiB and is the input to
+the working-size choice, so a fifty-photo burst simply comes out smaller
+rather than crashing the tab.
 
 ### Worker protocol
 
 `vision/pipeline/protocol.ts` declares the discriminated unions both sides
 speak. Every request carries an `id`; every response echoes it. Buffers move
-as transferables. The workers themselves are a few lines of glue each; the
-logic they call lives in `vision/pipeline/` as pure functions
-(`referenceFeatures`, `alignToReference`) and a `createStackSession()`
-object, all tested in Node without a browser. Decoding (`exposure/decode.ts`,
+as transferables. There is one worker script, a few lines of glue: every
+worker the coordinator starts runs it, and `vision/pipeline/exposureService.ts`
+routes each request by type to the align handlers or the stack session, so a
+worker's role is only which requests it is sent. The logic lives in
+`vision/pipeline/` as pure functions (`referenceFeatures`,
+`alignToReference`) and a `createStackSession()` object, all tested in Node
+without a browser. Decoding (`exposure/decode.ts`,
 `createImageBitmap` plus `OffscreenCanvas`) is the one step only a browser can
 run; the align workers do it so the main thread never touches pixels. The
 coordinator (`exposure/runPipeline.ts`) takes a `WorkerFactory`, so its unit

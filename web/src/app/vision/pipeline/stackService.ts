@@ -3,8 +3,7 @@ import type {
   StackWorkerRequest,
   StackWorkerResponse,
 } from './protocol';
-import { transferablesOf } from './protocol';
-import { unexpectedRequest } from './alignService';
+import { transferablesOf, unexpectedRequest } from './protocol';
 import type { StackSession } from './stackSession';
 
 export type StackService = (
@@ -53,7 +52,7 @@ export function createStackService(
         );
       }
       default:
-        throw unexpectedRequest('stack', request);
+        throw unexpectedRequest('stack service', request);
     }
   };
 

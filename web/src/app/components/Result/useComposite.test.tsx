@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_COMPOSITE_PARAMS } from '../../vision/stack/composite';
+import { DEFAULT_COMPOSITE_PARAMS } from '../../vision/stack/compositeParams';
 import type { RgbaImage } from '../../vision/types';
 import { deferred, rgbaImage } from './canvas.test-support';
 import { fakeResult } from './result.test-support';
