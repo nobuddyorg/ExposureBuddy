@@ -1,5 +1,6 @@
 import type { Homography, Point, RansacResult } from '../types';
 import { estimateHomography, transferError } from './homography';
+import { mulberry32 } from '../features/random';
 
 export interface RansacOptions {
   /** Transfer error in target pixels below which a correspondence is an inlier. */
@@ -21,17 +22,8 @@ export const DEFAULT_RANSAC_OPTIONS: Omit<RansacOptions, 'random'> = {
 
 const SAMPLE_SIZE = 4;
 
-/** Returns a mulberry32 generator seeded with `seed`, yielding uniform numbers in [0, 1). */
-export function createRandom(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let mixed = state;
-    mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
-    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** The seeded generator RANSAC draws its samples from: mulberry32, shared with the BRIEF pattern. */
+export const createRandom = mulberry32;
 
 interface Problem {
   readonly source: readonly Point[];
@@ -81,8 +73,7 @@ interface Sampler {
 // Partial Fisher–Yates over a persistent index permutation: no allocation per draw.
 function createSampler(problem: Problem, random: () => number): Sampler {
   const count = problem.source.length;
-  const indices = new Int32Array(count);
-  for (let index = 0; index < count; index += 1) indices[index] = index;
+  const indices = Int32Array.from({ length: count }, (_, index) => index);
   const source: Point[] = new Array<Point>(SAMPLE_SIZE);
   const target: Point[] = new Array<Point>(SAMPLE_SIZE);
   return {
@@ -115,8 +106,9 @@ function searchModel(
     const candidate = estimateHomography(sampler.source, sampler.target);
     if (candidate === null) continue;
     const inlierCount = countInliers(problem, candidate, scratchMask);
-    if (inlierCount < SAMPLE_SIZE) continue;
-    if (best !== null && inlierCount <= best.inlierCount) continue;
+    // A model must explain more than the best so far, and at least its own sample.
+    const countToBeat = best?.inlierCount ?? SAMPLE_SIZE - 1;
+    if (inlierCount <= countToBeat) continue;
     const previousMask = best?.inlierMask ?? new Uint8Array(count);
     best = { homography: candidate, inlierMask: scratchMask, inlierCount };
     scratchMask = previousMask;

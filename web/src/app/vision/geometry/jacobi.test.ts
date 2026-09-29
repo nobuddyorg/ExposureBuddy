@@ -38,16 +38,18 @@ describe('jacobiEigen', () => {
 
   it('finds the eigenpairs 1 and 3 of [[2, 1], [1, 2]]', () => {
     const { values, vectors } = jacobiEigen(new Float64Array([2, 1, 1, 2]), 2);
-    const sorted = Array.from(values).sort((a, b) => a - b);
-    expect(sorted[0]).toBeCloseTo(1, 12);
-    expect(sorted[1]).toBeCloseTo(3, 12);
+    // Equal diagonal entries mean a zero theta, which takes the positive angle: value 1 lands first.
+    expect(values[0]).toBeCloseTo(1, 12);
+    expect(values[1]).toBeCloseTo(3, 12);
     const smallest = smallestEigenvector({ values, vectors });
     expect(Math.abs(smallest[0])).toBeCloseTo(Math.SQRT1_2, 12);
     expect(smallest[0] + smallest[1]).toBeCloseTo(0, 12);
   });
 
   it('throws when the buffer does not hold size × size entries', () => {
-    expect(() => jacobiEigen(new Float64Array(8), 3)).toThrow(RangeError);
+    expect(() => jacobiEigen(new Float64Array(8), 3)).toThrow(
+      new RangeError('jacobiEigen: expected 9 entries, got 8'),
+    );
   });
 
   it('satisfies A·v = λ·v with orthonormal v for any symmetric matrix up to 9×9', () => {
@@ -70,6 +72,14 @@ describe('jacobiEigen', () => {
         }
       }),
     );
+  });
+
+  it('picks the first of equal smallest eigenvalues', () => {
+    const vector = smallestEigenvector({
+      values: new Float64Array([2, 1, 1]),
+      vectors: new Float64Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+    });
+    expect(Array.from(vector)).toEqual([0, 1, 0]);
   });
 
   it('picks the column whose eigenvalue is smallest, for any symmetric matrix', () => {

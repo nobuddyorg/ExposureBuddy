@@ -2,7 +2,7 @@ import type { Size } from '../types';
 
 const DEFAULT_PASSES = 3;
 
-/** Returns a new Float32Array with `data` (interleaved `channels`, row-major `size`) box-blurred `passes` times with a (2·radius + 1)² edge-clamped window; radius 0 returns a copy. */
+/** Returns a new Float32Array with `data` (interleaved `channels`, row-major `size`) box-blurred `passes` times with a (2·radius + 1)² edge-clamped window; radius 0 or no passes is a copy. */
 export function boxBlurFloat(
   data: Float32Array,
   size: Size,
@@ -10,7 +10,6 @@ export function boxBlurFloat(
   radius: number,
   passes = DEFAULT_PASSES,
 ): Float32Array {
-  if (radius <= 0 || passes <= 0) return new Float32Array(data);
   const rowLength = size.width * channels;
   let front = new Float32Array(data);
   let back = new Float32Array(data.length);
@@ -58,7 +57,8 @@ function blurLine(input: Float32Array, output: Float32Array, line: Line): void {
     output[start + position * step] = sum * windowScale;
   }
   let enteringIndex = start + (interiorStart + radius) * step;
-  let leavingIndex = start + (interiorStart - radius - 1) * step;
+  // The first interior window is the first to drop the line's first sample.
+  let leavingIndex = start;
   let outputIndex = start + interiorStart * step;
   for (let position = interiorStart; position < interiorEnd; position += 1) {
     sum += input[enteringIndex] - input[leavingIndex];
@@ -68,7 +68,7 @@ function blurLine(input: Float32Array, output: Float32Array, line: Line): void {
     outputIndex += step;
   }
   const lastIndex = start + last * step;
-  for (let position = interiorEnd; position < length; position += 1) {
+  for (let position = interiorEnd; position <= last; position += 1) {
     const leaving = clampIndex(position - radius - 1, last);
     sum += input[lastIndex] - input[start + leaving * step];
     output[start + position * step] = sum * windowScale;

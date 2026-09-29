@@ -16,11 +16,10 @@ const MAX_SWEEPS = 60;
 const CONVERGENCE_RATIO = 1e-30;
 
 function identity(size: number): Float64Array {
-  const matrix = new Float64Array(size * size);
-  for (let index = 0; index < size; index += 1) {
-    matrix[index * size + index] = 1;
-  }
-  return matrix;
+  // Row-major, so the diagonal sits at every (size + 1)th entry.
+  return Float64Array.from({ length: size * size }, (_, index) =>
+    index % (size + 1) === 0 ? 1 : 0,
+  );
 }
 
 function isDiagonal(matrix: Float64Array, size: number): boolean {
@@ -84,16 +83,16 @@ export function jacobiEigen(
   };
   for (let sweep = 0; sweep < MAX_SWEEPS; sweep += 1) {
     if (isDiagonal(workspace.matrix, size)) break;
-    for (let p = 0; p < size - 1; p += 1) {
+    for (let p = 0; p < size; p += 1) {
       for (let q = p + 1; q < size; q += 1) {
         rotatePair(workspace, p, q);
       }
     }
   }
-  const values = new Float64Array(size);
-  for (let index = 0; index < size; index += 1) {
-    values[index] = workspace.matrix[index * size + index];
-  }
+  const values = Float64Array.from(
+    { length: size },
+    (_, index) => workspace.matrix[index * size + index],
+  );
   return { values, vectors: workspace.vectors };
 }
 
@@ -101,12 +100,11 @@ export function jacobiEigen(
 export function smallestEigenvector(eigen: SymmetricEigen): Float64Array {
   const size = eigen.values.length;
   let smallest = 0;
-  for (let index = 1; index < size; index += 1) {
-    if (eigen.values[index] < eigen.values[smallest]) smallest = index;
-  }
-  const vector = new Float64Array(size);
-  for (let row = 0; row < size; row += 1) {
-    vector[row] = eigen.vectors[row * size + smallest];
-  }
-  return vector;
+  eigen.values.forEach((value, index) => {
+    if (value < eigen.values[smallest]) smallest = index;
+  });
+  return Float64Array.from(
+    { length: size },
+    (_, row) => eigen.vectors[row * size + smallest],
+  );
 }

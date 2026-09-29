@@ -128,7 +128,33 @@ describe('ransacHomography', () => {
     const three = scatterPoints(3, 100, 100);
     expect(ransacHomography(three, three)).toBeNull();
     expect(ransacHomography([], [])).toBeNull();
-    expect(() => ransacHomography(three, three.slice(1))).toThrow(RangeError);
+    expect(() => ransacHomography(three, three.slice(1))).toThrow(
+      new RangeError('ransacHomography: 3 source points but 2 target points'),
+    );
+  });
+
+  it('accepts exactly four correspondences, which are their own inliers', () => {
+    const source = scatterPoints(4, 300, 200, 6);
+    const target = mapPoints(translationHomography(2, 1), source);
+    const result = ransacHomography(source, target);
+    expect(result?.inlierCount).toBe(4);
+    expect(Array.from(result?.inlierMask ?? [])).toEqual([1, 1, 1, 1]);
+  });
+
+  it('keeps the best model when a later sample explains fewer correspondences', () => {
+    const source = scatterPoints(8, 400, 300, 9);
+    const target = mapPoints(translationHomography(3, -2), source);
+    // Point 4 is an outlier; the first draw takes points 0-3, the second swaps point 4 in.
+    target[4] = { x: target[4].x + 40, y: target[4].y - 25 };
+    const draws = [0, 0, 0, 0, 4 / 8, 0, 0, 0];
+    let call = 0;
+    const random = () => draws[call++] ?? 0;
+    const result = ransacHomography(source, target, {
+      random,
+      maxIterations: 2,
+    });
+    expect(result?.inlierCount).toBe(7);
+    expect(result?.inlierMask[4]).toBe(0);
   });
 
   it('returns null when no sample can be estimated', () => {
