@@ -17,14 +17,23 @@ export const DEFAULT_FAST_OPTIONS: FastOptions = {
 const CIRCLE_RADIUS = 3;
 const CIRCLE_PIXELS = 16;
 const ARC_LENGTH = 9;
-// The 16 Bresenham-circle offsets of radius 3 as (dx, dy) pairs, clockwise from the top.
-const CIRCLE_OFFSETS = new Int8Array([
-  0, -3, 1, -3, 2, -2, 3, -1, 3, 0, 3, 1, 2, 2, 1, 3, 0, 3, -1, 3, -2, 2, -3, 1,
-  -3, 0, -3, -1, -2, -2, -1, -3,
+// The 16 Bresenham-circle pixels of radius 3, clockwise from the top, as (x, y) inside the 7 × 7 window around a candidate.
+const CIRCLE_WINDOW_XY = new Int8Array([
+  3, 0, 4, 0, 5, 1, 6, 2, 6, 3, 6, 4, 5, 5, 4, 6, 3, 6, 2, 6, 1, 5, 0, 4, 0, 3,
+  0, 2, 1, 1, 2, 0,
 ]);
-// Top, right, bottom, left: any arc of 9 contiguous circle pixels contains at least 2 of these.
-const COMPASS_PIXELS = [0, 4, 8, 12];
+// Top, right, bottom and left are sampled first: any arc of 9 contiguous circle pixels contains at least 2 of them.
+const SAMPLE_ORDER = [0, 4, 8, 12, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15];
+const COMPASS_PIXEL_COUNT = 4;
 const COMPASS_MINIMUM = 2;
+const FIRST_PIXEL_AFTER_COMPASS = SAMPLE_ORDER[COMPASS_PIXEL_COUNT];
+
+interface Ring {
+  /** Each circle pixel's index offset from the top-left of a candidate's 7 × 7 window. */
+  readonly pixels: Int32Array;
+  /** The candidate's own index offset from that top-left. */
+  readonly center: number;
+}
 
 /** Returns FAST-9 corners at least `border` px from every edge, angle 0, scored by Σ(|circle − centre| − threshold) over the qualifying arc. */
 export function detectFastCorners(
@@ -37,7 +46,7 @@ export function detectFastCorners(
   };
   const margin = Math.max(border, CIRCLE_RADIUS);
   const scores = scoreCorners(image, threshold, margin);
-  return collectKeypoints(image, scores, margin, nonMaxSuppression);
+  return collectKeypoints(image.width, scores, nonMaxSuppression);
 }
 
 function scoreCorners(
@@ -47,62 +56,58 @@ function scoreCorners(
 ): Int32Array {
   const { width, height, data } = image;
   const scores = new Int32Array(width * height);
-  const circle = circleIndexOffsets(width);
+  const ring = ringOffsets(width);
   for (let y = margin; y < height - margin; y += 1) {
     for (let x = margin; x < width - margin; x += 1) {
       const index = y * width + x;
-      if (passesCompassCheck(data, index, circle, threshold)) {
-        scores[index] = cornerScore(data, index, circle, threshold);
-      }
+      scores[index] = cornerScore(data, index, ring, threshold);
     }
   }
   return scores;
 }
 
-function circleIndexOffsets(width: number): Int32Array {
-  const offsets = new Int32Array(CIRCLE_PIXELS);
-  for (let pixel = 0; pixel < CIRCLE_PIXELS; pixel += 1) {
-    offsets[pixel] =
-      CIRCLE_OFFSETS[pixel * 2 + 1] * width + CIRCLE_OFFSETS[pixel * 2];
-  }
-  return offsets;
-}
-
-function passesCompassCheck(
-  data: Uint8Array,
-  index: number,
-  circle: Int32Array,
-  threshold: number,
-): boolean {
-  const center = data[index];
-  let brighter = 0;
-  let darker = 0;
-  for (const pixel of COMPASS_PIXELS) {
-    const difference = data[index + circle[pixel]] - center;
-    if (difference > threshold) brighter += 1;
-    else if (difference < -threshold) darker += 1;
-  }
-  return brighter >= COMPASS_MINIMUM || darker >= COMPASS_MINIMUM;
+function ringOffsets(width: number): Ring {
+  return {
+    pixels: Int32Array.from(
+      { length: CIRCLE_PIXELS },
+      (_, pixel) =>
+        CIRCLE_WINDOW_XY[pixel * 2 + 1] * width + CIRCLE_WINDOW_XY[pixel * 2],
+    ),
+    center: CIRCLE_RADIUS * width + CIRCLE_RADIUS,
+  };
 }
 
 // Returns 0 for a non-corner; a corner's score is positive because every arc pixel exceeds the threshold.
 function cornerScore(
   data: Uint8Array,
   index: number,
-  circle: Int32Array,
+  ring: Ring,
   threshold: number,
 ): number {
   const center = data[index];
+  const windowStart = index - ring.center;
+  let brighter = 0;
+  let darker = 0;
   let brighterMask = 0;
   let darkerMask = 0;
   let brighterScore = 0;
   let darkerScore = 0;
-  for (let pixel = 0; pixel < CIRCLE_PIXELS; pixel += 1) {
-    const difference = data[index + circle[pixel]] - center;
+  for (const pixel of SAMPLE_ORDER) {
+    // Fewer than two compass hits per sign rules out every arc, so the other twelve pixels are never read.
+    if (
+      pixel === FIRST_PIXEL_AFTER_COMPASS &&
+      brighter < COMPASS_MINIMUM &&
+      darker < COMPASS_MINIMUM
+    ) {
+      return 0;
+    }
+    const difference = data[windowStart + ring.pixels[pixel]] - center;
     if (difference > threshold) {
+      brighter += 1;
       brighterMask |= 1 << pixel;
       brighterScore += difference - threshold;
     } else if (difference < -threshold) {
+      darker += 1;
       darkerMask |= 1 << pixel;
       darkerScore += -difference - threshold;
     }
@@ -113,32 +118,31 @@ function cornerScore(
 }
 
 function hasContiguousArc(mask: number): boolean {
-  // Doubling the 16-bit ring lets an arc that wraps past pixel 15 be read as one straight run.
-  const ring = mask | (mask << CIRCLE_PIXELS);
   let run = 0;
-  for (let bit = 0; bit < 2 * CIRCLE_PIXELS; bit += 1) {
-    run = ring & (1 << bit) ? run + 1 : 0;
+  // Doubling the 16-bit ring lets an arc that wraps past pixel 15 be read as one straight run.
+  for (let ring = mask | (mask << CIRCLE_PIXELS); ring !== 0; ring >>>= 1) {
+    run = ring & 1 ? run + 1 : 0;
     if (run >= ARC_LENGTH) return true;
   }
   return false;
 }
 
 function collectKeypoints(
-  image: GrayImage,
+  width: number,
   scores: Int32Array,
-  margin: number,
   nonMaxSuppression: boolean,
 ): Keypoint[] {
-  const { width, height } = image;
   const keypoints: Keypoint[] = [];
-  for (let y = margin; y < height - margin; y += 1) {
-    for (let x = margin; x < width - margin; x += 1) {
-      const index = y * width + x;
-      const score = scores[index];
-      if (score === 0) continue;
-      if (nonMaxSuppression && !isLocalMaximum(scores, index, width)) continue;
-      keypoints.push({ x, y, score, angle: 0 });
-    }
+  for (let index = 0; index < scores.length; index += 1) {
+    const score = scores[index];
+    if (score === 0) continue;
+    if (nonMaxSuppression && !isLocalMaximum(scores, index, width)) continue;
+    keypoints.push({
+      x: index % width,
+      y: Math.floor(index / width),
+      score,
+      angle: 0,
+    });
   }
   return keypoints;
 }
@@ -149,9 +153,8 @@ function isLocalMaximum(
   width: number,
 ): boolean {
   const score = scores[index];
-  for (let rowOffset = -width; rowOffset <= width; rowOffset += width) {
-    for (let columnOffset = -1; columnOffset <= 1; columnOffset += 1) {
-      const neighbour = index + rowOffset + columnOffset;
+  for (const row of [index - width, index, index + width]) {
+    for (const neighbour of [row - 1, row, row + 1]) {
       if (neighbour !== index && scores[neighbour] >= score) return false;
     }
   }

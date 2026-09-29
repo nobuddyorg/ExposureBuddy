@@ -92,6 +92,40 @@ function referenceCorners(
   return corners;
 }
 
+const RING_CENTER = 8;
+
+/** Returns a 16 × 16 image of `ground` gray whose circle around (8, 8) holds `ringValues[pixel]` at each circle pixel. */
+function ringPattern(ground: number, ringValues: readonly number[]): GrayImage {
+  const image = flatGray(16, 16, ground);
+  for (const [pixel, [dx, dy]] of CIRCLE.entries()) {
+    image.data[(RING_CENTER + dy) * 16 + RING_CENTER + dx] = ringValues[pixel];
+  }
+  return image;
+}
+
+/** Returns circle values: `arc` on the `length` pixels from `from` on (wrapping), `rest` elsewhere. */
+function arcValues(
+  from: number,
+  length: number,
+  arc: number,
+  rest: number,
+): number[] {
+  return CIRCLE.map((_, pixel) =>
+    (pixel - from + 16) % 16 < length ? arc : rest,
+  );
+}
+
+function centerResponse(
+  image: GrayImage,
+  threshold: number,
+): Keypoint | undefined {
+  return detectFastCorners(image, {
+    threshold,
+    border: 3,
+    nonMaxSuppression: false,
+  }).find((corner) => corner.x === RING_CENTER && corner.y === RING_CENTER);
+}
+
 const noisyImage = fc
   .array(fc.integer({ min: 0, max: 255 }), {
     minLength: 24 * 24,
@@ -222,5 +256,67 @@ describe('detectFastCorners', () => {
       ),
       { numRuns: 80 },
     );
+  });
+});
+
+describe('detectFastCorners on one synthetic circle', () => {
+  it('scores an arc of exactly nine by its excess over the threshold and rejects an arc of eight', () => {
+    expect(
+      centerResponse(ringPattern(100, arcValues(1, 9, 200, 100)), 20)?.score,
+    ).toBe(9 * 80);
+    expect(
+      centerResponse(ringPattern(100, arcValues(1, 8, 200, 100)), 20),
+    ).toBeUndefined();
+  });
+
+  it('counts a circle pixel only when it differs by more than the threshold, in either direction', () => {
+    for (const [arc, atThreshold, beyondThreshold] of [
+      [200, 120, 121],
+      [0, 80, 79],
+    ]) {
+      const values = arcValues(1, 9, arc, 100);
+      values[5] = atThreshold;
+      expect(centerResponse(ringPattern(100, values), 20)).toBeUndefined();
+      values[5] = beyondThreshold;
+      expect(centerResponse(ringPattern(100, values), 20)?.score).toBe(
+        8 * 80 + 1,
+      );
+    }
+  });
+
+  it('keeps a corner whose compass pixels split two brighter and two darker', () => {
+    const values = arcValues(1, 9, 200, 100);
+    values[0] = 0;
+    values[12] = 0;
+    expect(centerResponse(ringPattern(100, values), 20)?.score).toBe(9 * 80);
+  });
+});
+
+describe('detectFastCorners non-max suppression', () => {
+  it('keeps only the stronger of two adjacent responses, whichever side it lies on', () => {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      const image = flatGray(16, 16, 30);
+      image.data[RING_CENTER * 16 + RING_CENTER] = 220;
+      image.data[(RING_CENTER + dy) * 16 + RING_CENTER + dx] = 200;
+      expect(
+        detectFastCorners(image, { border: 3, nonMaxSuppression: false }),
+      ).toHaveLength(2);
+      expect(detectFastCorners(image, { border: 3 })).toEqual([
+        { x: RING_CENTER, y: RING_CENTER, score: 16 * 170, angle: 0 },
+      ]);
+    }
+  });
+
+  it('drops every response of a plateau, since none of them is a strict maximum', () => {
+    const plateau = brightSquare(16, 16, { x: 8, y: 8, width: 2, height: 2 });
+    expect(
+      detectFastCorners(plateau, { border: 3, nonMaxSuppression: false }),
+    ).toHaveLength(4);
+    expect(detectFastCorners(plateau, { border: 3 })).toEqual([]);
   });
 });
