@@ -18,18 +18,18 @@ const RANK_DEFICIENT_RATIO = 1e-10;
 function normaliseInPlace(h: Homography): Homography {
   const w = h[8];
   if (Math.abs(w) <= NORMALISATION_EPSILON) return h;
-  for (let index = 0; index < HOMOGRAPHY_ENTRIES; index += 1) h[index] /= w;
+  for (const [index, entry] of h.entries()) h[index] = entry / w;
   return h;
 }
 
 function multiply(left: Homography, right: Homography): Homography {
   const product = new Float64Array(HOMOGRAPHY_ENTRIES);
-  for (let row = 0; row < 3; row += 1) {
-    for (let column = 0; column < 3; column += 1) {
-      product[row * 3 + column] =
-        left[row * 3] * right[column] +
-        left[row * 3 + 1] * right[3 + column] +
-        left[row * 3 + 2] * right[6 + column];
+  for (const rowStart of [0, 3, 6]) {
+    for (const column of [0, 1, 2]) {
+      product[rowStart + column] =
+        left[rowStart] * right[column] +
+        left[rowStart + 1] * right[3 + column] +
+        left[rowStart + 2] * right[6 + column];
     }
   }
   return product;
@@ -70,20 +70,20 @@ export function invertHomography(h: Homography): Homography | null {
   const magnitude =
     Math.abs(a * cofactorA) + Math.abs(b * cofactorB) + Math.abs(c * cofactorC);
   if (Math.abs(determinant) <= SINGULAR_RATIO * magnitude) return null;
-  const inverse = new Float64Array([
-    cofactorA,
-    c * k - b * i,
-    b * f - c * e,
-    cofactorB,
-    a * i - c * g,
-    c * d - a * f,
-    cofactorC,
-    b * g - a * k,
-    a * e - b * d,
-  ]);
-  for (let index = 0; index < HOMOGRAPHY_ENTRIES; index += 1) {
-    inverse[index] /= determinant;
-  }
+  const inverse = Float64Array.from(
+    [
+      cofactorA,
+      c * k - b * i,
+      b * f - c * e,
+      cofactorB,
+      a * i - c * g,
+      c * d - a * f,
+      cofactorC,
+      b * g - a * k,
+      a * e - b * d,
+    ],
+    (cofactor) => cofactor / determinant,
+  );
   return isFiniteHomography(inverse) ? normaliseInPlace(inverse) : null;
 }
 
@@ -131,7 +131,6 @@ export function estimateHomography(
       `estimateHomography: ${source.length} source points but ${target.length} target points`,
     );
   }
-  if (source.length < MIN_CORRESPONDENCES) return null;
   if (
     source.length === MIN_CORRESPONDENCES &&
     (hasCollinearTriple(source) || hasCollinearTriple(target))
@@ -148,6 +147,7 @@ export function estimateHomography(
     ),
     HOMOGRAPHY_ENTRIES,
   );
+  // Fewer than four correspondences leave AᵀA rank-deficient, so this rejects them too.
   if (isRankDeficient(eigen.values)) return null;
   const h = normaliseInPlace(
     multiply(
@@ -180,12 +180,7 @@ function mapsCornersToConvexQuad(h: Homography, frame: Size): boolean {
     { x: frame.width, y: frame.height },
     { x: 0, y: frame.height },
   ];
-  const mapped: Point[] = [];
-  for (const corner of corners) {
-    const depth = h[6] * corner.x + h[7] * corner.y + h[8];
-    if (depth <= 0) return false;
-    mapped.push(applyHomography(h, corner));
-  }
+  const mapped = corners.map((corner) => applyHomography(h, corner));
   let smallestTurn = Number.POSITIVE_INFINITY;
   for (let index = 0; index < mapped.length; index += 1) {
     const a = mapped[index];
@@ -194,7 +189,7 @@ function mapsCornersToConvexQuad(h: Homography, frame: Size): boolean {
     const turn = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
     smallestTurn = Math.min(smallestTurn, turn);
   }
-  // Math.min propagates a NaN turn from an overflowed corner, so that quad fails too.
+  // A corner behind the camera (w < 0) flips a turn negative; one at w = 0 makes it NaN, which Math.min keeps.
   return smallestTurn > 0;
 }
 

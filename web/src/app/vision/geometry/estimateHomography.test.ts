@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import type { Point } from '../types';
+import type { Homography, Point } from '../types';
 import {
   DEFAULT_SANITY_LIMITS,
   estimateHomography,
@@ -35,6 +35,23 @@ const FOUR_CORNERS: Point[] = [
   { x: 880, y: 700 },
   { x: 20, y: 690 },
 ];
+
+/** Returns R(0.5) · diag(largest, smallest) · R(0.2) as a homography: an affine part with exactly these singular values. */
+function rotateStretchRotate(largest: number, smallest: number): Homography {
+  const [cosA, sinA] = [Math.cos(0.5), Math.sin(0.5)];
+  const [cosB, sinB] = [Math.cos(0.2), Math.sin(0.2)];
+  return new Float64Array([
+    cosA * largest * cosB - sinA * smallest * sinB,
+    -cosA * largest * sinB - sinA * smallest * cosB,
+    0,
+    sinA * largest * cosB + cosA * smallest * sinB,
+    -sinA * largest * sinB + cosA * smallest * cosB,
+    0,
+    0,
+    0,
+    1,
+  ]);
+}
 
 function withNoise(
   points: readonly Point[],
@@ -98,9 +115,12 @@ describe('estimateHomography', () => {
   });
 
   it('throws when the point lists differ in length', () => {
-    expect(() =>
-      estimateHomography(FOUR_CORNERS, FOUR_CORNERS.slice(1)),
-    ).toThrow(RangeError);
+    const mismatched = () =>
+      estimateHomography(FOUR_CORNERS, FOUR_CORNERS.slice(1));
+    expect(mismatched).toThrow(RangeError);
+    expect(mismatched).toThrow(
+      'estimateHomography: 4 source points but 3 target points',
+    );
   });
 
   it('returns null when three of four source or target points are collinear', () => {
@@ -130,6 +150,16 @@ describe('estimateHomography', () => {
       y: index * 5,
     }));
     expect(estimateHomography(line, mapPoints(KNOWN, line))).toBeNull();
+  });
+
+  it('returns null for eight points that are collinear to within a ten-thousandth of a pixel', () => {
+    const nearlyLine = Array.from({ length: 8 }, (_, index) => ({
+      x: index * 10,
+      y: index * 5 + (index % 2 === 0 ? 1e-4 : -1e-4),
+    }));
+    expect(
+      estimateHomography(nearlyLine, mapPoints(KNOWN, nearlyLine)),
+    ).toBeNull();
   });
 
   it('returns null when the target coordinates are not finite', () => {
@@ -169,6 +199,23 @@ describe('isSaneHomography', () => {
     expect(isSaneHomography(stretched, FRAME)).toBe(false);
   });
 
+  it('bounds the scale by the singular values of the affine part', () => {
+    const stretched = rotateStretchRotate(1.2, 0.8);
+    const limits = { minScale: 0.79, maxScale: 1.21 };
+    expect(isSaneHomography(stretched, FRAME, limits)).toBe(true);
+    expect(
+      isSaneHomography(stretched, FRAME, { ...limits, maxScale: 1.19 }),
+    ).toBe(false);
+    expect(
+      isSaneHomography(stretched, FRAME, { ...limits, minScale: 0.81 }),
+    ).toBe(false);
+  });
+
+  it('rejects a homography that flattens the frame onto a line even when the scale limit allows it', () => {
+    const flattened = new Float64Array([1, 0, 0, 0, 0, 0, 0, 0, 1]);
+    expect(isSaneHomography(flattened, FRAME, { minScale: 0 })).toBe(false);
+  });
+
   it('rejects strong perspective on either axis', () => {
     const tiltX = new Float64Array([1, 0, 0, 0, 1, 0, 0.001, 0, 1]);
     const tiltY = new Float64Array([1, 0, 0, 0, 1, 0, 0, -0.001, 1]);
@@ -179,19 +226,30 @@ describe('isSaneHomography', () => {
     );
   });
 
-  it('rejects a homography that sends a corner behind the camera even when the limits allow its perspective', () => {
-    const behind = new Float64Array([1, 0, 0, 0, 1, 0, -0.002, 0, 1]);
-    expect(isSaneHomography(behind, FRAME, { maxPerspective: 0.01 })).toBe(
-      false,
-    );
+  it('accepts perspective exactly at the limit on either axis', () => {
+    const { maxPerspective } = DEFAULT_SANITY_LIMITS;
+    const tiltX = new Float64Array([1, 0, 0, 0, 1, 0, maxPerspective, 0, 1]);
+    const tiltY = new Float64Array([1, 0, 0, 0, 1, 0, 0, -maxPerspective, 1]);
+    expect(isSaneHomography(tiltX, FRAME)).toBe(true);
+    expect(isSaneHomography(tiltY, FRAME)).toBe(true);
   });
 
-  it('rejects a non-finite matrix and one whose h[8] vanishes', () => {
+  it('rejects a corner behind the camera but accepts a keystone that keeps every corner in front when the limits allow their perspective', () => {
+    const behind = new Float64Array([1, 0, 0, 0, 1, 0, -0.002, 0, 1]);
+    const keystone = new Float64Array([1, 0, 0, 0, 1, 0, 0, 0.002, 1]);
+    const limits = { maxPerspective: 0.01 };
+    expect(isSaneHomography(behind, FRAME, limits)).toBe(false);
+    expect(isSaneHomography(keystone, FRAME, limits)).toBe(true);
+  });
+
+  it('rejects a non-finite matrix and one whose h[8] is at or below the normalisation floor', () => {
     const notFinite = identityHomography();
     notFinite[2] = Number.NaN;
     expect(isSaneHomography(notFinite, FRAME)).toBe(false);
     const vanishing = new Float64Array([1, 0, 0, 0, 1, 0, 0, 0, 0]);
     expect(isSaneHomography(vanishing, FRAME)).toBe(false);
+    const atFloor = new Float64Array([1, 0, 0, 0, 1, 0, 0, 0, 1e-12]);
+    expect(isSaneHomography(atFloor, FRAME)).toBe(false);
   });
 
   it('judges an unnormalised matrix by the transform it represents', () => {

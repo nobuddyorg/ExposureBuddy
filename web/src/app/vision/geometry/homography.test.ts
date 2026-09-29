@@ -69,6 +69,16 @@ describe('invertHomography', () => {
     expect(invertHomography(new Float64Array(9))).toBeNull();
     const rankTwo = new Float64Array([1, 2, 3, 2, 4, 6, 0, 0, 1]);
     expect(invertHomography(rankTwo)).toBeNull();
+    const projectiveRankTwo = new Float64Array([1, 2, 3, 2, 4, 6, 1, 1, 1]);
+    expect(invertHomography(projectiveRankTwo)).toBeNull();
+  });
+
+  it('treats a determinant at exactly the cancellation ratio of its terms as singular', () => {
+    // The three determinant terms sum to 1 while their magnitudes sum to 1e12.
+    const cancelling = new Float64Array([
+      1, 1, 1, 249999999999.75, 500000000000.5, 0, 0, -1, 1,
+    ]);
+    expect(invertHomography(cancelling)).toBeNull();
   });
 
   it('returns null when the matrix is not finite', () => {
@@ -83,6 +93,31 @@ describe('invertHomography', () => {
     expect(Array.from(inverse, (entry) => entry + 0)).toEqual(
       Array.from(translationHomography(-5, 7)),
     );
+  });
+
+  it('inverts an unnormalised matrix to the same transform as its normalised form', () => {
+    const h = homographyFromMotion({
+      angle: 0.05,
+      scale: 1.1,
+      translateX: 12,
+      translateY: -3,
+      perspectiveX: 1e-5,
+      perspectiveY: -2e-5,
+    });
+    const expected = invertHomography(h);
+    const actual = invertHomography(Float64Array.from(h, (entry) => entry * 2));
+    expect(expected).not.toBeNull();
+    expect(actual).not.toBeNull();
+    if (expected === null || actual === null) return;
+    expectHomographyClose(actual, expected);
+  });
+
+  it('returns the exact inverse, unnormalised, when its bottom-right entry vanishes', () => {
+    const scaledSwap = new Float64Array([2, 0, 0, 0, 0, 2, 0, 2, 0]);
+    const inverse = invertHomography(scaledSwap) ?? [];
+    expect(Array.from(inverse, (entry) => entry + 0)).toEqual([
+      0.5, 0, 0, 0, 0, 0.5, 0, 0.5, 0,
+    ]);
   });
 
   it('round-trips any point through any sane homography', () => {
@@ -142,10 +177,14 @@ describe('composeHomographies', () => {
     );
   });
 
-  it('leaves a product whose bottom-right entry vanishes unnormalised', () => {
+  it('leaves a product whose bottom-right entry vanishes or sits at the normalisation floor unnormalised', () => {
     const swap = new Float64Array([0, 0, 1, 0, 1, 0, 1, 0, 0]);
     const product = composeHomographies(swap, identityHomography());
     expect(Array.from(product)).toEqual(Array.from(swap));
+    const atFloor = new Float64Array([1, 0, 0, 0, 1, 0, 0, 0, 1e-12]);
+    expect(
+      Array.from(composeHomographies(atFloor, identityHomography())),
+    ).toEqual(Array.from(atFloor));
   });
 });
 
