@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/precache-manifest.mjs",
     "lint": "eslint . --max-warnings 0",
     "depcruise": "depcruise --config .dependency-cruiser.mjs src e2e scripts",
     "knip": "knip",

@@ -1,11 +1,21 @@
 import { expect, test } from '../fixture';
 
+import {
+  collectPageProblems,
+  expectNoPageProblems,
+  listBurst,
+} from '../helpers';
+
 // What a unit test cannot reach from sw.js's source: registration, scope, cache, offline.
 test.use({ locale: 'en-GB' });
 
 type Page = import('@playwright/test').Page;
 
 const CACHE_PREFIX = 'exposurebuddy-';
+// Three 320 px frames through the pipeline at low quality, on a CI runner's worker pool.
+const TINY_PIPELINE_TIMEOUT = 45_000;
+// About 1 MB from the local server, with room for a slow CI runner.
+const PRECACHE_TIMEOUT = 15_000;
 
 /** Controlling, not merely registered: an uncontrolled page's requests never reach the fetch handler. */
 async function waitForController(page: Page) {
@@ -32,6 +42,28 @@ async function cachedUrls(page: Page) {
 
 function cacheNames(page: Page) {
   return page.evaluate(() => caches.keys());
+}
+
+/** The app shell's URL: the scope, which is where the picker lives. */
+function shellUrl(page: Page) {
+  return new URL('./', page.url()).toString();
+}
+
+/** Install precaches the shell and the bundle in one atomic addAll, so either entry proves the whole. */
+async function waitForPrecache(page: Page) {
+  const shell = shellUrl(page);
+  await expect
+    .poll(
+      async () => {
+        const urls = await cachedUrls(page);
+        return (
+          urls.includes(shell) &&
+          urls.some((url) => url.includes('/_next/static/'))
+        );
+      },
+      { timeout: PRECACHE_TIMEOUT },
+    )
+    .toBe(true);
 }
 
 test.describe('the service worker', () => {
@@ -67,32 +99,34 @@ test.describe('the service worker', () => {
     await expect(on(page).picker.locators.dropzone).toBeVisible();
   });
 
-  test('keeps the hashed bundle, and nothing from anywhere else', async ({
+  // One visit, no reload: what the install handler precached is all a visitor gets before the network goes.
+  test('precaches the shell and the hashed bundle on the first visit, and nothing else', async ({
     page,
   }) => {
-    await page.goto('', { waitUntil: 'networkidle' });
+    await page.goto('');
     await waitForController(page);
-    // The first visit predates the worker, so this reload fills the cache.
-    await page.reload({ waitUntil: 'networkidle' });
+    await waitForPrecache(page);
 
     const urls = await cachedUrls(page);
-    expect(urls.some((url) => url.includes('/_next/static/'))).toBe(true);
-
-    const origin = new URL(page.url()).origin;
-    const shell = new URL('./', page.url()).toString();
-    // Whether the manifest (cached with the shell) is there yet is a race the test must not depend on.
+    const shell = shellUrl(page);
+    const shellEntries = [
+      shell,
+      `${shell}site.webmanifest`,
+      `${shell}logo.svg`,
+    ];
+    expect(urls).toEqual(expect.arrayContaining(shellEntries));
     const unexpected = urls.filter(
       (url) =>
-        new URL(url).origin !== origin ||
-        !(
-          url.includes('/_next/static/') ||
-          url.startsWith(shell) ||
-          url.endsWith('/site.webmanifest')
-        ),
+        !shellEntries.includes(url) && !url.startsWith(`${shell}_next/static/`),
     );
-    expect(unexpected, 'cached beyond the static bundle and the shell').toEqual(
+    expect(unexpected, 'cached beyond the shell and the static bundle').toEqual(
       [],
     );
+    // A coverage build ships source maps beside the chunks; the manifest must leave them out.
+    expect(
+      urls.filter((url) => url.endsWith('.map')),
+      'source maps precached',
+    ).toEqual([]);
 
     // The activate handler drops every cache but the current one.
     expect(await cacheNames(page)).toEqual([await currentCacheName(page)]);
@@ -103,10 +137,9 @@ test.describe('the service worker', () => {
     on,
     page,
   }) => {
-    await page.goto('', { waitUntil: 'networkidle' });
+    await page.goto('');
     await waitForController(page);
-    // The first visit predates the worker, so this reload caches the shell.
-    await page.reload({ waitUntil: 'networkidle' });
+    await waitForPrecache(page);
     const replaced = await page.evaluate(async () => {
       let count = 0;
       for (const name of await caches.keys()) {
@@ -133,9 +166,9 @@ test.describe('the service worker', () => {
     page,
     baseURL,
   }) => {
-    await page.goto('', { waitUntil: 'networkidle' });
+    await page.goto('');
     await waitForController(page);
-    await page.reload({ waitUntil: 'networkidle' });
+    await waitForPrecache(page);
     const previous = await currentCacheName(page);
     await page.evaluate(async (prefix) => {
       await caches.open(`${prefix}shell-v1`);
@@ -155,8 +188,8 @@ test.describe('the service worker', () => {
     expect(remaining).toContain('another-site-on-this-origin');
   });
 
-  // Why the worker exists: no cache headers from the host, no connection here.
-  test('still opens the app with the network gone', async ({
+  // Why the worker exists: no cache headers from the host, no connection here, and only one visit before it.
+  test('still opens the app with the network gone after a single visit', async ({
     on,
     page,
     context,
@@ -166,9 +199,9 @@ test.describe('the service worker', () => {
       browserName === 'webkit',
       "Playwright's WebKit reports an internal error on a navigation served by the service worker while offline",
     );
-    await page.goto('', { waitUntil: 'networkidle' });
+    await page.goto('');
     await waitForController(page);
-    await page.reload({ waitUntil: 'networkidle' });
+    await waitForPrecache(page);
 
     await context.setOffline(true);
     try {
@@ -177,5 +210,43 @@ test.describe('the service worker', () => {
     } finally {
       await context.setOffline(false);
     }
+  });
+
+  // The worker chunks are fetched only when a burst is combined, so this is what proves they were precached.
+  test('combines a burst with the network gone after a single visit', async ({
+    on,
+    page,
+    context,
+    browserName,
+  }) => {
+    test.skip(
+      browserName === 'webkit',
+      "Playwright's WebKit reports an internal error on a navigation served by the service worker while offline",
+    );
+    test.setTimeout(TINY_PIPELINE_TIMEOUT * 2);
+    const problems = collectPageProblems(page);
+    await page.goto('');
+    await waitForController(page);
+    await waitForPrecache(page);
+
+    await context.setOffline(true);
+    try {
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      const app = on(page);
+      await expect(app.picker.locators.dropzone).toBeVisible();
+      await app.picker.do.addPhotos(listBurst('burst-tiny'));
+      await expect(app.picker.locators.thumbnails).toHaveCount(3);
+      await app.picker.do.selectQuality('low');
+      await app.picker.do.combine();
+
+      await expect(app.progress()).toBeVisible();
+      await expect(app.result()).toBeVisible({
+        timeout: TINY_PIPELINE_TIMEOUT,
+      });
+      await expect(app.result.locators.stats).toContainText('3');
+    } finally {
+      await context.setOffline(false);
+    }
+    expectNoPageProblems(problems);
   });
 });

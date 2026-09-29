@@ -1,4 +1,4 @@
-// Cache-first for hashed `_next/static/**` (the worker chunks included), network-first for the app shell, one cache per build.
+// The bundle and the shell are precached at install; then cache-first for hashed `_next/static/**`, network-first for the shell, one cache per build.
 
 const CACHE_PREFIX = 'exposurebuddy-';
 
@@ -30,7 +30,8 @@ function isAppShellRequest(pathname, mode) {
 
 async function cacheFirst(request) {
   const cached = await caches.match(request);
-  if (cached) return cached;
+  // A copy takes the request's URL; the stored one lost the `#params=` fragment Turbopack's worker chunk boots from.
+  if (cached) return new Response(cached.body, cached);
   const response = await fetch(request);
   if (response.ok) {
     const cache = await caches.open(CACHE_NAME);
@@ -53,9 +54,50 @@ async function networkFirst(request) {
   }
 }
 
-self.addEventListener('install', () => {
+// Written by scripts/precache-manifest.mjs after `next build`: the hashed bundle, which only a manifest can name.
+const PRECACHE_MANIFEST = 'precache.json';
+
+// The build query is a cache buster: a CDN copy of an older manifest would name chunks this build no longer has.
+function manifestUrl(scope, search) {
+  return new URL(`${PRECACHE_MANIFEST}${search}`, scope).href;
+}
+
+// The shell, the manifest and the logo first, then the bundle; every entry resolved against the scope.
+function precacheUrls(scope, manifest) {
+  return ['./', 'site.webmanifest', 'logo.svg', ...manifest].map(
+    (path) => new URL(path, scope).href,
+  );
+}
+
+async function fetchManifest(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+  const manifest = await response.json();
+  if (!Array.isArray(manifest)) throw new Error(`${url} is not a list`);
+  return manifest;
+}
+
+async function precache() {
+  const { scope } = self.registration;
+  const manifest = await fetchManifest(
+    manifestUrl(scope, self.location.search),
+  );
+  const cache = await caches.open(CACHE_NAME);
+  await cache.addAll(precacheUrls(scope, manifest));
+}
+
+self.addEventListener('install', (event) => {
   // Pages already serves only the new build, so waiting for old tabs to close protects nothing.
   self.skipWaiting();
+  event.waitUntil(
+    precache().catch((error) => {
+      // `next dev` serves no manifest; the fetch strategies below fill the cache on demand instead.
+      console.warn(
+        'Precaching skipped, the app caches itself as it is used:',
+        error,
+      );
+    }),
+  );
 });
 
 self.addEventListener('activate', (event) => {

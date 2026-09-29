@@ -9,7 +9,8 @@ ExposureBuddy is a **Next.js App Router static export** served from GitHub
 Pages under `/ExposureBuddy/`. There is no server, no backend, no account and
 no upload: every photo is decoded, aligned, stacked and rendered inside the
 visitor's browser, in Web Workers. The only network traffic after the first
-visit is the app shell itself, which a service worker caches for offline use.
+visit is the app shell itself; a service worker stores the shell and the
+bundle on that first visit, so the app opens and combines offline.
 
 ```text
 web/src/app/
@@ -29,9 +30,9 @@ web/src/app/
     stack/         exposure gain, median / mean / deviation stack, crop, composite
     pipeline/      memory budget, worker message protocol, pure request handlers
   workers/         exposure.worker.ts, the one entry point: `self.onmessage` glue over vision/pipeline handlers
-web/public/        sw.js, site.webmanifest, icons, logo.svg
+web/public/        sw.js (precaches out/precache.json at install), site.webmanifest, icons, logo.svg
 web/e2e/           Playwright: page objects, public specs, synthetic burst fixtures
-web/scripts/       Node tools: serve-export, make-fixtures, make-icons, lighthouse, summaries
+web/scripts/       Node tools: precache-manifest (runs in `npm run build`), serve-export, make-fixtures, make-icons, lighthouse, summaries
 ```
 
 Layer rules, checked by `dependency-cruiser` and ESLint:
@@ -143,9 +144,17 @@ Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),
 - `next.config.ts` sets `output: 'export'`, `trailingSlash: true`, and a
   `basePath` of `/ExposureBuddy` in production builds (the Pages project
   URL; `PAGES_BASE_URL` overrides it for a custom domain).
-- `public/sw.js` caches `_next/static/**` cache-first and the app shell
-  network-first, one cache per build (`NEXT_PUBLIC_BUILD_ID`); a new build's
-  worker deletes the previous builds' caches and nothing else on the origin.
+- `public/sw.js` precaches the shell (`./`, `site.webmanifest`, `logo.svg`)
+  and every file in `precache.json` at install, then serves `_next/static/**`
+  cache-first and the shell network-first, one cache per build
+  (`NEXT_PUBLIC_BUILD_ID`); a new build's worker deletes the previous builds'
+  caches and nothing else on the origin. `npm run build` runs
+  `scripts/precache-manifest.mjs` after `next build`, which lists
+  `out/_next/static/**` without source maps into `out/precache.json`; a
+  build without the manifest (`next dev`) logs a warning and caches on
+  demand instead. A cached `_next/static` hit goes out as a fresh `Response`
+  copy so the request's `#params=` fragment, which Turbopack's worker chunk
+  boots from, survives.
 - Response headers cannot be set on GitHub Pages, so the CSP is a `<meta>`
   tag and a frame-busting script deters casual framing in place of
   `frame-ancestors` (a sandboxed frame that forbids top navigation defeats

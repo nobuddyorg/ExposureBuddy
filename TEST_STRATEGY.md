@@ -140,7 +140,7 @@ and screens:
 | **A frame silently blended in although it did not align** | A blurred scene that looks like a bad shot | Unit test on the skip rule; a browser fixture with an unalignable frame that must be reported |
 | **Performance regression in a kernel** | The app is usable on a laptop and not on a phone | A benchmark in Node stated per resolution; a budget on the shell in the browser |
 | **Accessibility regressions** | Unusable with keyboard or screen reader | Static lint + runtime axe — §9 |
-| **PWA install or offline regression** | The installed app does not open, or opens stale | Manifest and icons fetched at the deployed path; the offline shell in the browser suite |
+| **PWA install or offline regression** | The installed app does not open, does not combine, or opens stale | Manifest and icons fetched at the deployed path; in the browser suite, one visit, then offline: the app opens and combines a burst |
 | **Export corruption** | A file that does not open where it is sent | A browser case that reads the saved bytes back and checks the format |
 | **A pixel leaving the device** | The product claim is false | CSP with no foreign origin; a passive scan; review — no test can prove a negative here |
 
@@ -179,7 +179,7 @@ incidents happen.
 | Engine divergence | Browser suite on every engine | Not one engine plus hope |
 | Base path, icons, manifest, service worker, pre-hydration behavior | Browser suite; also post-deploy | Not unit alone |
 | One complete user journey | E2E | Not one case per slider |
-| Repo tooling outside the bundle | The job that depends on it | Not unit tests, not bundle coverage |
+| Repo tooling outside the bundle | The job that depends on it; a build script whose output ships (the precache manifest) also gets a unit test on its selection | Not bundle coverage |
 
 ---
 

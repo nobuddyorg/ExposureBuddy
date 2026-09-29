@@ -25,7 +25,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     setupFiles: ['./vitest.setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
+    // scripts/: only a build script whose output ships (the precache manifest) has a test beside it.
+    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       // `json-summary` feeds ci.yml's vitest-coverage-report-action.

@@ -148,6 +148,24 @@ describe('cacheFirst', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  // The stored response's URL is the cache key, without the `#params=` a Turbopack worker chunk boots from;
+  // a browser gives a fresh Response the request's URL instead, fragment included.
+  it('answers with a copy of the cached response, its status and headers kept', async () => {
+    const stored = new Response('cached chunk', {
+      status: 200,
+      statusText: 'OK',
+      headers: { 'Content-Type': 'text/javascript' },
+    });
+    vi.stubGlobal('caches', { match: vi.fn().mockResolvedValue(stored) });
+
+    const response = await cacheFirst(request);
+
+    expect(response).not.toBe(stored);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('text/javascript');
+    expect(await response.text()).toBe('cached chunk');
+  });
+
   it('fetches a miss and stores a good response for next time', async () => {
     const cache = { put: vi.fn().mockResolvedValue(undefined) };
     vi.stubGlobal('caches', {
@@ -248,6 +266,174 @@ describe('networkFirst', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(failure));
 
     await expect(networkFirst(request)).rejects.toBe(failure);
+  });
+});
+
+describe('manifestUrl', () => {
+  const manifestUrl = load<(scope: string, search: string) => string>(
+    'manifestUrl',
+    "const PRECACHE_MANIFEST = 'precache.json';",
+  );
+
+  it("names the manifest beside the worker, under the site's base path, with the build as cache buster", () => {
+    expect(
+      manifestUrl('https://x.github.io/ExposureBuddy/', '?build=abc-123'),
+    ).toBe('https://x.github.io/ExposureBuddy/precache.json?build=abc-123');
+  });
+
+  it('asks for the plain manifest when the registration carried no build', () => {
+    expect(manifestUrl('https://x.github.io/ExposureBuddy/', '')).toBe(
+      'https://x.github.io/ExposureBuddy/precache.json',
+    );
+  });
+});
+
+describe('precacheUrls', () => {
+  const precacheUrls =
+    load<(scope: string, manifest: readonly string[]) => string[]>(
+      'precacheUrls',
+    );
+  const scope = 'https://x.github.io/ExposureBuddy/';
+
+  it('starts with the shell, the web manifest and the logo, resolved against the scope', () => {
+    expect(precacheUrls(scope, [])).toEqual([
+      'https://x.github.io/ExposureBuddy/',
+      'https://x.github.io/ExposureBuddy/site.webmanifest',
+      'https://x.github.io/ExposureBuddy/logo.svg',
+    ]);
+  });
+
+  // The manifest lists paths relative to the export root, which is the scope, whatever the base path is.
+  it('resolves every manifest entry relative to the scope', () => {
+    expect(
+      precacheUrls(scope, [
+        '_next/static/chunks/abc.js',
+        '_next/static/chunks/turbopack-worker-def.js',
+      ]),
+    ).toEqual([
+      'https://x.github.io/ExposureBuddy/',
+      'https://x.github.io/ExposureBuddy/site.webmanifest',
+      'https://x.github.io/ExposureBuddy/logo.svg',
+      'https://x.github.io/ExposureBuddy/_next/static/chunks/abc.js',
+      'https://x.github.io/ExposureBuddy/_next/static/chunks/turbopack-worker-def.js',
+    ]);
+  });
+
+  it('works at the origin root, as on a custom domain', () => {
+    expect(
+      precacheUrls('https://exposurebuddy.example/', ['_next/static/a.css']),
+    ).toEqual([
+      'https://exposurebuddy.example/',
+      'https://exposurebuddy.example/site.webmanifest',
+      'https://exposurebuddy.example/logo.svg',
+      'https://exposurebuddy.example/_next/static/a.css',
+    ]);
+  });
+});
+
+describe('fetchManifest', () => {
+  const fetchManifest =
+    load<(url: string) => Promise<string[]>>('fetchManifest');
+  const url = 'https://example.test/ExposureBuddy/precache.json?build=x';
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns the list the server sent', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(Response.json(['_next/static/chunks/a.js'])),
+    );
+
+    await expect(fetchManifest(url)).resolves.toEqual([
+      '_next/static/chunks/a.js',
+    ]);
+  });
+
+  // `next dev` answers with its 404 page; caching that as a manifest must fail loudly, not quietly.
+  it('fails with the status when the manifest is missing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('nope', { status: 404 })),
+    );
+
+    await expect(fetchManifest(url)).rejects.toThrow('404');
+  });
+
+  it('fails when the body is not a list', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(Response.json({ files: [] })),
+    );
+
+    await expect(fetchManifest(url)).rejects.toThrow('not a list');
+  });
+});
+
+describe('precache', () => {
+  const scope = 'https://example.test/ExposureBuddy/';
+  const precache = load<() => Promise<void>>(
+    'precache',
+    [
+      "const CACHE_NAME = 'exposurebuddy-test';",
+      "const PRECACHE_MANIFEST = 'precache.json';",
+      extractFunction('manifestUrl'),
+      extractFunction('precacheUrls'),
+      extractFunction('fetchManifest'),
+    ].join('\n'),
+  );
+
+  function stubWorkerScope() {
+    const cache = { addAll: vi.fn().mockResolvedValue(undefined) };
+    vi.stubGlobal('self', {
+      registration: { scope },
+      location: { search: '?build=abc' },
+    });
+    vi.stubGlobal('caches', { open: vi.fn().mockResolvedValue(cache) });
+    return cache;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches this build's manifest and adds the shell and every entry to this build's cache", async () => {
+    const cache = stubWorkerScope();
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue(Response.json(['_next/static/chunks/a.js']));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await precache();
+
+    expect(fetchSpy).toHaveBeenCalledWith(`${scope}precache.json?build=abc`);
+    expect(cache.addAll).toHaveBeenCalledWith([
+      scope,
+      `${scope}site.webmanifest`,
+      `${scope}logo.svg`,
+      `${scope}_next/static/chunks/a.js`,
+    ]);
+  });
+
+  it('fails as the manifest fetch did, so the install handler can report it', async () => {
+    const cache = stubWorkerScope();
+    const failure = new TypeError('offline');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(failure));
+
+    await expect(precache()).rejects.toBe(failure);
+    expect(cache.addAll).not.toHaveBeenCalled();
+  });
+});
+
+describe('the install handler', () => {
+  it('holds the install until the precache settles, and never fails it', () => {
+    expect(source).toContain('event.waitUntil(\n    precache().catch(');
+    expect(source).toContain('console.warn(');
+  });
+
+  it('activates without waiting for the old worker to lose its tabs', () => {
+    expect(source).toContain('self.skipWaiting();');
   });
 });
 

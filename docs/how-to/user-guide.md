@@ -87,9 +87,9 @@ the result.
 ## Install as an app
 
 ExposureBuddy is an installable web app. Once installed it opens in its own
-window, without browser chrome. The app caches itself as you use it, so
-from the second visit on it opens without a network, and combining once
-online also stores the code that does the work; only the photos you pick are
+window, without browser chrome. On the first visit the app stores itself on
+the device (about 1 MB, including the code that does the work), so from then
+on it opens and combines without a network; only the photos you pick are
 needed.
 
 - **Android (Chrome, Edge):** the browser offers **Install app** in its menu

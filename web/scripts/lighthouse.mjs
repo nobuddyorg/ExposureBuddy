@@ -22,7 +22,7 @@ const run = (command, args) =>
   });
 
 console.log('Building the export...');
-run('npx', ['next', 'build']);
+run('npm', ['run', 'build']);
 
 console.log('Running Lighthouse CI against the export...');
 run('npx', ['lhci', 'autorun', '--config=lighthouserc.json']);
