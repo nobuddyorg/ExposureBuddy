@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from '../fixture';
 
@@ -27,6 +28,8 @@ const PIPELINE_TIMEOUT = 120_000;
 const MAX_STILL_DIFFERENCE = 12;
 // How much more the band must differ once the walker's ghosts are back at full strength.
 const MIN_GHOST_GAIN = 1;
+// Tailwind's lg breakpoint, where the result screen goes two-column.
+const DESKTOP_MIN_WIDTH = 1024;
 
 test.describe('the whole journey', () => {
   test('combines the street burst into a long exposure', async ({
@@ -99,6 +102,10 @@ test.describe('the whole journey', () => {
       ghostsOff + MIN_GHOST_GAIN,
     );
 
+    // Every photo lined up, so nothing is reported as left out.
+    await expect(app.result.locators.skipped).toHaveCount(0);
+    await expectLayoutFor(page, app.result.locators);
+
     const beforeBlur = await app.result.do.canvasDigest();
     await app.result.do.setSlider('blur', 1);
     expect(await app.result.do.canvasDigest()).not.toBe(beforeBlur);
@@ -128,3 +135,25 @@ test.describe('the whole journey', () => {
     expectNoPageProblems(problems);
   });
 });
+
+/** Beside the sliders on a wide screen, above them on a phone: the layout is part of the journey. */
+async function expectLayoutFor(
+  page: Page,
+  locators: { canvas: Locator; sliders: { ghost: Locator } },
+) {
+  const canvas = await locators.canvas.boundingBox();
+  const slider = await locators.sliders.ghost.boundingBox();
+  const viewport = page.viewportSize();
+  if (!canvas || !slider || !viewport) throw new Error('no layout to measure');
+  if (viewport.width >= DESKTOP_MIN_WIDTH) {
+    expect(
+      canvas.x + canvas.width,
+      'image left of the sliders',
+    ).toBeLessThanOrEqual(slider.x);
+  } else {
+    expect(
+      canvas.y + canvas.height,
+      'image above the sliders',
+    ).toBeLessThanOrEqual(slider.y);
+  }
+}
