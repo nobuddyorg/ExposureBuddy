@@ -75,12 +75,23 @@ export interface AlignedFrame {
   readonly coverage: Uint8Array;
 }
 
+/** How the static scene is estimated per pixel from the frames covering it. */
+export const BACKGROUND_MODES = [
+  'median',
+  'trimmed',
+  'clipped',
+  'mode',
+] as const;
+export type BackgroundMode = (typeof BACKGROUND_MODES)[number];
+
 /** Per-pixel statistics over the aligned frames, at the working resolution. */
 export interface StackResult {
   readonly width: number;
   readonly height: number;
   /** Per-channel median over the frames covering the pixel: the static scene. */
   readonly median: Uint8ClampedArray;
+  /** Every background estimate by mode; `median` is the very buffer above. */
+  readonly backgrounds: Readonly<Record<BackgroundMode, Uint8ClampedArray>>;
   /** Per-channel mean over the frames covering the pixel: the long exposure, ghosts included. */
   readonly mean: Uint8ClampedArray;
   /** Largest per-channel mean absolute deviation from the median, 0–255: how much the pixel moved. */
@@ -92,6 +103,8 @@ export interface StackResult {
 
 /** What the sliders on the result screen drive; every value is 0–1 except the blur radius in pixels. */
 export interface CompositeParams {
+  /** Which estimate of the static scene the ghosts are measured against. */
+  readonly background: BackgroundMode;
   /** 0 keeps only the static scene; 1 is the plain average, moving things fully ghosted. */
   readonly ghostStrength: number;
   /** Radius in pixels of the blur smeared over the moving parts. */

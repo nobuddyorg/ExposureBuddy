@@ -31,7 +31,13 @@ function rgbOf(data: Uint8ClampedArray, pixel: number): number[] {
 }
 
 function params(overrides: Partial<CompositeParams>): CompositeParams {
-  return { ghostStrength: 0, ghostBlur: 0, glow: 0, ...overrides };
+  return {
+    background: 'median',
+    ghostStrength: 0,
+    ghostBlur: 0,
+    glow: 0,
+    ...overrides,
+  };
 }
 
 describe('composite', () => {
@@ -48,6 +54,31 @@ describe('composite', () => {
   it('is exactly the mean at full ghost strength without blur or glow', () => {
     const image = composite(stack, params({ ghostStrength: 1 }), FULL);
     expect(image.data).toEqual(stack.mean);
+  });
+
+  it('is exactly the chosen background with no ghost and no glow', () => {
+    const stack = sceneStack();
+    for (const background of ['trimmed', 'clipped', 'mode'] as const) {
+      const image = composite(stack, params({ background }), FULL);
+      expect(image.data).toEqual(stack.backgrounds[background]);
+    }
+  });
+
+  it('measures the ghost against the chosen background', () => {
+    const stack = sceneStack();
+    const pixel = BRIGHT_RECT.y * SIZE.width + BRIGHT_RECT.x;
+    const base = rgbOf(stack.backgrounds.trimmed, pixel);
+    const mean = rgbOf(stack.mean, pixel);
+    const image = composite(
+      stack,
+      params({ background: 'trimmed', ghostStrength: 1 }),
+      FULL,
+    );
+    expect(rgbOf(image.data, pixel)).toEqual(
+      mean.map((value, channel) =>
+        Math.round(base[channel] + (value - base[channel])),
+      ),
+    );
   });
 
   it('adds glow only where the mean is above the median', () => {
@@ -168,7 +199,7 @@ describe('composite', () => {
         (ghostStrength, glow, ghostBlur) => {
           const image = composite(
             uniform,
-            { ghostStrength, ghostBlur, glow },
+            { background: 'median', ghostStrength, ghostBlur, glow },
             FULL,
           );
           for (let index = 0; index < image.data.length; index += 1) {

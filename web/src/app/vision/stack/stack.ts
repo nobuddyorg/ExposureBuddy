@@ -1,3 +1,4 @@
+import { ROBUST_MODE_COUNT, robustBackgrounds } from './backgrounds';
 import type { AlignedFrame, Rect, Size, StackResult } from '../types';
 
 const CHANNELS = 4;
@@ -15,12 +16,28 @@ export function stackFrames(
   const frameCoverage = frames.map((frame) => frame.coverage);
   const pixelCount = width * height;
   const median = new Uint8ClampedArray(pixelCount * CHANNELS);
+  const trimmed = new Uint8ClampedArray(pixelCount * CHANNELS);
+  const clipped = new Uint8ClampedArray(pixelCount * CHANNELS);
+  const densest = new Uint8ClampedArray(pixelCount * CHANNELS);
   const mean = new Uint8ClampedArray(pixelCount * CHANNELS);
   const deviation = new Uint8Array(pixelCount);
   const coverage = new Uint8Array(pixelCount);
   const red = new Uint8Array(frameCount);
   const green = new Uint8Array(frameCount);
   const blue = new Uint8Array(frameCount);
+  const scratch = new Uint8Array(frameCount);
+  const estimates = new Uint8Array(ROBUST_MODE_COUNT);
+  const storeRobust = (
+    values: Uint8Array,
+    count: number,
+    median: number,
+    target: number,
+  ): void => {
+    robustBackgrounds({ values, count, median }, scratch, estimates);
+    trimmed[target] = estimates[0];
+    clipped[target] = estimates[1];
+    densest[target] = estimates[2];
+  };
   const report = options.onProgress ?? noProgress;
   let reported = 0;
   let pixel = 0;
@@ -52,10 +69,16 @@ export function stackFrames(
       median[offset + 1] = greenMedian;
       median[offset + 2] = blueMedian;
       median[offset + 3] = OPAQUE;
+      trimmed[offset + 3] = OPAQUE;
+      clipped[offset + 3] = OPAQUE;
+      densest[offset + 3] = OPAQUE;
       mean[offset] = Math.round(redSum / count);
       mean[offset + 1] = Math.round(greenSum / count);
       mean[offset + 2] = Math.round(blueSum / count);
       mean[offset + 3] = OPAQUE;
+      storeRobust(red, count, redMedian, offset);
+      storeRobust(green, count, greenMedian, offset + 1);
+      storeRobust(blue, count, blueMedian, offset + 2);
       const spread = Math.max(
         meanAbsoluteDeviation(red, count, redMedian),
         meanAbsoluteDeviation(green, count, greenMedian),
@@ -69,7 +92,17 @@ export function stackFrames(
       report(fraction);
     }
   }
-  return { width, height, median, mean, deviation, coverage, frameCount };
+  const backgrounds = { median, trimmed, clipped, mode: densest };
+  return {
+    width,
+    height,
+    median,
+    backgrounds,
+    mean,
+    deviation,
+    coverage,
+    frameCount,
+  };
 }
 
 function noProgress(): void {}

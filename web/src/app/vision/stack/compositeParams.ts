@@ -1,7 +1,8 @@
-import type { CompositeParams } from '../types';
+import { BACKGROUND_MODES, type CompositeParams } from '../types';
 
 /** The look a burst of many frames opens with, and what an invalid value falls back to. */
 export const DEFAULT_COMPOSITE_PARAMS: CompositeParams = {
+  background: 'median',
   ghostStrength: 0.6,
   ghostBlur: 4,
   glow: 0.25,
@@ -35,6 +36,7 @@ export function defaultCompositeParams({
     Math.max(1, SETTLED_FRAME_COUNT / frameCount),
   );
   return clampCompositeParams({
+    background: DEFAULT_COMPOSITE_PARAMS.background,
     ghostStrength: Math.min(
       DEFAULT_COMPOSITE_PARAMS.ghostStrength,
       Math.max(MIN_GHOST_STRENGTH, frameCount * GHOST_STRENGTH_PER_FRAME),
@@ -47,6 +49,9 @@ export function defaultCompositeParams({
 /** Returns `params` with strength and glow clamped to [0, 1], blur to [0, 32]; a NaN falls back to its default. */
 export function clampCompositeParams(params: CompositeParams): CompositeParams {
   return {
+    background: BACKGROUND_MODES.includes(params.background)
+      ? params.background
+      : DEFAULT_COMPOSITE_PARAMS.background,
     ghostStrength: clampOrDefault(
       params.ghostStrength,
       1,

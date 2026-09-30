@@ -54,7 +54,18 @@ so; **Try again** goes back to the picker.
 
 ## Adjust the result
 
-Three sliders re-render the result live:
+**Background** picks how the still scene is worked out from the photos; all
+four are computed, so you can switch between them and compare:
+
+- **Median** is the middle value per pixel, the classic way to drop things
+  that moved.
+- **Trimmed mean** averages the middle half of the values: less noise.
+- **Clipped mean** averages everything close to the median and discards
+  outliers.
+- **Most common value** is the value most photos agree on, which copes better
+  with someone standing still.
+
+Three sliders then re-render the result live:
 
 - **Ghosts** sets how visible moving things stay. At zero they vanish and
   you get the empty scene; at full strength the result is the plain average

@@ -46,7 +46,12 @@ describe('createStackSession', () => {
     const session = createStackSession();
     expect(() => session.addFrame(covered(flat(1, 1, 1)))).toThrow(/reference/);
     expect(() =>
-      session.render({ ghostStrength: 0, ghostBlur: 0, glow: 0 }),
+      session.render({
+        background: 'median',
+        ghostStrength: 0,
+        ghostBlur: 0,
+        glow: 0,
+      }),
     ).toThrow(/stacked/);
     session.addReference(flat(1, 1, 1));
     expect(() => session.addReference(flat(1, 1, 1))).toThrow(/already/);
@@ -94,7 +99,12 @@ describe('createStackSession', () => {
     });
     expect(progress).toHaveBeenLastCalledWith(1);
 
-    const median = session.render({ ghostStrength: 0, ghostBlur: 0, glow: 0 });
+    const median = session.render({
+      background: 'median',
+      ghostStrength: 0,
+      ghostBlur: 0,
+      glow: 0,
+    });
     expect(Array.from(median.data.subarray(0, 4))).toEqual([
       100, 120, 140, 255,
     ]);
@@ -114,6 +124,7 @@ describe('createStackSession', () => {
     });
 
     const rendered = session.render({
+      background: 'median',
       ghostStrength: 1,
       ghostBlur: 0,
       glow: 0,

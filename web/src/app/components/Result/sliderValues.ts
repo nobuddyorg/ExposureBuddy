@@ -1,4 +1,4 @@
-import type { CompositeParams } from '../../vision/types';
+import type { BackgroundMode, CompositeParams } from '../../vision/types';
 import {
   clampCompositeParams,
   MAX_GHOST_BLUR,
@@ -30,8 +30,12 @@ export function sliderMax(longEdge: number): Record<SliderName, number> {
 }
 
 /** The composite parameters the sliders stand for, clamped to what the compositor accepts. */
-export function toCompositeParams(values: SliderValues): CompositeParams {
+export function toCompositeParams(
+  values: SliderValues,
+  background: BackgroundMode,
+): CompositeParams {
   return clampCompositeParams({
+    background,
     ghostStrength: values.ghost / PERCENT,
     ghostBlur: values.blur,
     glow: values.glow / PERCENT,

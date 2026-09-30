@@ -42,7 +42,12 @@ export default function Result({
 
   const sliders = toSliderValues(composite.params);
   const setSlider = (name: SliderName, value: number) =>
-    composite.setParams(toCompositeParams({ ...sliders, [name]: value }));
+    composite.setParams(
+      toCompositeParams(
+        { ...sliders, [name]: value },
+        composite.params.background,
+      ),
+    );
 
   const statusText = (status: ExportStatus): string => {
     switch (status.kind) {
@@ -117,9 +122,13 @@ export default function Result({
         <AdjustPanel>
           <SliderPanel
             values={sliders}
+            background={composite.params.background}
             max={sliderMax(longEdge)}
             disabled={compare.comparing}
             onChange={setSlider}
+            onBackgroundChange={(background) =>
+              composite.setParams({ ...composite.params, background })
+            }
           />
         </AdjustPanel>
         <ActionRow

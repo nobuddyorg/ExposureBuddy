@@ -16,8 +16,8 @@ const QUALITY_LONG_EDGE: Record<OutputQuality, number> = {
 };
 /** An aligned frame is RGBA plus its coverage mask. */
 export const FRAME_BYTES_PER_PIXEL = 5;
-/** The stack keeps the median and mean (RGBA), the deviation and the coverage count. */
-export const STACK_BYTES_PER_PIXEL = 10;
+/** The stack keeps four background estimates and the mean (RGBA each), the deviation and the coverage count. */
+export const STACK_BYTES_PER_PIXEL = 22;
 /** Rendering adds three Float32 RGB layers, the blur scratch and the output on top of the stack; the frames are gone by then. */
 export const RENDER_BYTES_PER_PIXEL = 80;
 const MIN_WORKING_EDGE = 2;

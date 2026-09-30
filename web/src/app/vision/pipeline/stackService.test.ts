@@ -74,7 +74,12 @@ describe('createStackService', () => {
   it('renders through the session and moves the pixel buffer', async () => {
     const session = fakeSession();
     const serve = createStackService(session, () => {});
-    const params = { ghostStrength: 0.5, ghostBlur: 2, glow: 0 };
+    const params = {
+      background: 'median' as const,
+      ghostStrength: 0.5,
+      ghostBlur: 2,
+      glow: 0,
+    };
 
     const rendered = await serve({ type: 'render', id: 4, params });
     expect(session.render).toHaveBeenCalledWith(params);
@@ -111,7 +116,12 @@ describe('createStackService', () => {
       serve({
         type: 'render',
         id: 6,
-        params: { ghostStrength: 0, ghostBlur: 0, glow: 0 },
+        params: {
+          background: 'median' as const,
+          ghostStrength: 0,
+          ghostBlur: 0,
+          glow: 0,
+        },
       }),
     ).rejects.toThrow('nothing stacked');
   });
