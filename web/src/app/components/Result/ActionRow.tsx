@@ -5,20 +5,19 @@ import { buttonClasses } from '../ui/buttonClasses';
 
 export interface ActionRowProps {
   shareSupported: boolean;
+  /** The canvas shows the single photo while comparing; exporting it as the result would mislead. */
   comparing: boolean;
   onDownload: () => void;
   onShare: () => void;
-  onToggleCompare: () => void;
   onStartOver: () => void;
 }
 
-/** Save, share (where the browser can), compare and start over, wrapping onto as many lines as needed. */
+/** Save and, where the browser can, share, with a quiet way back to the picker. */
 export function ActionRow({
   shareSupported,
   comparing,
   onDownload,
   onShare,
-  onToggleCompare,
   onStartOver,
 }: ActionRowProps) {
   const { t } = useI18n();
@@ -29,7 +28,6 @@ export function ActionRow({
         type="button"
         data-testid="download"
         onClick={onDownload}
-        // The canvas shows the single photo while comparing; exporting it as the result would mislead.
         disabled={comparing}
         className={buttonClasses({ className: 'grow basis-40' })}
       >
@@ -51,24 +49,9 @@ export function ActionRow({
       )}
       <button
         type="button"
-        data-testid="compare-toggle"
-        aria-pressed={comparing}
-        onClick={onToggleCompare}
-        className={buttonClasses({
-          variant: 'secondary',
-          className: `grow basis-full ${comparing ? 'ring-2 ring-accent' : ''}`,
-        })}
-      >
-        {t('result.compare')}
-      </button>
-      <button
-        type="button"
         data-testid="start-over"
         onClick={onStartOver}
-        className={buttonClasses({
-          variant: 'ghost',
-          className: 'grow basis-full',
-        })}
+        className={buttonClasses({ variant: 'ghost', className: 'shrink-0' })}
       >
         {t('result.start_over')}
       </button>

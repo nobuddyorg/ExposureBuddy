@@ -16,6 +16,7 @@ interface Result {
     canvasPixels(): Promise<DecodedPng>;
     download(): Promise<Download>;
     holdCompare(): Promise<void>;
+    openControls(): Promise<void>;
     releaseCompare(): Promise<void>;
     setSlider(slider: Slider, fraction: number): Promise<void>;
     startOver(): Promise<void>;
@@ -23,6 +24,7 @@ interface Result {
   };
   locators: {
     buttons: {
+      adjust: Locator;
       compare: Locator;
       download: Locator;
       share: Locator;
@@ -76,6 +78,7 @@ export function initResult(page: Page): Result {
     .filter({ has: page.getByTestId('result-canvas') });
   const locators = {
     buttons: {
+      adjust: page.getByTestId('adjust-toggle'),
       compare: page.getByTestId('compare-toggle'),
       download: page.getByTestId('download'),
       share: page.getByTestId('share'),
@@ -126,6 +129,15 @@ export function initResult(page: Page): Result {
         locators.buttons.download.click(),
       ]);
       return download;
+    },
+    // On a phone the sliders sit behind the "Adjust the look" bar; on a desktop the bar is not there.
+    openControls: async () => {
+      const bar = locators.buttons.adjust;
+      if (
+        (await bar.isVisible()) &&
+        (await bar.getAttribute('aria-expanded')) === 'false'
+      )
+        await bar.click();
     },
     holdCompare: async () => {
       await locators.canvas.hover();

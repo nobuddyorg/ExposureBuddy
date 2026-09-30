@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ParamSlider } from './ParamSlider';
@@ -13,6 +14,7 @@ function renderSlider(
       testId="ghost-slider"
       label="Ghosts"
       help="How visible moving things stay"
+      infoLabel="About Ghosts"
       unit="%"
       value={60}
       max={100}
@@ -53,5 +55,24 @@ describe('ParamSlider', () => {
   it('can be disabled', () => {
     renderSlider({ disabled: true });
     expect(screen.getByRole('slider')).toBeDisabled();
+  });
+
+  it('hides the help text until the info button is pressed, and keeps it as the description', async () => {
+    const user = userEvent.setup();
+    renderSlider();
+    const info = screen.getByRole('button', { name: 'About Ghosts' });
+    const help = screen.getByText('How visible moving things stay');
+    expect(info).toHaveAttribute('aria-expanded', 'false');
+    expect(help).not.toBeVisible();
+    expect(screen.getByRole('slider')).toHaveAccessibleDescription(
+      'How visible moving things stay',
+    );
+
+    await user.click(info);
+    expect(info).toHaveAttribute('aria-expanded', 'true');
+    expect(help).toBeVisible();
+
+    await user.click(info);
+    expect(help).not.toBeVisible();
   });
 });

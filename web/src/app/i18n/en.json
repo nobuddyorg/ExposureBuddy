@@ -67,6 +67,8 @@
     "glow_help": "Light-trail bloom on bright moving things",
     "compare": "Compare with one photo",
     "compare_hint": "Press and hold the image to compare it with one photo",
+    "adjust": "Adjust the look",
+    "info": "About {name}",
     "download": "Save image",
     "share": "Share",
     "start_over": "Start over",
