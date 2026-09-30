@@ -60,7 +60,7 @@ export default function Result({
 
   return (
     // Phone: one column. Desktop: the image beside the title, sliders and actions, the pair centred so no gap opens around a portrait photo.
-    <section className="fade-up space-y-5 lg:grid lg:grid-cols-[fit-content(calc(100%-26.5rem))_24rem] lg:grid-rows-[auto_1fr] lg:items-start lg:justify-center lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
+    <section className="fade-up space-y-5 lg:grid lg:grid-cols-[fit-content(calc(100%-24.5rem))_22rem] lg:grid-rows-[auto_1fr] lg:items-start lg:justify-center lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
       <div className="space-y-1 lg:col-start-2 lg:row-start-1">
         <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
           {t('result.title')}
