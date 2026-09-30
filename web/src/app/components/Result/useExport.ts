@@ -22,6 +22,8 @@ export interface ExportController {
   /** Known only after mount: the prerender never sees a navigator. */
   readonly shareSupported: boolean;
   readonly status: ExportStatus;
+  /** Whether the image has been saved or handed to the share sheet at least once. */
+  readonly exported: boolean;
   download: () => Promise<void>;
   share: (title: string) => Promise<void>;
 }
@@ -49,6 +51,7 @@ export function useExport(
   { sharer, save = saveBlob, now = () => new Date() }: ExportOptions = {},
 ): ExportController {
   const [status, setStatus] = useState<ExportStatus>({ kind: 'idle' });
+  const [exported, setExported] = useState(false);
   // Read as an external store: the prerender answers false, the client re-renders with its navigator's answer.
   const shareSupported = useSyncExternalStore(
     subscribeToNothing,
@@ -67,6 +70,7 @@ export function useExport(
     try {
       const file = await encode();
       await save(file, file.name);
+      setExported(true);
       setStatus({ kind: 'saved', name: file.name });
     } catch (error) {
       // A dismissed save dialog saved nothing, so there is nothing to report.
@@ -77,6 +81,9 @@ export function useExport(
 
   const share = useCallback(
     async (title: string) => {
+      const target = sharer ?? navigator;
+      // The share button is hidden then; nothing was handed anywhere, so nothing counts as exported.
+      if (!target.share) return;
       let file: File;
       try {
         file = await encode();
@@ -85,16 +92,18 @@ export function useExport(
         return;
       }
       try {
-        await (sharer ?? navigator).share?.({ files: [file], title });
+        await target.share({ files: [file], title });
+        setExported(true);
       } catch (error) {
         // A dismissed share sheet is not a failure; anything else falls back to a plain save.
         if (isAbort(error)) return;
         await save(file, file.name);
+        setExported(true);
         setStatus({ kind: 'share_failed', name: file.name });
       }
     },
     [encode, save, sharer],
   );
 
-  return { shareSupported, status, download, share };
+  return { shareSupported, status, exported, download, share };
 }

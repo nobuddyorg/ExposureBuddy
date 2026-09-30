@@ -52,6 +52,12 @@ so; **Try again** goes back to the picker.
 
 **Cancel** stops everything and returns to the picker.
 
+The screen stays on while the photos are combined, so the phone does not
+lock half way through. Keep the app in front: a phone may pause or close a
+tab in the background. Where the browser allows it, closing or reloading the
+tab asks for confirmation while a burst is combining and while a result has
+not been saved or shared yet; phone browsers often skip that question.
+
 ## Adjust the result
 
 **Background** picks how the still scene is worked out from the photos; all
@@ -93,7 +99,8 @@ see what the ghosts came from.
 - **Start over** discards the result and goes back to the picker.
 
 Nothing is stored between visits: reloading the page forgets the burst and
-the result.
+the result, which is why leaving asks for confirmation until the result is
+saved or shared.
 
 ## Install as an app
 

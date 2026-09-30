@@ -2,6 +2,7 @@
 
 import type { ExposureResult } from '../../exposure/runPipeline';
 import { useI18n } from '../../i18n/useI18n';
+import { useLeaveWarning } from '../../useLeaveWarning';
 import { ActionRow } from './ActionRow';
 import { AdjustPanel } from './AdjustPanel';
 import { CompareButton } from './CompareButton';
@@ -39,6 +40,8 @@ export default function Result({
     showingReference ? compare.reference : composite.image,
   );
   const exporter = useExport(canvasRef);
+  // Nothing is kept between visits, so an unsaved result is lost on leaving.
+  useLeaveWarning(!exporter.exported);
 
   const sliders = toSliderValues(composite.params);
   const setSlider = (name: SliderName, value: number) =>

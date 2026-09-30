@@ -18,6 +18,8 @@ web/src/app/
   i18n/            dictionaries (de.json, en.json), I18nProvider, useI18n   -- leaf, no app deps
   useTheme.ts      light / dark / system, applied before first paint by an inline script
   useServiceWorker.ts, ServiceWorkerRegistration.tsx    registers public/sw.js
+  useWakeLock.ts   keeps the screen on while the pipeline runs
+  useLeaveWarning.ts   asks to confirm leaving while a run or an unsaved result would be lost
   components/      React only: AppShell (chrome around every page), Header, Help,
                    PhotoPicker, Progress, Result, PipelineError, ui/ (class helpers, Dialog)
   exposure/        the pipeline as the UI sees it: runPipeline (coordinator), decode, useExposure

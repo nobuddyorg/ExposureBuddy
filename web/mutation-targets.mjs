@@ -45,6 +45,8 @@ export const MUTATE_TARGETS = [
   'src/app/components/Result/canvasExport.ts',
   'src/app/useTheme.ts',
   'src/app/useServiceWorker.ts',
+  'src/app/useWakeLock.ts',
+  'src/app/useLeaveWarning.ts',
   'src/app/i18n/I18nProvider.tsx',
   'src/app/components/Help/helpShortcut.ts',
   'src/app/components/Help/useHelp.ts',

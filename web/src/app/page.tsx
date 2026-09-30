@@ -11,6 +11,8 @@ import { isPipelineSupported } from './exposure/support';
 import { useExposure } from './exposure/useExposure';
 import { usePickedPhotos } from './exposure/usePickedPhotos';
 import { browserWorkerFactory } from './exposure/workerFactory';
+import { useLeaveWarning } from './useLeaveWarning';
+import { useWakeLock } from './useWakeLock';
 import type { OutputQuality } from './vision/pipeline/budget';
 
 const subscribeToNothing = () => () => {};
@@ -48,6 +50,8 @@ export default function Home() {
 
   const { state } = exposure;
   useFocusOnScreenChange(state.status);
+  useWakeLock(state.status === 'running');
+  useLeaveWarning(state.status === 'running');
   return (
     <AppShell>
       {state.status === 'idle' && (

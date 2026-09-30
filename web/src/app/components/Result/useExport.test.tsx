@@ -46,6 +46,12 @@ describe('useExport: download', () => {
       kind: 'saved',
       name: EXPECTED_NAME,
     });
+    expect(result.current.exported).toBe(true);
+  });
+
+  it('counts as exported only once something was saved', () => {
+    const { result } = setup();
+    expect(result.current.exported).toBe(false);
   });
 
   it('reports nothing when the save dialog is cancelled', async () => {
@@ -55,6 +61,7 @@ describe('useExport: download', () => {
     const { result } = setup({ save });
     await act(() => result.current.download());
     expect(result.current.status).toEqual({ kind: 'idle' });
+    expect(result.current.exported).toBe(false);
   });
 
   it('reports a canvas that cannot be encoded', async () => {
@@ -116,6 +123,7 @@ describe('useExport: share', () => {
     expect(data.files?.[0].name).toBe(EXPECTED_NAME);
     expect(save).not.toHaveBeenCalled();
     expect(result.current.status).toEqual({ kind: 'idle' });
+    expect(result.current.exported).toBe(true);
   });
 
   it('falls back to a save when sharing fails for any other reason', async () => {
@@ -127,6 +135,7 @@ describe('useExport: share', () => {
       kind: 'share_failed',
       name: EXPECTED_NAME,
     });
+    expect(result.current.exported).toBe(true);
   });
 
   it('stays silent when the visitor dismissed the share sheet', async () => {
@@ -137,6 +146,7 @@ describe('useExport: share', () => {
     await act(() => result.current.share('x'));
     expect(save).not.toHaveBeenCalled();
     expect(result.current.status).toEqual({ kind: 'idle' });
+    expect(result.current.exported).toBe(false);
   });
 
   it('reports an encoding failure before any sharing', async () => {
@@ -152,6 +162,8 @@ describe('useExport: share', () => {
     const { result, save } = setup({ sharer: { canShare: () => true } });
     await act(() => result.current.share('x'));
     expect(save).not.toHaveBeenCalled();
+    expect(stubs.toBlob).not.toHaveBeenCalled();
     expect(result.current.status).toEqual({ kind: 'idle' });
+    expect(result.current.exported).toBe(false);
   });
 });
