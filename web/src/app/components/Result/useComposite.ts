@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { ExposureResult } from '../../exposure/runPipeline';
-import { DEFAULT_COMPOSITE_PARAMS } from '../../vision/stack/compositeParams';
+import { defaultCompositeParams } from '../../vision/stack/compositeParams';
 import type { CompositeParams, RgbaImage } from '../../vision/types';
 import { errorMessage } from './errorMessage';
 
@@ -23,7 +23,12 @@ export function useComposite(
   result: ExposureResult,
   { debounceMs = DEFAULT_DEBOUNCE_MS }: { debounceMs?: number } = {},
 ): CompositeController {
-  const [params, setParams] = useState(DEFAULT_COMPOSITE_PARAMS);
+  const [params, setParams] = useState(() =>
+    defaultCompositeParams({
+      frameCount: result.alignedCount,
+      longEdge: Math.max(result.width, result.height),
+    }),
+  );
   const [image, setImage] = useState<RgbaImage | null>(null);
   const [error, setError] = useState('');
   const sequence = useRef(0);

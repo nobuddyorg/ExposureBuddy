@@ -5,6 +5,7 @@ import { useI18n } from '../../i18n/useI18n';
 import { ActionRow } from './ActionRow';
 import { SliderPanel } from './SliderPanel';
 import {
+  sliderMax,
   toCompositeParams,
   toSliderValues,
   type SliderName,
@@ -28,7 +29,7 @@ export default function Result({
   totalCount,
   onStartOver,
 }: ResultProps): React.JSX.Element {
-  const { t } = useI18n();
+  const { t, tCount } = useI18n();
   const composite = useComposite(result);
   const compare = useCompare(result);
   const showingReference = compare.comparing && compare.reference !== null;
@@ -54,9 +55,13 @@ export default function Result({
     }
   };
 
+  const skippedCount = totalCount - result.alignedCount;
+  const longEdge = Math.max(result.width, result.height);
+
   return (
-    <section className="fade-up space-y-5">
-      <div className="space-y-1">
+    // Phone: one column. Desktop: the image beside the title, sliders and actions, the pair centred so no gap opens around a portrait photo.
+    <section className="fade-up space-y-5 lg:grid lg:grid-cols-[fit-content(calc(100%-26.5rem))_24rem] lg:grid-rows-[auto_1fr] lg:items-start lg:justify-center lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
+      <div className="space-y-1 lg:col-start-2 lg:row-start-1">
         <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
           {t('result.title')}
         </h1>
@@ -68,60 +73,68 @@ export default function Result({
             height: result.height,
           })}
         </p>
+        {skippedCount > 0 && (
+          <p
+            data-testid="result-skipped"
+            className="pt-1 text-sm text-foreground"
+          >
+            {tCount('result.skipped', skippedCount)}
+          </p>
+        )}
       </div>
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8">
-        <div className="flex justify-center">
-          <canvas
-            ref={canvasRef}
-            data-testid="result-canvas"
-            width={result.width}
-            height={result.height}
-            // eslint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role -- jsx-a11y counts every canvas as interactive; this one is a picture, and img is its role
-            role="img"
-            aria-label={
-              showingReference ? t('result.single_alt') : t('result.alt')
-            }
-            style={{ aspectRatio: `${result.width} / ${result.height}` }}
-            onPointerDown={() => compare.hold(true)}
-            onPointerUp={() => compare.hold(false)}
-            onPointerCancel={() => compare.hold(false)}
-            onPointerLeave={() => compare.hold(false)}
-            onContextMenu={(event) => event.preventDefault()}
-            className="card-lift h-auto max-h-[78svh] w-auto max-w-full touch-pan-y select-none rounded-xl bg-muted ring-1 ring-border [-webkit-touch-callout:none]"
-          />
-        </div>
+      <figure className="flex flex-col items-center gap-2 lg:sticky lg:top-24 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+        <canvas
+          ref={canvasRef}
+          data-testid="result-canvas"
+          width={result.width}
+          height={result.height}
+          // eslint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role -- jsx-a11y counts every canvas as interactive; this one is a picture, and img is its role
+          role="img"
+          aria-label={
+            showingReference ? t('result.single_alt') : t('result.alt')
+          }
+          style={{ aspectRatio: `${result.width} / ${result.height}` }}
+          onPointerDown={() => compare.hold(true)}
+          onPointerUp={() => compare.hold(false)}
+          onPointerCancel={() => compare.hold(false)}
+          onPointerLeave={() => compare.hold(false)}
+          onContextMenu={(event) => event.preventDefault()}
+          // svh, not dvh: the phone's browser bar collapsing on scroll must not resize the picture.
+          className="card-lift h-auto max-h-[78svh] w-auto max-w-full touch-pan-y select-none rounded-xl bg-muted ring-1 ring-border lg:max-h-[calc(100svh-11rem)] [-webkit-touch-callout:none]"
+        />
+        <figcaption className="text-xs text-muted-foreground">
+          {t('result.compare_hint')}
+        </figcaption>
+      </figure>
 
-        <div className="mt-5 space-y-4 lg:mt-0">
-          <SliderPanel
-            values={sliders}
-            disabled={compare.comparing}
-            onChange={setSlider}
-          />
-          <ActionRow
-            shareSupported={exporter.shareSupported}
-            comparing={compare.toggled}
-            onDownload={() => void exporter.download()}
-            onShare={() => void exporter.share(t('result.title'))}
-            onToggleCompare={compare.toggle}
-            onStartOver={onStartOver}
-          />
-          <p className="text-xs text-muted-foreground">
-            {t('result.compare_hint')}
+      <div className="space-y-4 lg:col-start-2 lg:row-start-2">
+        <SliderPanel
+          values={sliders}
+          max={sliderMax(longEdge)}
+          disabled={compare.comparing}
+          onChange={setSlider}
+        />
+        <ActionRow
+          shareSupported={exporter.shareSupported}
+          comparing={compare.toggled}
+          onDownload={() => void exporter.download()}
+          onShare={() => void exporter.share(t('result.title'))}
+          onToggleCompare={compare.toggle}
+          onStartOver={onStartOver}
+        />
+        <p
+          role="status"
+          data-testid="export-status"
+          className="min-h-5 text-sm text-muted-foreground"
+        >
+          {statusText(exporter.status)}
+        </p>
+        {composite.error !== '' && (
+          <p role="alert" className="text-sm text-foreground">
+            {t('errors.unknown', { message: composite.error })}
           </p>
-          <p
-            role="status"
-            data-testid="export-status"
-            className="min-h-5 text-sm text-muted-foreground"
-          >
-            {statusText(exporter.status)}
-          </p>
-          {composite.error !== '' && (
-            <p role="alert" className="text-sm text-foreground">
-              {t('errors.unknown', { message: composite.error })}
-            </p>
-          )}
-        </div>
+        )}
       </div>
     </section>
   );

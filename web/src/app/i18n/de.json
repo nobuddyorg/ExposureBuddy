@@ -17,6 +17,7 @@
   },
   "picker": {
     "title": "Fotoserie auswählen",
+    "title_selected": "Deine Fotos",
     "subtitle": "Fotos einer Szene, von einer Stelle aus aufgenommen. Die Szene wird scharf, alles Bewegte verblasst zum Geist.",
     "choose": "Fotos auswählen",
     "add_more": "Mehr hinzufügen",
@@ -72,6 +73,8 @@
     "alt": "Kombinierte Langzeitbelichtung",
     "single_alt": "Eines der Originalfotos",
     "saved": "Gespeichert als {name}",
+    "skipped_one": "{count} Foto ließ sich nicht auf die anderen ausrichten und blieb draußen. Das Handy zwischen den Aufnahmen möglichst ruhig halten.",
+    "skipped": "{count} Fotos ließen sich nicht auf die anderen ausrichten und blieben draußen. Das Handy zwischen den Aufnahmen möglichst ruhig halten.",
     "share_failed": "Teilen hat nicht geklappt, das Bild wurde stattdessen gespeichert."
   },
   "errors": {

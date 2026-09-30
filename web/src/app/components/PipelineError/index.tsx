@@ -35,9 +35,9 @@ export default function PipelineError({
           !
         </span>
         <div className="min-w-0 space-y-2">
-          <h2 className="font-display text-2xl font-semibold">
+          <h1 className="font-display text-2xl font-semibold">
             {t('errors.title')}
-          </h2>
+          </h1>
           <p className="break-words text-muted-foreground">
             {failureMessage(t, tCount, failure)}
           </p>

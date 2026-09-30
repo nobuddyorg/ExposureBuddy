@@ -29,6 +29,7 @@ interface Result {
       startOver: Locator;
     };
     canvas: Locator;
+    skipped: Locator;
     sliders: Record<Slider, Locator>;
     stats: Locator;
   };
@@ -81,6 +82,7 @@ export function initResult(page: Page): Result {
       startOver: page.getByTestId('start-over'),
     },
     canvas: page.getByTestId('result-canvas'),
+    skipped: page.getByTestId('result-skipped'),
     sliders: {
       ghost: page.getByTestId('ghost-slider'),
       blur: page.getByTestId('blur-slider'),

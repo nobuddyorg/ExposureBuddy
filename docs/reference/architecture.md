@@ -134,7 +134,7 @@ One route. Three states of one page, driven by `useExposure`:
 | --- | --- | --- |
 | Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-thumb`, `photo-count`, `clear-photos`, `quality-select`, `combine`, `picker-notice` |
 | Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
-| Result | `Result` | `result-canvas`, `result-stats`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
+| Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
 | Failed | `PipelineError` | `pipeline-error`, `retry` |
 
 Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),

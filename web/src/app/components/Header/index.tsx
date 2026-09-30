@@ -27,8 +27,11 @@ export default function Header({ onOpenHelp }: { onOpenHelp: () => void }) {
             fetchPriority="high"
             className="h-7 w-7 shrink-0"
           />
-          <span className="font-display truncate text-lg font-semibold underline decoration-accent decoration-2 underline-offset-4">
-            {t('brand.exposure')}
+          {/* pb-0.5 on the outer span keeps the rule visible past truncate's clip. */}
+          <span className="font-display truncate pb-0.5 text-lg font-semibold">
+            <span className="border-b-2 border-foreground pb-px">
+              {t('brand.exposure')}
+            </span>
             <span className="text-accent">{t('brand.buddy')}</span>
           </span>
         </div>

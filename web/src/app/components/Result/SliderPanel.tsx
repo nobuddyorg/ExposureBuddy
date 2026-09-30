@@ -3,17 +3,24 @@
 import { useI18n } from '../../i18n/useI18n';
 import { cardClasses } from '../ui/cardClasses';
 import { ParamSlider } from './ParamSlider';
-import { SLIDER_MAX, type SliderName, type SliderValues } from './sliderValues';
+import { type SliderName, type SliderValues } from './sliderValues';
 
 export interface SliderPanelProps {
   values: SliderValues;
+  /** The top of each slider. */
+  max: Record<SliderName, number>;
   /** While comparing with one photo the sliders have nothing to drive. */
   disabled: boolean;
   onChange: (name: SliderName, value: number) => void;
 }
 
 /** The card with the three composite sliders: ghosts, blur and glow. */
-export function SliderPanel({ values, disabled, onChange }: SliderPanelProps) {
+export function SliderPanel({
+  values,
+  max,
+  disabled,
+  onChange,
+}: SliderPanelProps) {
   const { t } = useI18n();
   // Spelled out per slider: the i18n parity test only credits literal t('…') keys.
   const sliders = [
@@ -50,7 +57,7 @@ export function SliderPanel({ values, disabled, onChange }: SliderPanelProps) {
           help={slider.help}
           unit={slider.unit}
           value={values[slider.name]}
-          max={SLIDER_MAX[slider.name]}
+          max={max[slider.name]}
           disabled={disabled}
           onChange={(value) => onChange(slider.name, value)}
         />

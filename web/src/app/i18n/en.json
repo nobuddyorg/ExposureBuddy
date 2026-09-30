@@ -17,6 +17,7 @@
   },
   "picker": {
     "title": "Pick your burst",
+    "title_selected": "Your photos",
     "subtitle": "Photos of one scene, shot from one spot. The scene comes out sharp; whatever moved fades into a ghost.",
     "choose": "Choose photos",
     "add_more": "Add more",
@@ -72,6 +73,8 @@
     "alt": "Combined long-exposure image",
     "single_alt": "One of the original photos",
     "saved": "Saved as {name}",
+    "skipped_one": "{count} photo did not line up with the others and was left out. Keep the phone as still as you can between shots.",
+    "skipped": "{count} photos did not line up with the others and were left out. Keep the phone as still as you can between shots.",
     "share_failed": "Sharing did not work, so the image was saved instead."
   },
   "errors": {
