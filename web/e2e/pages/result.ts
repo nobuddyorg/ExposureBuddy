@@ -113,6 +113,12 @@ export function initResult(page: Page): Result {
         return { width: image.width, height: image.height, data: image.data };
       }),
     download: async () => {
+      // A headless save dialog never resolves: take the `<a download>` path, which Playwright can observe.
+      await page.evaluate(() =>
+        Object.defineProperty(window, 'showSaveFilePicker', {
+          value: undefined,
+        }),
+      );
       const [download] = await Promise.all([
         page.waitForEvent('download'),
         locators.buttons.download.click(),
