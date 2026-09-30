@@ -10,7 +10,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-border pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-sm text-muted-foreground">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-sm text-muted-foreground">
         <p data-testid="footer-privacy">{t('footer.privacy')}</p>
         <a
           href={SOURCE_URL}

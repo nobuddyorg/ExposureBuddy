@@ -3,6 +3,8 @@
 import type { ExposureResult } from '../../exposure/runPipeline';
 import { useI18n } from '../../i18n/useI18n';
 import { ActionRow } from './ActionRow';
+import { AdjustPanel } from './AdjustPanel';
+import { CompareButton } from './CompareButton';
 import { SliderPanel } from './SliderPanel';
 import {
   sliderMax,
@@ -60,7 +62,7 @@ export default function Result({
 
   return (
     // Phone: one column. Desktop: the image beside the title, sliders and actions, the pair centred so no gap opens around a portrait photo.
-    <section className="fade-up space-y-5 lg:grid lg:grid-cols-[fit-content(calc(100%-26.5rem))_24rem] lg:grid-rows-[auto_1fr] lg:items-start lg:justify-center lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
+    <section className="fade-up space-y-5 lg:grid lg:grid-cols-[fit-content(calc(100%-24.5rem))_22rem] lg:grid-rows-[auto_1fr] lg:items-start lg:justify-center lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
       <div className="space-y-1 lg:col-start-2 lg:row-start-1">
         <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
           {t('result.title')}
@@ -84,43 +86,47 @@ export default function Result({
       </div>
 
       <figure className="flex flex-col items-center gap-2 lg:sticky lg:top-24 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-        <canvas
-          ref={canvasRef}
-          data-testid="result-canvas"
-          width={result.width}
-          height={result.height}
-          // eslint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role -- jsx-a11y counts every canvas as interactive; this one is a picture, and img is its role
-          role="img"
-          aria-label={
-            showingReference ? t('result.single_alt') : t('result.alt')
-          }
-          style={{ aspectRatio: `${result.width} / ${result.height}` }}
-          onPointerDown={() => compare.hold(true)}
-          onPointerUp={() => compare.hold(false)}
-          onPointerCancel={() => compare.hold(false)}
-          onPointerLeave={() => compare.hold(false)}
-          onContextMenu={(event) => event.preventDefault()}
-          // svh, not dvh: the phone's browser bar collapsing on scroll must not resize the picture.
-          className="card-lift h-auto max-h-[78svh] w-auto max-w-full touch-pan-y select-none rounded-xl bg-muted ring-1 ring-border lg:max-h-[calc(100svh-11rem)] [-webkit-touch-callout:none]"
-        />
+        <div className="relative max-w-full">
+          <canvas
+            ref={canvasRef}
+            data-testid="result-canvas"
+            width={result.width}
+            height={result.height}
+            // eslint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role -- jsx-a11y counts every canvas as interactive; this one is a picture, and img is its role
+            role="img"
+            aria-label={
+              showingReference ? t('result.single_alt') : t('result.alt')
+            }
+            style={{ aspectRatio: `${result.width} / ${result.height}` }}
+            onPointerDown={() => compare.hold(true)}
+            onPointerUp={() => compare.hold(false)}
+            onPointerCancel={() => compare.hold(false)}
+            onPointerLeave={() => compare.hold(false)}
+            onContextMenu={(event) => event.preventDefault()}
+            // svh, not dvh: the phone's browser bar collapsing on scroll must not resize the picture.
+            className="card-lift h-auto max-h-[78svh] w-auto max-w-full touch-pan-y select-none rounded-xl bg-muted ring-1 ring-border lg:max-h-[calc(100svh-11rem)] [-webkit-touch-callout:none]"
+          />
+          <CompareButton pressed={compare.toggled} onToggle={compare.toggle} />
+        </div>
         <figcaption className="text-xs text-muted-foreground">
           {t('result.compare_hint')}
         </figcaption>
       </figure>
 
       <div className="space-y-4 lg:col-start-2 lg:row-start-2">
-        <SliderPanel
-          values={sliders}
-          max={sliderMax(longEdge)}
-          disabled={compare.comparing}
-          onChange={setSlider}
-        />
+        <AdjustPanel>
+          <SliderPanel
+            values={sliders}
+            max={sliderMax(longEdge)}
+            disabled={compare.comparing}
+            onChange={setSlider}
+          />
+        </AdjustPanel>
         <ActionRow
           shareSupported={exporter.shareSupported}
-          comparing={compare.toggled}
+          comparing={compare.comparing}
           onDownload={() => void exporter.download()}
           onShare={() => void exporter.share(t('result.title'))}
-          onToggleCompare={compare.toggle}
           onStartOver={onStartOver}
         />
         <p

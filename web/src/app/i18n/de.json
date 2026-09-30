@@ -67,6 +67,8 @@
     "glow_help": "Lichtspur-Schimmer auf hellen bewegten Dingen",
     "compare": "Mit einem Einzelfoto vergleichen",
     "compare_hint": "Bild gedrückt halten, um es mit einem Einzelfoto zu vergleichen",
+    "adjust": "Darstellung anpassen",
+    "info": "Was macht {name}?",
     "download": "Bild speichern",
     "share": "Teilen",
     "start_over": "Von vorn",

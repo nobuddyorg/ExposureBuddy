@@ -104,6 +104,7 @@ test.describe('the whole journey', () => {
 
     // Every photo lined up, so nothing is reported as left out.
     await expect(app.result.locators.skipped).toHaveCount(0);
+    await expectSlidersBehindTheBarOnAPhone(page, app.result);
     await expectLayoutFor(page, app.result.locators);
 
     const beforeBlur = await app.result.do.canvasDigest();
@@ -156,4 +157,24 @@ async function expectLayoutFor(
       'image above the sliders',
     ).toBeLessThanOrEqual(slider.y);
   }
+}
+
+/** A phone opens on the image and Save with the sliders folded away; the bar shows them. A desktop shows them at once. */
+async function expectSlidersBehindTheBarOnAPhone(
+  page: Page,
+  result: {
+    locators: { sliders: { ghost: Locator }; buttons: { adjust: Locator } };
+    do: { openControls(): Promise<void> };
+  },
+) {
+  const phone = (page.viewportSize()?.width ?? 0) < DESKTOP_MIN_WIDTH;
+  if (phone) {
+    await expect(result.locators.sliders.ghost).toBeHidden();
+    await expect(result.locators.buttons.adjust).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  }
+  await result.do.openControls();
+  await expect(result.locators.sliders.ghost).toBeVisible();
 }

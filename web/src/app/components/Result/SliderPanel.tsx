@@ -48,13 +48,14 @@ export function SliderPanel({
   ];
 
   return (
-    <div className={cardClasses('space-y-4 p-4 sm:p-5')}>
+    <div className={cardClasses('space-y-1 p-4 sm:p-5')}>
       {sliders.map((slider) => (
         <ParamSlider
           key={slider.name}
           testId={slider.testId}
           label={slider.label}
           help={slider.help}
+          infoLabel={t('result.info', { name: slider.label })}
           unit={slider.unit}
           value={values[slider.name]}
           max={max[slider.name]}

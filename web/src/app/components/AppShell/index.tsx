@@ -28,7 +28,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         id="main-content"
         // Focusable so the skip link lands here and a closing dialog can fall back to it.
         tabIndex={-1}
-        className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-10"
+        className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-10"
       >
         {children}
       </main>
