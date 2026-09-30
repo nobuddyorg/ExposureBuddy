@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { toRgba as bandedToRgba } from '../image/banded';
 import { flatGray, texturedScene } from '../features/synthetic.test-support';
 import { identityHomography } from '../geometry/homography';
 import type { RansacResult } from '../types';
@@ -90,7 +91,12 @@ describe('alignToReference with an injected fit', () => {
     });
     expect(outcome.kind).toBe('aligned');
     if (outcome.kind !== 'aligned') throw new Error('unreachable');
-    expect(outcome.frame.image.data).toEqual(image.data);
-    expect(outcome.frame.coverage.every((value) => value === 1)).toBe(true);
+    expect(bandedToRgba(outcome.frame.image)).toEqual(image);
+    expect(Array.from(outcome.frame.spans.start)).toEqual(
+      Array(image.height).fill(0),
+    );
+    expect(Array.from(outcome.frame.spans.end)).toEqual(
+      Array(image.height).fill(image.width),
+    );
   });
 });

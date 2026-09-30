@@ -1,27 +1,27 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import type { AlignedFrame, Rect, Size } from '../types';
+import type { AlignedFrame, Rect, RowSpans, Size } from '../types';
 import { fullCoverageRect, selectMedian, stackFrames } from './stack';
 import {
+  allPixels,
   flatFrame,
-  flatRgba,
-  fullCoverage,
+  fullSpans,
   isInside,
   isRectCovered,
   paintRect,
-  rectCoverage,
+  pixelOf,
+  rectSpans,
   type Rgb,
 } from './synthetic.test-support';
 
 const SIZE: Size = { width: 12, height: 8 };
+const FULL: Rect = { x: 0, y: 0, ...SIZE };
 const BACKGROUND: Rgb = [40, 90, 140];
 const PERSON: Rgb = [240, 200, 160];
 const PERSON_RECT: Rect = { x: 3, y: 2, width: 4, height: 3 };
 
-function isUnderPerson(pixel: number): boolean {
-  const x = pixel % SIZE.width;
-  const y = Math.floor(pixel / SIZE.width);
+function isUnderPerson(x: number, y: number): boolean {
   return (
     x >= PERSON_RECT.x &&
     x < PERSON_RECT.x + PERSON_RECT.width &&
@@ -30,46 +30,37 @@ function isUnderPerson(pixel: number): boolean {
   );
 }
 
-function burstWithPerson(frameCount: number): AlignedFrame[] {
+function burstWithPerson(frameCount: number, size = SIZE): AlignedFrame[] {
   const frames = Array.from({ length: frameCount }, () =>
-    flatFrame(SIZE, BACKGROUND),
+    flatFrame(size, BACKGROUND),
   );
   paintRect(frames[1].image, PERSON_RECT, PERSON);
   return frames;
 }
 
-function frameOfValues(values: readonly number[]): AlignedFrame[] {
+function framesOfValues(values: readonly number[]): AlignedFrame[] {
   return values.map((value) =>
     flatFrame({ width: 1, height: 1 }, [value, value, value]),
   );
 }
 
+const ONE_PIXEL: Rect = { x: 0, y: 0, width: 1, height: 1 };
+
 function progressOf(size: Size): number[] {
   const fractions: number[] = [];
   stackFrames([flatFrame(size, BACKGROUND)], {
+    rect: { x: 0, y: 0, ...size },
     onProgress: (fraction) => fractions.push(fraction),
   });
   return fractions;
 }
 
 describe('stackFrames backgrounds', () => {
-  it('aliases the median buffer and fills every mode with opaque pixels', () => {
-    const result = stackFrames(burstWithPerson(5));
-    expect(result.backgrounds.median).toBe(result.median);
-    for (const buffer of Object.values(result.backgrounds)) {
-      expect(buffer[3]).toBe(255);
-    }
-  });
-
   it('gives the static background in every mode where a person covers a minority of frames', () => {
-    const result = stackFrames(burstWithPerson(5));
-    const pixel = (PERSON_RECT.y * SIZE.width + PERSON_RECT.x) * 4;
-    expect(
-      Array.from(result.backgrounds.clipped.subarray(pixel, pixel + 3)),
-    ).toEqual(BACKGROUND);
-    expect(
-      Array.from(result.backgrounds.mode.subarray(pixel, pixel + 3)),
-    ).toEqual(BACKGROUND);
+    const result = stackFrames(burstWithPerson(5), { rect: FULL });
+    for (const layer of Object.values(result.backgrounds)) {
+      expect(pixelOf(layer, PERSON_RECT.x, PERSON_RECT.y)).toEqual(BACKGROUND);
+    }
   });
 
   it('keeps each channel of each pixel in its own place in every mode', () => {
@@ -86,125 +77,99 @@ describe('stackFrames backgrounds', () => {
         paintRect(image, { x, y: 0, width: 1, height: 1 }, color),
       );
     }
-    const expected = colors.flatMap((color) => [...color, 255]);
-    for (const buffer of Object.values(stackFrames(frames).backgrounds)) {
-      expect(Array.from(buffer)).toEqual(expected);
-    }
-  });
-
-  it('leaves uncovered pixels empty in every mode', () => {
-    const frame = flatFrame({ width: 2, height: 1 }, [50, 60, 70]);
-    frame.coverage[1] = 0;
-    for (const buffer of Object.values(stackFrames([frame]).backgrounds)) {
-      expect(Array.from(buffer.subarray(4, 8))).toEqual([0, 0, 0, 0]);
+    const result = stackFrames(frames, {
+      rect: { x: 0, y: 0, width: 3, height: 1 },
+    });
+    for (const layer of Object.values(result.backgrounds)) {
+      expect(allPixels(layer)).toEqual(colors.flat());
     }
   });
 });
 
 describe('stackFrames', () => {
-  const stack = stackFrames(burstWithPerson(5));
-  const pixelCount = SIZE.width * SIZE.height;
+  const stack = stackFrames(burstWithPerson(5), { rect: FULL });
 
   it('takes the median from the static background everywhere', () => {
-    for (let pixel = 0; pixel < pixelCount; pixel += 1) {
-      expect(
-        Array.from(stack.median.subarray(pixel * 4, pixel * 4 + 4)),
-      ).toEqual([...BACKGROUND, 255]);
-    }
+    expect(allPixels(stack.backgrounds.median)).toEqual(
+      Array.from({ length: SIZE.width * SIZE.height }, () => BACKGROUND).flat(),
+    );
   });
 
   it('lifts the mean only under the person', () => {
     const lifted = BACKGROUND.map((value, channel) =>
       Math.round((4 * value + PERSON[channel]) / 5),
     );
-    for (let pixel = 0; pixel < pixelCount; pixel += 1) {
-      const expected = isUnderPerson(pixel) ? lifted : BACKGROUND;
-      expect(Array.from(stack.mean.subarray(pixel * 4, pixel * 4 + 4))).toEqual(
-        [...expected, 255],
-      );
+    for (let y = 0; y < SIZE.height; y += 1) {
+      for (let x = 0; x < SIZE.width; x += 1) {
+        expect(pixelOf(stack.mean, x, y)).toEqual(
+          isUnderPerson(x, y) ? lifted : [...BACKGROUND],
+        );
+      }
     }
   });
 
-  it('reports deviation exactly under the person: the largest channel spread', () => {
-    // One outlier out of five: mean |value − median| is (240 − 40) / 5 = 40 in red, the widest channel.
-    for (let pixel = 0; pixel < pixelCount; pixel += 1) {
-      expect(stack.deviation[pixel]).toBe(isUnderPerson(pixel) ? 40 : 0);
-    }
-  });
-
-  it('counts every frame in the coverage and reports the frame count', () => {
-    expect(stack.coverage.every((count) => count === 5)).toBe(true);
+  it('reports the frame count and the size of the rect', () => {
     expect(stack.frameCount).toBe(5);
     expect(stack.width).toBe(SIZE.width);
     expect(stack.height).toBe(SIZE.height);
   });
 
   it('averages the two middle values for an even frame count', () => {
-    const result = stackFrames(frameOfValues([10, 200, 21, 30]));
-    expect(result.median[0]).toBe(Math.round((21 + 30) / 2));
-    expect(result.mean[0]).toBe(Math.round((10 + 200 + 21 + 30) / 4));
+    const result = stackFrames(framesOfValues([10, 200, 21, 30]), {
+      rect: ONE_PIXEL,
+    });
+    expect(pixelOf(result.backgrounds.median, 0, 0)[0]).toBe(
+      Math.round((21 + 30) / 2),
+    );
+    expect(pixelOf(result.mean, 0, 0)[0]).toBe(
+      Math.round((10 + 200 + 21 + 30) / 4),
+    );
   });
 
-  it('excludes a frame where its coverage is 0 and reports the count per pixel', () => {
-    const frames = burstWithPerson(5);
-    const stripSize = { width: SIZE.width, height: 4 };
-    // The person frame only covers the top half, so the person is only stacked there.
-    frames[1] = {
-      image: frames[1].image,
-      coverage: rectCoverage(SIZE, { x: 0, y: 0, ...stripSize }),
-    };
-    const result = stackFrames(frames);
-    for (let pixel = 0; pixel < pixelCount; pixel += 1) {
-      const topHalf = pixel < 4 * SIZE.width;
-      expect(result.coverage[pixel]).toBe(topHalf ? 5 : 4);
-      expect(result.deviation[pixel] > 0).toBe(topHalf && isUnderPerson(pixel));
+  it('stacks only the rect, reading each frame at the rect offset', () => {
+    const rect: Rect = { x: 2, y: 1, width: 5, height: 3 };
+    const result = stackFrames(burstWithPerson(5), { rect });
+    expect([result.width, result.height]).toEqual([5, 3]);
+    const lifted = BACKGROUND.map((value, channel) =>
+      Math.round((4 * value + PERSON[channel]) / 5),
+    );
+    for (let y = 0; y < rect.height; y += 1) {
+      for (let x = 0; x < rect.width; x += 1) {
+        expect(pixelOf(result.mean, x, y)).toEqual(
+          isUnderPerson(rect.x + x, rect.y + y) ? lifted : [...BACKGROUND],
+        );
+      }
     }
   });
 
-  it('leaves a pixel no frame covers black and transparent with deviation 0', () => {
-    const frame = flatFrame({ width: 2, height: 1 }, [50, 60, 70]);
-    frame.coverage[1] = 0;
-    const result = stackFrames([frame]);
-    expect(Array.from(result.median)).toEqual([50, 60, 70, 255, 0, 0, 0, 0]);
-    expect(Array.from(result.mean)).toEqual([50, 60, 70, 255, 0, 0, 0, 0]);
-    expect(Array.from(result.coverage)).toEqual([1, 0]);
-    expect(Array.from(result.deviation)).toEqual([0, 0]);
+  it('frees every band of the frames once it is stacked, the ones above the rect included', () => {
+    const tall = { width: 2, height: 150 };
+    const frames = [flatFrame(tall, BACKGROUND, 7), flatFrame(tall, PERSON, 7)];
+    const result = stackFrames(frames, {
+      rect: { x: 0, y: 30, width: 2, height: 100 },
+    });
+    // Rows 30–129 are stacked: the 18 bands wholly above row 130 are gone, the band holding row 130 and those below stay.
+    for (const frame of frames) {
+      const lengths = frame.image.bands.map((band) => band.length);
+      expect(lengths.slice(0, 18).every((length) => length === 0)).toBe(true);
+      expect(lengths.slice(18).every((length) => length > 0)).toBe(true);
+    }
+    expect(pixelOf(result.mean, 1, 99)).toEqual(
+      BACKGROUND.map((value, channel) =>
+        Math.round((value + PERSON[channel]) / 2),
+      ),
+    );
   });
 
-  it('clamps the deviation to 255 and rounds it', () => {
-    const wide = stackFrames(frameOfValues([0, 255]));
-    // Median 128 (rounded from 127.5), deviations 128 and 127 → mean 127.5 → 128.
-    expect(wide.median[0]).toBe(128);
-    expect(wide.deviation[0]).toBe(128);
-  });
-
-  it('throws on mismatched sizes or an empty burst', () => {
-    const small = flatFrame({ width: 2, height: 2 }, BACKGROUND);
-    const wide = flatFrame({ width: 3, height: 2 }, BACKGROUND);
-    expect(() => stackFrames([small, wide])).toThrow(/one size/);
-    const shortCoverage = { image: small.image, coverage: new Uint8Array(3) };
-    expect(() => stackFrames([small, shortCoverage])).toThrow(/one size/);
-    expect(() => stackFrames([])).toThrow(/at least one/);
-  });
-
-  it('rejects a frame whose image differs in one dimension even when its coverage length matches', () => {
-    const base = flatFrame({ width: 2, height: 3 }, BACKGROUND);
-    const coverage = fullCoverage({ width: 2, height: 3 });
-    const wider = {
-      image: flatRgba({ width: 3, height: 3 }, BACKGROUND),
-      coverage,
-    };
-    const taller = {
-      image: flatRgba({ width: 2, height: 4 }, BACKGROUND),
-      coverage,
-    };
-    expect(() => stackFrames([base, wider])).toThrow(/one size/);
-    expect(() => stackFrames([base, taller])).toThrow(/one size/);
+  it('throws on an empty burst', () => {
+    expect(() => stackFrames([], { rect: FULL })).toThrow(/at least one/);
   });
 
   it('reports monotone progress that reaches 1 exactly once, at the end', () => {
     const fractions: number[] = [];
-    stackFrames(burstWithPerson(3), {
+    const tall = { width: 3, height: 300 };
+    stackFrames([flatFrame(tall, BACKGROUND), flatFrame(tall, PERSON)], {
+      rect: { x: 0, y: 0, width: 3, height: 300 },
       onProgress: (fraction) => fractions.push(fraction),
     });
     expect(fractions.at(-1)).toBe(1);
@@ -214,26 +179,25 @@ describe('stackFrames', () => {
     }
   });
 
-  it('reports intermediate progress every few percent on a tall image', () => {
-    const fractions = progressOf({ width: 1, height: 200 });
-    expect(fractions.length).toBeGreaterThan(20);
-    expect(fractions.length).toBeLessThan(60);
+  it('reports the fraction of rows done after every band', () => {
+    expect(progressOf({ width: 1, height: 256 })).toEqual([0.25, 0.5, 0.75, 1]);
   });
 
-  it('reports the fraction of rows done after every row when each row is a full step', () => {
-    expect(progressOf({ width: 1, height: 10 })).toEqual([
-      0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1,
-    ]);
+  it('reports a band only when it adds at least a step', () => {
+    // 64 of 6400 rows is 1 %: no more than every second band reaches the 2 % step.
+    const fractions = progressOf({ width: 1, height: 6400 });
+    expect(fractions[0]).toBe(0.02);
+    expect(fractions.length).toBeGreaterThan(25);
+    expect(fractions.length).toBeLessThanOrEqual(50);
+    for (let index = 1; index < fractions.length - 1; index += 1) {
+      expect(fractions[index] - fractions[index - 1]).toBeGreaterThanOrEqual(
+        0.02,
+      );
+    }
   });
 
-  it('reports a row that lands exactly on the step size', () => {
-    expect(progressOf({ width: 1, height: 50 })[0]).toBe(0.02);
-  });
-
-  it('reports 1 after the last row even when it is less than a step past the previous report', () => {
-    const fractions = progressOf({ width: 1, height: 51 });
-    expect(fractions.at(-2)).toBe(50 / 51);
-    expect(fractions.at(-1)).toBe(1);
+  it('reports 1 after the last band even when it is less than a step past the previous report', () => {
+    expect(progressOf({ width: 1, height: 65 })).toEqual([64 / 65, 1]);
   });
 
   it('gives the constant back for a constant stack and keeps the median within the range', () => {
@@ -249,25 +213,30 @@ describe('stackFrames', () => {
         fc.array(color, { minLength: 1, maxLength: 9 }),
         (width, height, colors) => {
           const size = { width, height };
+          const rect = { x: 0, y: 0, ...size };
           const constant = stackFrames(
             colors.map(() => flatFrame(size, colors[0])),
+            { rect },
           );
-          const varied = stackFrames(colors.map((rgb) => flatFrame(size, rgb)));
-          for (let pixel = 0; pixel < width * height; pixel += 1) {
-            for (let channel = 0; channel < 3; channel += 1) {
-              const index = pixel * 4 + channel;
-              expect(constant.median[index]).toBe(colors[0][channel]);
-              expect(constant.mean[index]).toBe(colors[0][channel]);
-              const values = colors.map((rgb) => rgb[channel]);
-              expect(varied.median[index]).toBeGreaterThanOrEqual(
-                Math.min(...values),
-              );
-              expect(varied.median[index]).toBeLessThanOrEqual(
-                Math.max(...values),
-              );
-            }
-            expect(constant.deviation[pixel]).toBe(0);
-          }
+          const varied = stackFrames(
+            colors.map((rgb) => flatFrame(size, rgb)),
+            { rect },
+          );
+          const constantMedian = allPixels(constant.backgrounds.median);
+          const constantMean = allPixels(constant.mean);
+          const variedMedian = allPixels(varied.backgrounds.median);
+          constantMedian.forEach((value, index) => {
+            const channel = index % 3;
+            expect(value).toBe(colors[0][channel]);
+            expect(constantMean[index]).toBe(colors[0][channel]);
+            const values = colors.map((rgb) => rgb[channel]);
+            expect(variedMedian[index]).toBeGreaterThanOrEqual(
+              Math.min(...values),
+            );
+            expect(variedMedian[index]).toBeLessThanOrEqual(
+              Math.max(...values),
+            );
+          });
         },
       ),
     );
@@ -303,11 +272,16 @@ describe('selectMedian', () => {
   });
 });
 
+/** Spans whose row y covers [starts[y], ends[y]). */
+function spansOf(starts: readonly number[], ends: readonly number[]): RowSpans {
+  return { start: Int32Array.from(starts), end: Int32Array.from(ends) };
+}
+
 describe('fullCoverageRect', () => {
   const size: Size = { width: 8, height: 6 };
 
   it('returns the whole image when everything is covered', () => {
-    expect(fullCoverageRect(fullCoverage(size), size, 1)).toEqual({
+    expect(fullCoverageRect([fullSpans(size)], size)).toEqual({
       x: 0,
       y: 0,
       width: 8,
@@ -315,8 +289,10 @@ describe('fullCoverageRect', () => {
     });
   });
 
-  it('returns a zero rect when nothing reaches the required count', () => {
-    expect(fullCoverageRect(fullCoverage(size), size, 2)).toEqual({
+  it('returns a zero rect when no pixel is covered by every frame', () => {
+    const left = rectSpans(size, { x: 0, y: 0, width: 4, height: 6 });
+    const right = rectSpans(size, { x: 4, y: 0, width: 4, height: 6 });
+    expect(fullCoverageRect([left, right], size)).toEqual({
       x: 0,
       y: 0,
       width: 0,
@@ -324,24 +300,21 @@ describe('fullCoverageRect', () => {
     });
   });
 
-  it('treats a required count of 0 as fully covered', () => {
-    const empty = new Uint8Array(size.width * size.height);
-    expect(fullCoverageRect(empty, size, 0)).toEqual({
-      x: 0,
-      y: 0,
-      width: 8,
-      height: 6,
+  it('returns the overlap of two shifted frames', () => {
+    const full = fullSpans(size);
+    const partial = rectSpans(size, { x: 2, y: 1, width: 4, height: 4 });
+    expect(fullCoverageRect([full, partial], size)).toEqual({
+      x: 2,
+      y: 1,
+      width: 4,
+      height: 4,
     });
   });
 
-  it('avoids a hole by taking the largest side of it', () => {
-    const coverage = fullCoverage(size);
-    // A 2 × 2 hole near the right edge leaves a 5-wide full-height rectangle on the left.
-    coverage[2 * 8 + 5] = 0;
-    coverage[2 * 8 + 6] = 0;
-    coverage[3 * 8 + 5] = 0;
-    coverage[3 * 8 + 6] = 0;
-    expect(fullCoverageRect(coverage, size, 1)).toEqual({
+  it('avoids a notch by taking the largest side of it', () => {
+    // Rows 2 and 3 end at column 5: a 5-wide full-height rectangle beats the full-width rows around the notch.
+    const notched = spansOf([0, 0, 0, 0, 0, 0], [8, 8, 5, 5, 8, 8]);
+    expect(fullCoverageRect([notched], size)).toEqual({
       x: 0,
       y: 0,
       width: 5,
@@ -349,62 +322,58 @@ describe('fullCoverageRect', () => {
     });
   });
 
-  it('fits under a diagonal edge', () => {
-    const coverage = fullCoverage(size);
-    // Column x is uncovered above row x: the covered region is a staircase.
-    for (let y = 0; y < size.height; y += 1) {
-      for (let x = 0; x < size.width; x += 1) {
-        if (y < x) coverage[y * size.width + x] = 0;
-      }
-    }
-    const rect = fullCoverageRect(coverage, size, 1);
-    expect(isRectCovered(coverage, size, rect, 1)).toBe(true);
-    // Candidates: 6 rows × 1 col = 6, 5 × 2 = 10, 4 × 3 = 12, 3 × 4 = 12, 2 × 5 = 10; the first maximum wins.
-    expect(rect.width * rect.height).toBe(12);
-  });
-
-  it('counts frames against the required count', () => {
-    const image = flatRgba(size, [1, 2, 3]);
-    const partial = {
-      image,
-      coverage: rectCoverage(size, { x: 2, y: 1, width: 4, height: 4 }),
-    };
-    const stacked = stackFrames([
-      { image, coverage: fullCoverage(size) },
-      partial,
-    ]);
-    expect(fullCoverageRect(stacked.coverage, size, 2)).toEqual({
-      x: 2,
-      y: 1,
-      width: 4,
-      height: 4,
-    });
-    expect(fullCoverageRect(stacked.coverage, size, 1)).toEqual({
+  it('keeps the first of two equal rectangles', () => {
+    // Columns 0–1 run the full height, columns 2–3 only rows 0–2: 2 × 6 ties with 4 × 3.
+    const tee = spansOf([0, 0, 0, 0, 0, 0], [4, 4, 4, 2, 2, 2]);
+    expect(fullCoverageRect([tee], { width: 4, height: 6 })).toEqual({
       x: 0,
       y: 0,
-      width: 8,
-      height: 6,
+      width: 4,
+      height: 3,
     });
+  });
+
+  it('fits under a diagonal edge', () => {
+    // Row y covers columns 0 to y: the covered region is a staircase.
+    const staircase = spansOf([0, 0, 0, 0, 0, 0], [1, 2, 3, 4, 5, 6]);
+    const rect = fullCoverageRect([staircase], size);
+    expect(isRectCovered([staircase], rect)).toBe(true);
+    // Candidates: 6 rows × 1 col = 6, 5 × 2 = 10, 4 × 3 = 12, 3 × 4 = 12, 2 × 5 = 10; the first maximum wins.
+    expect(rect).toEqual({ x: 0, y: 2, width: 3, height: 4 });
   });
 
   it('returns a covered rectangle that cannot grow by one pixel in any direction', () => {
+    const span = fc
+      .tuple(fc.integer({ min: 0, max: 8 }), fc.integer({ min: 0, max: 8 }))
+      .map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as const);
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 7 }),
         fc.integer({ min: 1, max: 7 }),
-        fc.array(fc.integer({ min: 0, max: 2 }), {
-          minLength: 49,
-          maxLength: 49,
+        fc.array(fc.array(span, { minLength: 7, maxLength: 7 }), {
+          minLength: 1,
+          maxLength: 3,
         }),
-        (width, height, cells) => {
+        (width, height, frames) => {
           const shape = { width, height };
-          const coverage = new Uint8Array(cells.slice(0, width * height));
-          const rect = fullCoverageRect(coverage, shape, 1);
-          const anyCovered = coverage.some((count) => count >= 1);
+          const spans = frames.map((rows) =>
+            spansOf(
+              rows.slice(0, height).map(([start]) => Math.min(start, width)),
+              rows.slice(0, height).map(([, end]) => Math.min(end, width)),
+            ),
+          );
+          const rect = fullCoverageRect(spans, shape);
+          const anyCovered = Array.from(
+            { length: height },
+            (_, y) =>
+              spans.every((row) => row.start[y] < row.end[y]) &&
+              Math.max(...spans.map((row) => row.start[y])) <
+                Math.min(...spans.map((row) => row.end[y])),
+          ).some(Boolean);
           expect(rect.width * rect.height > 0).toBe(anyCovered);
           if (!anyCovered) return;
           expect(isInside(rect, shape)).toBe(true);
-          expect(isRectCovered(coverage, shape, rect, 1)).toBe(true);
+          expect(isRectCovered(spans, rect)).toBe(true);
           const grown: Rect[] = [
             { ...rect, width: rect.width + 1 },
             { ...rect, height: rect.height + 1 },
@@ -413,8 +382,7 @@ describe('fullCoverageRect', () => {
           ];
           for (const candidate of grown) {
             const fits =
-              isInside(candidate, shape) &&
-              isRectCovered(coverage, shape, candidate, 1);
+              isInside(candidate, shape) && isRectCovered(spans, candidate);
             expect(fits).toBe(false);
           }
         },

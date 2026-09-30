@@ -1,10 +1,22 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import type { CompositeParams, Rect, Size, StackResult } from '../types';
+import type {
+  BandedRgb,
+  CompositeParams,
+  Rect,
+  RgbaImage,
+  Size,
+  StackResult,
+} from '../types';
 import { composite } from './composite';
 import { stackFrames } from './stack';
-import { flatFrame, paintRect, type Rgb } from './synthetic.test-support';
+import {
+  allPixels,
+  flatFrame,
+  paintRect,
+  type Rgb,
+} from './synthetic.test-support';
 
 const SIZE: Size = { width: 24, height: 16 };
 const FULL: Rect = { x: 0, y: 0, ...SIZE };
@@ -23,11 +35,20 @@ function sceneStack(): StackResult {
   ];
   paintRect(frames[0].image, BRIGHT_RECT, BRIGHT);
   paintRect(frames[2].image, DARK_RECT, DARK);
-  return stackFrames(frames);
+  return stackFrames(frames, { rect: FULL });
 }
 
 function rgbOf(data: Uint8ClampedArray, pixel: number): number[] {
   return Array.from(data.subarray(pixel * 4, pixel * 4 + 3));
+}
+
+/** The RGB of every pixel of `image`, alpha dropped, in the order allPixels lists a banded image. */
+function rgbPixels(image: RgbaImage): number[] {
+  return Array.from(image.data).filter((_, index) => index % 4 !== 3);
+}
+
+function layerRgb(layer: BandedRgb, pixel: number): number[] {
+  return allPixels(layer).slice(pixel * 3, pixel * 3 + 3);
 }
 
 function params(overrides: Partial<CompositeParams>): CompositeParams {
@@ -40,39 +61,43 @@ function params(overrides: Partial<CompositeParams>): CompositeParams {
   };
 }
 
+function isOpaque(image: RgbaImage): boolean {
+  return image.data.every((value, index) => index % 4 !== 3 || value === 255);
+}
+
 describe('composite', () => {
   const stack = sceneStack();
   const pixelCount = SIZE.width * SIZE.height;
 
-  it('is exactly the median with no ghost and no glow, opaque', () => {
-    const image = composite(stack, params({ ghostBlur: 5 }), FULL);
+  it('is exactly the median with no ghost and no glow, opaque and stack-sized', () => {
+    const image = composite(stack, params({ ghostBlur: 5 }));
     expect(image.width).toBe(SIZE.width);
     expect(image.height).toBe(SIZE.height);
-    expect(image.data).toEqual(stack.median);
+    expect(rgbPixels(image)).toEqual(allPixels(stack.backgrounds.median));
+    expect(isOpaque(image)).toBe(true);
   });
 
   it('is exactly the mean at full ghost strength without blur or glow', () => {
-    const image = composite(stack, params({ ghostStrength: 1 }), FULL);
-    expect(image.data).toEqual(stack.mean);
+    const image = composite(stack, params({ ghostStrength: 1 }));
+    expect(rgbPixels(image)).toEqual(allPixels(stack.mean));
   });
 
   it('is exactly the chosen background with no ghost and no glow', () => {
-    const stack = sceneStack();
     for (const background of ['trimmed', 'clipped', 'mode'] as const) {
-      const image = composite(stack, params({ background }), FULL);
-      expect(image.data).toEqual(stack.backgrounds[background]);
+      const image = composite(stack, params({ background }));
+      expect(rgbPixels(image)).toEqual(
+        allPixels(stack.backgrounds[background]),
+      );
     }
   });
 
   it('measures the ghost against the chosen background', () => {
-    const stack = sceneStack();
     const pixel = BRIGHT_RECT.y * SIZE.width + BRIGHT_RECT.x;
-    const base = rgbOf(stack.backgrounds.trimmed, pixel);
-    const mean = rgbOf(stack.mean, pixel);
+    const base = layerRgb(stack.backgrounds.trimmed, pixel);
+    const mean = layerRgb(stack.mean, pixel);
     const image = composite(
       stack,
       params({ background: 'trimmed', ghostStrength: 1 }),
-      FULL,
     );
     expect(rgbOf(image.data, pixel)).toEqual(
       mean.map((value, channel) =>
@@ -82,12 +107,8 @@ describe('composite', () => {
   });
 
   it('adds glow only where the mean is above the median', () => {
-    const plain = composite(stack, params({ ghostStrength: 0.5 }), FULL);
-    const glowing = composite(
-      stack,
-      params({ ghostStrength: 0.5, glow: 1 }),
-      FULL,
-    );
+    const plain = composite(stack, params({ ghostStrength: 0.5 }));
+    const glowing = composite(stack, params({ ghostStrength: 0.5, glow: 1 }));
     let brightened = 0;
     for (let pixel = 0; pixel < pixelCount; pixel += 1) {
       const before = rgbOf(plain.data, pixel);
@@ -106,11 +127,10 @@ describe('composite', () => {
   });
 
   it('smears the ghost outside the block when blurred, keeping its total', () => {
-    const sharp = composite(stack, params({ ghostStrength: 1 }), FULL);
+    const sharp = composite(stack, params({ ghostStrength: 1 }));
     const blurred = composite(
       stack,
       params({ ghostStrength: 1, ghostBlur: 1 }),
-      FULL,
     );
     const nextToBlock =
       (BRIGHT_RECT.y + 1) * SIZE.width + BRIGHT_RECT.x + BRIGHT_RECT.width;
@@ -130,29 +150,9 @@ describe('composite', () => {
     expect(Math.abs(sharpTotal - blurredTotal)).toBeLessThan(pixelCount);
   });
 
-  it('reads the right pixels for an offset rect', () => {
-    const rect: Rect = { x: 5, y: 3, width: 10, height: 7 };
-    const scene = composite(stack, params({}), rect);
-    const image = composite(stack, params({ ghostStrength: 1 }), rect);
-    expect(image.width).toBe(rect.width);
-    expect(image.height).toBe(rect.height);
-    for (let row = 0; row < rect.height; row += 1) {
-      for (let x = 0; x < rect.width; x += 1) {
-        const sourcePixel = (rect.y + row) * SIZE.width + rect.x + x;
-        expect(rgbOf(scene.data, row * rect.width + x)).toEqual(
-          rgbOf(stack.median, sourcePixel),
-        );
-        expect(rgbOf(image.data, row * rect.width + x)).toEqual(
-          rgbOf(stack.mean, sourcePixel),
-        );
-        expect(image.data[(row * rect.width + x) * 4 + 3]).toBe(255);
-      }
-    }
-  });
-
   it('spreads the glow well beyond the block with the ghost blur widened', () => {
-    const plain = composite(stack, params({ ghostBlur: 3 }), FULL);
-    const glowing = composite(stack, params({ ghostBlur: 3, glow: 1 }), FULL);
+    const plain = composite(stack, params({ ghostBlur: 3 }));
+    const glowing = composite(stack, params({ ghostBlur: 3, glow: 1 }));
     const besideBlock =
       (BRIGHT_RECT.y + 1) * SIZE.width + BRIGHT_RECT.x + BRIGHT_RECT.width + 2;
     expect(rgbOf(glowing.data, besideBlock)[0]).toBeGreaterThan(
@@ -171,8 +171,8 @@ describe('composite', () => {
       BACKGROUND[1],
       250,
     ]);
-    const blueGhost = stackFrames(frames);
-    const glowing = composite(blueGhost, params({ glow: 1 }), FULL);
+    const blueGhost = stackFrames(frames, { rect: FULL });
+    const glowing = composite(blueGhost, params({ glow: 1 }));
     let brightened = 0;
     for (let pixel = 0; pixel < pixelCount; pixel += 1) {
       const [red, green, blue] = rgbOf(glowing.data, pixel);
@@ -183,6 +183,34 @@ describe('composite', () => {
     expect(brightened).toBeGreaterThan(0);
   });
 
+  it('blurs each channel over the whole image when it spans several bands', () => {
+    const tall = { width: 3, height: 150 };
+    const frames = [
+      flatFrame(tall, BACKGROUND),
+      flatFrame(tall, BACKGROUND),
+      flatFrame(tall, BACKGROUND),
+    ];
+    paintRect(frames[0].image, { x: 1, y: 64, width: 1, height: 1 }, BRIGHT);
+    const result = stackFrames(frames, { rect: { x: 0, y: 0, ...tall } });
+    const image = composite(result, params({ ghostStrength: 1, ghostBlur: 1 }));
+    // The ghost sits on the first row of the second band; the blur carries it into both bands, in every channel.
+    for (const y of [63, 65]) {
+      const pixel = y * tall.width + 1;
+      rgbOf(image.data, pixel).forEach((value, channel) =>
+        expect(value).toBeGreaterThan(BACKGROUND[channel]),
+      );
+    }
+    expect(rgbOf(image.data, 20 * tall.width + 1)).toEqual([...BACKGROUND]);
+  });
+
+  it('composites a stack exactly one band tall', () => {
+    const band = { width: 2, height: 64 };
+    const frames = [flatFrame(band, BACKGROUND), flatFrame(band, BRIGHT)];
+    const result = stackFrames(frames, { rect: { x: 0, y: 0, ...band } });
+    const image = composite(result, params({ ghostStrength: 1 }));
+    expect(rgbPixels(image)).toEqual(allPixels(result.mean));
+  });
+
   it('matches the documented formula on a uniform ghost for any strength, blur and glow', () => {
     // A blur leaves a uniform layer unchanged, so the formula holds exactly whatever the radius.
     const frames = [
@@ -190,33 +218,31 @@ describe('composite', () => {
       flatFrame(SIZE, BACKGROUND),
       flatFrame(SIZE, BRIGHT),
     ];
-    const uniform = stackFrames(frames);
+    const uniform = stackFrames(frames, { rect: FULL });
+    const median = allPixels(uniform.backgrounds.median);
+    const mean = allPixels(uniform.mean);
     fc.assert(
       fc.property(
         fc.double({ min: 0, max: 1, noNaN: true }),
         fc.double({ min: 0, max: 1, noNaN: true }),
         fc.integer({ min: 0, max: 4 }),
         (ghostStrength, glow, ghostBlur) => {
-          const image = composite(
-            uniform,
-            { background: 'median', ghostStrength, ghostBlur, glow },
-            FULL,
-          );
-          for (let index = 0; index < image.data.length; index += 1) {
-            if (index % 4 === 3) {
-              expect(image.data[index]).toBe(255);
-              continue;
-            }
-            const ghost = uniform.mean[index] - uniform.median[index];
+          const image = composite(uniform, {
+            background: 'median',
+            ghostStrength,
+            ghostBlur,
+            glow,
+          });
+          expect(isOpaque(image)).toBe(true);
+          rgbPixels(image).forEach((value, index) => {
+            const ghost = mean[index] - median[index];
             expect(ghost).toBeGreaterThan(0);
-            expect(image.data[index]).toBe(
+            expect(value).toBe(
               Math.round(
-                uniform.median[index] +
-                  ghostStrength * ghost +
-                  glow * 1.5 * ghost,
+                median[index] + ghostStrength * ghost + glow * 1.5 * ghost,
               ),
             );
-          }
+          });
         },
       ),
       { numRuns: 30 },
@@ -224,24 +250,19 @@ describe('composite', () => {
   });
 
   it('matches the per-pixel formula without blur or glow for any ghost strength', () => {
+    const median = allPixels(stack.backgrounds.median);
+    const mean = allPixels(stack.mean);
     fc.assert(
       fc.property(
         fc.double({ min: 0, max: 1, noNaN: true }),
         (ghostStrength) => {
-          const image = composite(stack, params({ ghostStrength }), FULL);
-          for (let index = 0; index < image.data.length; index += 1) {
-            if (index % 4 === 3) {
-              expect(image.data[index]).toBe(255);
-              continue;
-            }
-            const ghost = stack.mean[index] - stack.median[index];
-            const expected = Math.round(
-              stack.median[index] + ghostStrength * ghost,
-            );
-            expect(image.data[index]).toBe(
-              Math.min(255, Math.max(0, expected)),
-            );
-          }
+          const image = composite(stack, params({ ghostStrength }));
+          expect(isOpaque(image)).toBe(true);
+          rgbPixels(image).forEach((value, index) => {
+            const ghost = mean[index] - median[index];
+            const expected = Math.round(median[index] + ghostStrength * ghost);
+            expect(value).toBe(Math.min(255, Math.max(0, expected)));
+          });
         },
       ),
     );

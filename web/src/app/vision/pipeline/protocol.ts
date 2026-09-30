@@ -145,27 +145,18 @@ export type StackProgress = Extract<
   { type: 'stack-progress' }
 >;
 
-function isRgbaImage(value: unknown): value is RgbaImage {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    (value as RgbaImage).data instanceof Uint8ClampedArray
-  );
-}
-
-/** The pixel buffers inside a message, so postMessage can move them instead of copying. */
+/** The pixel buffers inside a message, each once, so postMessage can move them instead of copying. */
 export function transferablesOf(message: object): ArrayBuffer[] {
-  const buffers: ArrayBuffer[] = [];
-  for (const value of Object.values(message)) {
-    if (isRgbaImage(value)) buffers.push(value.data.buffer as ArrayBuffer);
-    else if (value instanceof Uint8Array)
-      buffers.push(value.buffer as ArrayBuffer);
-    else if (
-      typeof value === 'object' &&
-      value !== null &&
-      !ArrayBuffer.isView(value)
-    )
-      buffers.push(...transferablesOf(value as object));
-  }
-  return buffers;
+  const buffers = new Set<ArrayBuffer>();
+  const collect = (value: unknown): void => {
+    if (ArrayBuffer.isView(value)) {
+      buffers.add(value.buffer as ArrayBuffer);
+      return;
+    }
+    if (typeof value === 'object' && value !== null)
+      Object.values(value).forEach(collect);
+  };
+  collect(message);
+  // A zero-length view shares one empty buffer across bands; moving it would detach it for every later message.
+  return [...buffers].filter((buffer) => buffer.byteLength > 0);
 }

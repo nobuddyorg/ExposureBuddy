@@ -118,6 +118,11 @@ Write this into the project's own docs with its real pieces:
    prints, stated with the resolution and the frame count; memory is a
    number a budget function computes.
 9. **One new behavior, one new assertion, at one level.**
+10. **A rewrite that must not change the output is held to digests.** When
+    a kernel is restructured for memory or speed, digests of its outputs on
+    seeded inputs are recorded from the old code first and asserted against
+    the new (`vision/golden.test.ts`); the digests change only with a change
+    the output is meant to have.
 
 ---
 

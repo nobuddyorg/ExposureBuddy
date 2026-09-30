@@ -7,7 +7,7 @@ import {
   FRAME_BYTES_PER_PIXEL,
   MIN_LONG_EDGE,
   RENDER_BYTES_PER_PIXEL,
-  STACK_BYTES_PER_PIXEL,
+  STACKING_OVERHEAD_BYTES_PER_PIXEL,
   chooseWorkingSize,
   peakBytesPerPixel,
   qualityLongEdge,
@@ -38,11 +38,11 @@ describe('chooseWorkingSize', () => {
   });
 
   it('shrinks below the output size when the frames would not fit the budget', () => {
-    // 80 B/px (the render floor outranks 10 × 5 + 10) × w × h ≤ 60 MiB → w × h ≤ 786 432 → 1024 × 768 at 4:3 exactly.
+    // 35 B/px (10 × 3 + 5 outranks the render floor of 34) × w × h ≤ 26.25 MiB → w × h ≤ 786 432 → 1024 × 768 at 4:3 exactly.
     const working = chooseWorkingSize({
       source: PHONE,
       frameCount: 10,
-      budgetBytes: 60 * 1024 * 1024,
+      budgetBytes: 26.25 * 1024 * 1024,
       maxLongEdge: 2400,
     });
     expect(working.width).toBe(1024);
@@ -139,7 +139,8 @@ describe('chooseWorkingSize', () => {
           expect(working.scale).toBe(working.width / width);
           const longEdge = Math.max(working.width, working.height);
           expect(longEdge).toBeLessThanOrEqual(Math.max(2, maxLongEdge));
-          const bytes = (frameCount + 3) * working.width * working.height * 4;
+          const bytes =
+            peakBytesPerPixel(frameCount) * working.width * working.height;
           const atFloor = longEdge <= Math.max(2, MIN_LONG_EDGE);
           expect(bytes <= budgetBytes || atFloor).toBe(true);
           const aspect = width / height;
@@ -156,11 +157,17 @@ describe('chooseWorkingSize', () => {
 });
 
 describe('peakBytesPerPixel', () => {
-  it('is the render floor for a small burst and the frames plus the stack for a large one', () => {
-    expect(peakBytesPerPixel(10)).toBe(RENDER_BYTES_PER_PIXEL);
+  it('is the render floor for a small burst and the frames plus the stacking overhead for a large one', () => {
+    expect(peakBytesPerPixel(9)).toBe(RENDER_BYTES_PER_PIXEL);
+    expect(peakBytesPerPixel(10)).toBe(10 * FRAME_BYTES_PER_PIXEL + 5);
     expect(peakBytesPerPixel(50)).toBe(
-      50 * FRAME_BYTES_PER_PIXEL + STACK_BYTES_PER_PIXEL,
+      50 * FRAME_BYTES_PER_PIXEL + STACKING_OVERHEAD_BYTES_PER_PIXEL,
     );
+  });
+
+  it('counts three bytes per frame and 34 for rendering', () => {
+    expect(FRAME_BYTES_PER_PIXEL).toBe(3);
+    expect(RENDER_BYTES_PER_PIXEL).toBe(34);
   });
 });
 

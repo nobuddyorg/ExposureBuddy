@@ -3,108 +3,99 @@ import { indices } from '../indices';
 
 const DEFAULT_PASSES = 3;
 
-/** Returns a new Float32Array with `data` (interleaved `channels`, row-major `size`) box-blurred `passes` times with a (2·radius + 1)² edge-clamped window; radius 0 or no passes is a copy. */
-export function boxBlurFloat(
-  data: Float32Array,
+/**
+ * Box-blurs the single-channel `layer` (row-major `size`) in place, `passes` times, with a (2·radius + 1)² edge-clamped window;
+ * radius 0 or no passes leaves it as it is. Extra memory is one row plus radius + 2 rows, never a second layer.
+ */
+export function boxBlurInPlace(
+  layer: Float32Array,
   size: Size,
-  channels: number,
   radius: number,
   passes = DEFAULT_PASSES,
-): Float32Array {
-  const rowLength = size.width * channels;
-  let front = new Float32Array(data);
-  let back = new Float32Array(data.length);
-  const scratch = new Float32Array(data.length);
-  const columnSums = new Float64Array(rowLength);
+): void {
+  const line = new Float32Array(size.width);
+  const saved = new Float32Array(savedRows(radius, size.height) * size.width);
+  const columnSums = new Float64Array(size.width);
   for (let pass = 0; pass < passes; pass += 1) {
     for (const y of indices(size.height)) {
-      for (let channel = 0; channel < channels; channel += 1) {
-        blurLine(front, scratch, {
-          start: y * rowLength + channel,
-          step: channels,
-          length: size.width,
-          radius,
-        });
-      }
+      const row = layer.subarray(y * size.width, (y + 1) * size.width);
+      line.set(row);
+      blurLine(line, row, radius);
     }
-    blurColumns(scratch, back, columnSums, size.height, radius);
-    [front, back] = [back, front];
+    blurColumns(layer, { size, radius, saved, columnSums });
   }
-  return front;
 }
 
-interface Line {
-  readonly start: number;
-  readonly step: number;
-  readonly length: number;
-  readonly radius: number;
+/** Rows the vertical pass keeps before overwriting them: a row leaves the window radius + 1 rows after its own, and no image has more rows than its height. */
+export function savedRows(radius: number, height: number): number {
+  return Math.min(radius + 2, height);
 }
 
 // Window mean along one line; the clamped edge windows are handled before and after an unclamped interior loop.
-function blurLine(input: Float32Array, output: Float32Array, line: Line): void {
-  const { start, step, length, radius } = line;
-  const last = length - 1;
+function blurLine(
+  input: Float32Array,
+  output: Float32Array,
+  radius: number,
+): void {
+  const last = input.length - 1;
   const windowScale = 1 / (2 * radius + 1);
   let sum = 0;
   for (let offset = -radius; offset <= radius; offset += 1) {
-    sum += input[start + clampIndex(offset, last) * step];
+    sum += input[clampIndex(offset, last)];
   }
-  output[start] = sum * windowScale;
-  const interiorStart = Math.min(radius + 1, length);
-  const interiorEnd = Math.max(interiorStart, length - radius);
+  output[0] = sum * windowScale;
+  const interiorStart = Math.min(radius + 1, input.length);
+  const interiorEnd = Math.max(interiorStart, input.length - radius);
   for (let position = 1; position < interiorStart; position += 1) {
-    const entering = clampIndex(position + radius, last);
-    sum += input[start + entering * step] - input[start];
-    output[start + position * step] = sum * windowScale;
+    sum += input[clampIndex(position + radius, last)] - input[0];
+    output[position] = sum * windowScale;
   }
-  let enteringIndex = start + (interiorStart + radius) * step;
-  // The first interior window is the first to drop the line's first sample.
-  let leavingIndex = start;
-  let outputIndex = start + interiorStart * step;
   for (let position = interiorStart; position < interiorEnd; position += 1) {
-    sum += input[enteringIndex] - input[leavingIndex];
-    output[outputIndex] = sum * windowScale;
-    enteringIndex += step;
-    leavingIndex += step;
-    outputIndex += step;
+    sum += input[position + radius] - input[position - radius - 1];
+    output[position] = sum * windowScale;
   }
-  const lastIndex = start + last * step;
   for (let position = interiorEnd; position <= last; position += 1) {
-    const leaving = clampIndex(position - radius - 1, last);
-    sum += input[lastIndex] - input[start + leaving * step];
-    output[start + position * step] = sum * windowScale;
+    sum += input[last] - input[clampIndex(position - radius - 1, last)];
+    output[position] = sum * windowScale;
   }
 }
 
-// Vertical window mean, swept row by row with one running sum per column so memory access stays sequential.
-function blurColumns(
-  input: Float32Array,
-  output: Float32Array,
-  columnSums: Float64Array,
-  height: number,
-  radius: number,
-): void {
-  const rowLength = columnSums.length;
-  const last = height - 1;
+interface ColumnPass {
+  readonly size: Size;
+  readonly radius: number;
+  /** A ring of the original rows still to leave the window: row k sits in slot k mod (saved rows). */
+  readonly saved: Float32Array;
+  readonly columnSums: Float64Array;
+}
+
+// Vertical window mean, swept row by row with one running sum per column; a row is saved before it is overwritten, as it leaves the window later.
+function blurColumns(layer: Float32Array, pass: ColumnPass): void {
+  const { size, radius, saved, columnSums } = pass;
+  const { width } = size;
+  const last = size.height - 1;
+  const slots = saved.length / width;
   const windowScale = 1 / (2 * radius + 1);
+  const original = (y: number) => {
+    const slot = (y % slots) * width;
+    return saved.subarray(slot, slot + width);
+  };
   columnSums.fill(0);
   for (let offset = -radius; offset <= radius; offset += 1) {
-    const rowStart = clampIndex(offset, last) * rowLength;
-    for (let index = 0; index < rowLength; index += 1) {
-      columnSums[index] += input[rowStart + index];
-    }
+    const rowStart = clampIndex(offset, last) * width;
+    columnSums.forEach((sum, x) => {
+      columnSums[x] = sum + layer[rowStart + x];
+    });
   }
-  for (let index = 0; index < rowLength; index += 1) {
-    output[index] = columnSums[index] * windowScale;
-  }
-  for (const y of indices(height).slice(1)) {
-    const enteringRow = clampIndex(y + radius, last) * rowLength;
-    const leavingRow = clampIndex(y - radius - 1, last) * rowLength;
-    const outputRow = y * rowLength;
-    for (let index = 0; index < rowLength; index += 1) {
-      columnSums[index] +=
-        input[enteringRow + index] - input[leavingRow + index];
-      output[outputRow + index] = columnSums[index] * windowScale;
+  for (const y of indices(size.height)) {
+    const rowStart = y * width;
+    original(y).set(layer.subarray(rowStart, rowStart + width));
+    // Rows below y are untouched yet; rows above it were overwritten, so the leaving one comes from the ring.
+    const entering = clampIndex(y + radius, last) * width;
+    const leaving = original(clampIndex(y - radius - 1, last));
+    for (let x = 0; x < width; x += 1) {
+      // Row 0 is the initial window itself; every later row slides it by one.
+      if (y > 0) columnSums[x] += layer[entering + x] - leaving[x];
+      layer[rowStart + x] = columnSums[x] * windowScale;
     }
   }
 }

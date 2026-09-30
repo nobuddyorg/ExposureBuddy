@@ -69,10 +69,27 @@ export interface RansacResult {
   readonly inlierCount: number;
 }
 
-/** A frame warped into the reference frame; `coverage[i]` is 1 where pixel i came from real source data. */
+/**
+ * Interleaved RGB 8-bit rows cut into bands of `bandRows` rows, each band its own buffer, so a band can be freed once used.
+ * Band b holds rows [b·bandRows, min((b + 1)·bandRows, height)); a freed or not yet allocated band is empty.
+ */
+export interface BandedRgb {
+  readonly width: number;
+  readonly height: number;
+  readonly bandRows: number;
+  readonly bands: Uint8ClampedArray[];
+}
+
+/** Per row y, the covered columns are [start[y], end[y]); a row with end ≤ start covers nothing. */
+export interface RowSpans {
+  readonly start: Int32Array;
+  readonly end: Int32Array;
+}
+
+/** A frame warped into the reference frame; only the pixels inside `spans` came from real source data. */
 export interface AlignedFrame {
-  readonly image: RgbaImage;
-  readonly coverage: Uint8Array;
+  readonly image: BandedRgb;
+  readonly spans: RowSpans;
 }
 
 /** How the static scene is estimated per pixel from the frames covering it. */
@@ -84,20 +101,14 @@ export const BACKGROUND_MODES = [
 ] as const;
 export type BackgroundMode = (typeof BACKGROUND_MODES)[number];
 
-/** Per-pixel statistics over the aligned frames, at the working resolution. */
+/** Per-pixel statistics over the aligned frames inside the crop every frame covers; the crop is the whole result. */
 export interface StackResult {
   readonly width: number;
   readonly height: number;
-  /** Per-channel median over the frames covering the pixel: the static scene. */
-  readonly median: Uint8ClampedArray;
-  /** Every background estimate by mode; `median` is the very buffer above. */
-  readonly backgrounds: Readonly<Record<BackgroundMode, Uint8ClampedArray>>;
-  /** Per-channel mean over the frames covering the pixel: the long exposure, ghosts included. */
-  readonly mean: Uint8ClampedArray;
-  /** Largest per-channel mean absolute deviation from the median, 0–255: how much the pixel moved. */
-  readonly deviation: Uint8Array;
-  /** How many frames covered each pixel. */
-  readonly coverage: Uint8Array;
+  /** Every estimate of the static scene by mode; `median` is the per-channel median. */
+  readonly backgrounds: Readonly<Record<BackgroundMode, BandedRgb>>;
+  /** Per-channel mean over the frames: the long exposure, ghosts included. */
+  readonly mean: BandedRgb;
   readonly frameCount: number;
 }
 

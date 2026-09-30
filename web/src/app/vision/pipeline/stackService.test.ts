@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { flatFrame } from '../stack/synthetic.test-support';
 import type { StackWorkerResponse } from './protocol';
 import type { StackSession } from './stackSession';
 import { createStackService } from './stackService';
@@ -47,7 +48,7 @@ describe('createStackService', () => {
     ).resolves.toEqual({ response: { type: 'added', id: 1 }, transfer: [] });
     expect(session.addReference).toHaveBeenCalledWith(reference);
 
-    const frame = { image: image(2), coverage: new Uint8Array(2) };
+    const frame = flatFrame({ width: 2, height: 1 }, [2, 2, 2]);
     await expect(serve({ type: 'add-frame', id: 2, frame })).resolves.toEqual({
       response: { type: 'added', id: 2 },
       transfer: [],

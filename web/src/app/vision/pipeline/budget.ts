@@ -14,12 +14,15 @@ const QUALITY_LONG_EDGE: Record<OutputQuality, number> = {
   standard: 1600,
   high: 2400,
 };
-/** An aligned frame is RGBA plus its coverage mask. */
-export const FRAME_BYTES_PER_PIXEL = 5;
-/** The stack keeps four background estimates and the mean (RGBA each), the deviation and the coverage count. */
-export const STACK_BYTES_PER_PIXEL = 22;
-/** Rendering adds three Float32 RGB layers, the blur scratch and the output on top of the stack; the frames are gone by then. */
-export const RENDER_BYTES_PER_PIXEL = 80;
+/** An aligned frame is RGB in bands; what it covers is two numbers per row, not a mask. */
+export const FRAME_BYTES_PER_PIXEL = 3;
+/** While stacking, on top of the frames: the reference copy kept for compare (3) and one band of the five output layers in flight. */
+export const STACKING_OVERHEAD_BYTES_PER_PIXEL = 5;
+/**
+ * Rendering holds the stack (four backgrounds and the mean, RGB: 15), the reference copy (3), two single-channel float layers (8),
+ * the RGBA output (4) and at most one more layer's worth of saved rows in the blur (4); the frames are gone by then.
+ */
+export const RENDER_BYTES_PER_PIXEL = 34;
 const MIN_WORKING_EDGE = 2;
 const MAX_POOL_SIZE = 4;
 const DEFAULT_POOL_SIZE = 2;
@@ -29,10 +32,10 @@ export function qualityLongEdge(quality: OutputQuality): number {
   return QUALITY_LONG_EDGE[quality];
 }
 
-/** Bytes per working pixel at the pipeline's peak: stacking holds every frame, rendering holds the scratch layers. */
+/** Bytes per working pixel at the pipeline's peak: stacking holds every frame, rendering holds the stack and its layers. */
 export function peakBytesPerPixel(frameCount: number): number {
   return Math.max(
-    frameCount * FRAME_BYTES_PER_PIXEL + STACK_BYTES_PER_PIXEL,
+    frameCount * FRAME_BYTES_PER_PIXEL + STACKING_OVERHEAD_BYTES_PER_PIXEL,
     RENDER_BYTES_PER_PIXEL,
   );
 }

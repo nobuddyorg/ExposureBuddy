@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { rowOf } from '../image/banded';
 import { shiftGray, texturedScene } from '../features/synthetic.test-support';
 import type { AlignWorkerResponse, Decoders } from './protocol';
 import { createAlignService } from './alignService';
@@ -138,23 +139,26 @@ describe('createAlignService', () => {
       { type: 'aligned' }
     >;
     expect(aligned.inliers).toBeGreaterThan(20);
+    const { image, spans } = aligned.frame;
     expect(transfer).toEqual([
-      aligned.frame.image.data.buffer,
-      aligned.frame.coverage.buffer,
+      ...image.bands.map((band) => band.buffer),
+      spans.start.buffer,
+      spans.end.buffer,
     ]);
 
     // Where the warped frame has data it must show the reference's pixels again.
-    const { image, coverage } = aligned.frame;
     let difference = 0;
     let count = 0;
-    for (let index = 0; index < coverage.length; index += 1) {
-      if (!coverage[index]) continue;
-      difference += Math.abs(
-        image.data[index * 4] - reference.image.data[index * 4],
-      );
-      count += 1;
+    for (let y = 0; y < image.height; y += 1) {
+      const row = rowOf(image, y);
+      for (let x = spans.start[y]; x < spans.end[y]; x += 1) {
+        difference += Math.abs(
+          row[x * 3] - reference.image.data[(y * image.width + x) * 4],
+        );
+        count += 1;
+      }
     }
-    expect(count).toBeGreaterThan(coverage.length * 0.8);
+    expect(count).toBeGreaterThan(image.width * image.height * 0.8);
     expect(difference / count).toBeLessThan(6);
   });
 

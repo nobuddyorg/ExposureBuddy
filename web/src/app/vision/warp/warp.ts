@@ -1,11 +1,15 @@
 import { invertHomography } from '../geometry/homography';
+import { createBandedRgb, rowOf } from '../image/banded';
 import type { AlignedFrame, Homography, RgbaImage, Size } from '../types';
 import { indices } from '../indices';
 
-const CHANNELS = 4;
-const OPAQUE = 255;
+const RGBA = 4;
+const RGB = 3;
 
-/** Returns `source` inverse-warped through `homography` (source → target) into a `target`-sized frame with a coverage mask; throws when the homography is singular. */
+/**
+ * Returns `source` inverse-warped through `homography` (source → target) into a `target`-sized RGB frame and the columns each row covers;
+ * throws when the homography is singular.
+ */
 export function warpRgba(
   source: RgbaImage,
   homography: Homography,
@@ -16,8 +20,11 @@ export function warpRgba(
     throw new Error('warpRgba: the homography is singular');
   }
   const { width, height } = target;
-  const output = new Uint8ClampedArray(width * height * CHANNELS);
-  const coverage = new Uint8Array(width * height);
+  const image = createBandedRgb(target);
+  const start = new Int32Array(height);
+  const end = new Int32Array(height);
+  const sourceXs = new Float64Array(width);
+  const sourceYs = new Float64Array(width);
   const sourceWidth = source.width;
   const sourceData = source.data;
   const maxX = sourceWidth - 1;
@@ -28,8 +35,8 @@ export function warpRgba(
     let homogeneousX = inverse[1] * y + inverse[2];
     let homogeneousY = inverse[4] * y + inverse[5];
     let homogeneousW = inverse[7] * y + inverse[8];
-    let outputOffset = y * width * CHANNELS;
-    let pixel = y * width;
+    let first = width;
+    let last = -1;
     for (let x = 0; x < width; x += 1) {
       const sourceX = homogeneousX / homogeneousW;
       const sourceY = homogeneousY / homogeneousW;
@@ -43,42 +50,41 @@ export function warpRgba(
       homogeneousX += stepX;
       homogeneousY += stepY;
       homogeneousW += stepW;
-      if (covered) {
-        // Bilinear over the 2×2 neighbourhood; on the last row or column the far weight is exactly 0.
-        const x0 = Math.floor(sourceX);
-        const y0 = Math.floor(sourceY);
-        const fractionX = sourceX - x0;
-        const fractionY = sourceY - y0;
-        const weight00 = (1 - fractionX) * (1 - fractionY);
-        const weight10 = fractionX * (1 - fractionY);
-        const weight01 = (1 - fractionX) * fractionY;
-        const weight11 = fractionX * fractionY;
-        const offset00 = (y0 * sourceWidth + x0) * CHANNELS;
-        const offset10 = x0 < maxX ? offset00 + CHANNELS : offset00;
-        const offset01 =
-          y0 < maxY ? offset00 + sourceWidth * CHANNELS : offset00;
-        const offset11 = offset01 + (offset10 - offset00);
-        output[outputOffset] =
-          weight00 * sourceData[offset00] +
-          weight10 * sourceData[offset10] +
-          weight01 * sourceData[offset01] +
-          weight11 * sourceData[offset11];
-        output[outputOffset + 1] =
-          weight00 * sourceData[offset00 + 1] +
-          weight10 * sourceData[offset10 + 1] +
-          weight01 * sourceData[offset01 + 1] +
-          weight11 * sourceData[offset11 + 1];
-        output[outputOffset + 2] =
-          weight00 * sourceData[offset00 + 2] +
-          weight10 * sourceData[offset10 + 2] +
-          weight01 * sourceData[offset01 + 2] +
-          weight11 * sourceData[offset11 + 2];
-        output[outputOffset + 3] = OPAQUE;
-        coverage[pixel] = 1;
+      sourceXs[x] = sourceX;
+      sourceYs[x] = sourceY;
+      if (!covered) continue;
+      first = Math.min(first, x);
+      last = x;
+    }
+    // The source rectangle maps to a convex region, so a row covers one run; clamping only matters at rounding noise on its rim.
+    start[y] = first;
+    end[y] = last + 1;
+    const row = rowOf(image, y);
+    for (let x = first; x <= last; x += 1) {
+      const sourceX = Math.min(Math.max(sourceXs[x], 0), maxX);
+      const sourceY = Math.min(Math.max(sourceYs[x], 0), maxY);
+      // Bilinear over the 2×2 neighbourhood; on the last row or column the far weight is exactly 0.
+      const x0 = Math.floor(sourceX);
+      const y0 = Math.floor(sourceY);
+      const fractionX = sourceX - x0;
+      const fractionY = sourceY - y0;
+      const weight00 = (1 - fractionX) * (1 - fractionY);
+      const weight10 = fractionX * (1 - fractionY);
+      const weight01 = (1 - fractionX) * fractionY;
+      const weight11 = fractionX * fractionY;
+      const offset00 = (y0 * sourceWidth + x0) * RGBA;
+      const offset10 = x0 < maxX ? offset00 + RGBA : offset00;
+      const offset01 = y0 < maxY ? offset00 + sourceWidth * RGBA : offset00;
+      const offset11 = offset01 + (offset10 - offset00);
+      const output = x * RGB;
+      for (let channel = 0; channel < RGB; channel += 1) {
+        row[output + channel] =
+          weight00 * sourceData[offset00 + channel] +
+          weight10 * sourceData[offset10 + channel] +
+          weight01 * sourceData[offset01 + channel] +
+          weight11 * sourceData[offset11 + channel];
       }
-      outputOffset += CHANNELS;
-      pixel += 1;
     }
   }
-  return { image: { width, height, data: output }, coverage };
+  return { image, spans: { start, end } };
 }

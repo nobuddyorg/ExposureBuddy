@@ -3,6 +3,7 @@ export const MUTATE_TARGETS = [
   'src/app/vision/image/gray.ts',
   'src/app/vision/image/resize.ts',
   'src/app/vision/image/integral.ts',
+  'src/app/vision/image/banded.ts',
   'src/app/vision/image/blur.ts',
   'src/app/vision/features/random.ts',
   'src/app/vision/features/fast.ts',
