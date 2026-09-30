@@ -23,6 +23,7 @@ interface Picker {
     input: Locator;
     notice: Locator;
     quality: Locator;
+    resultSize: Locator;
     thumbnails: Locator;
   };
 }
@@ -43,6 +44,7 @@ export function initPicker(page: Page): Picker {
     input: page.getByTestId('photo-input'),
     notice: page.getByTestId('picker-notice'),
     quality: page.getByTestId('quality-select'),
+    resultSize: page.getByTestId('result-size'),
     thumbnails: page.getByTestId('photo-thumb'),
   };
   const interactions = {

@@ -2,7 +2,9 @@
 
 import { useId, useRef, type ChangeEvent } from 'react';
 
+import type { DeviceProfile } from '../../exposure/deviceProfile';
 import type { PickedPhoto, PickerNotice } from '../../exposure/pickedPhotos';
+import type { ReferenceSize } from '../../exposure/useReferenceSize';
 import { useI18n } from '../../i18n/useI18n';
 import type { OutputQuality } from '../../vision/pipeline/budget';
 import { buttonClasses } from '../ui/buttonClasses';
@@ -18,6 +20,9 @@ export interface PhotoPickerProps {
   notice: PickerNotice | null;
   /** The browser lacks what the pipeline needs; picking still works, combining does not. */
   unsupported: boolean;
+  /** The size of the photo the pipeline aligns to, for the result-size line. */
+  referenceSize: ReferenceSize;
+  device: DeviceProfile;
   onAdd: (files: File[]) => void;
   onClear: () => void;
   onCombine: (quality: OutputQuality) => void;
@@ -50,6 +55,8 @@ export default function PhotoPicker({
   photos,
   notice,
   unsupported,
+  referenceSize,
+  device,
   onAdd,
   onClear,
   onCombine,
@@ -170,6 +177,8 @@ export default function PhotoPicker({
       <CombineControls
         count={photos.length}
         unsupported={unsupported}
+        referenceSize={referenceSize}
+        device={device}
         onCombine={onCombine}
       />
 

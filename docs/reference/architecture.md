@@ -22,7 +22,8 @@ web/src/app/
   useLeaveWarning.ts   asks to confirm leaving while a run or an unsaved result would be lost
   components/      React only: AppShell (chrome around every page), Header, Help,
                    PhotoPicker, Progress, Result, PipelineError, ui/ (class helpers, Dialog)
-  exposure/        the pipeline as the UI sees it: runPipeline (coordinator), decode, useExposure
+  exposure/        the pipeline as the UI sees it: runPipeline (coordinator), decode, useExposure,
+                   deviceProfile (pool size and memory budget), useReferenceSize (for the picker's size line)
   vision/          pure TypeScript over typed arrays -- no React, no Next, no DOM (enforced)
     image/         gray conversion, resize, box blur, integral image, RGB images in row bands
     features/      FAST corners, intensity-centroid orientation, rBRIEF descriptors, ORB front door
@@ -56,8 +57,9 @@ One burst goes through five stages. Each stage reports progress to the UI as
 1. **Decode.** Every file is decoded in a worker with `createImageBitmap`
    (`imageOrientation: 'from-image'`, so EXIF rotation is applied) and drawn
    onto an `OffscreenCanvas` at the *working size*. The working size comes
-   from the first frame's dimensions, the frame count and a memory budget
-   (`vision/pipeline/budget.ts`): the pipeline's peak,
+   from the reference photo's dimensions, the frame count and the device's
+   memory budget (`vision/pipeline/deviceBudget.ts`, `budget.ts`): the
+   pipeline's peak,
    `max(frameCount × 3 + 5, 34) × width × height` bytes (every aligned
    frame as RGB, plus the reference copy and one band of output; or the
    stack and two float layers once the frames are gone), must fit the budget, and
@@ -122,8 +124,20 @@ memory is `max(frameCount × 3 + 5, 34)` bytes per working pixel
   worth of rows the blur saves before overwriting them (4), by which time the
   frames have been released.
 
-The budget defaults to 256 MiB and is the input to the working-size choice,
-so a fifty-photo burst simply comes out smaller rather than crashing the tab.
+While aligning, the align workers add their own share: each holds its photo
+decoded at full size (6 bytes per photo pixel with the halved copies on the
+way down) and 8 bytes per working pixel. The full-size decodes are paid
+first; a pool whose decodes would take more than a quarter of the budget
+runs fewer workers. The reference decode plans the pool
+(`chooseWorkingSize` returns `alignWorkers`) and the coordinator starts the
+remaining align workers only then.
+
+The budget comes from the device (`exposure/deviceProfile.ts`): a quarter of
+the memory Chromium reports, within 256 MiB and 2 GiB, or 768 MiB on a touch
+device and 1.5 GiB on a desktop where the browser reports none. It is the
+input to the working-size choice, so a fifty-photo burst simply comes out
+smaller rather than crashing the tab, and the picker shows that size, from
+the same plan, before the burst is combined.
 `vision/golden.test.ts` holds the kernels to digests recorded before the
 bands, row runs and in-place blur were introduced: the saving costs no bit of
 the output.
@@ -157,7 +171,7 @@ One route. Three states of one page, driven by `useExposure`:
 
 | State | Component | Test ids |
 | --- | --- | --- |
-| Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-thumb`, `photo-count`, `clear-photos`, `quality-select`, `combine`, `picker-notice` |
+| Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-thumb`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
 | Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
 | Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `adjust-toggle`, `background-select`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
 | Failed | `PipelineError` | `pipeline-error`, `retry` |

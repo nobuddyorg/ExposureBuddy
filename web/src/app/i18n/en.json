@@ -29,6 +29,9 @@
     "quality_low": "Small, fast",
     "quality_standard": "Standard",
     "quality_high": "Large, slow",
+    "result_size": "Comes out up to {width} × {height} px",
+    "result_limited": "Smaller than the size chosen: this many photos need more memory than this device allows at full size. Fewer photos give a larger result.",
+    "result_reading": "Working out the result size…",
     "combine_one": "Combine {count} photo",
     "combine": "Combine {count} photos",
     "need_more": "Add at least {count} photos",
@@ -95,6 +98,7 @@
     "no_overlap": "The photos do not overlap enough to share any area. Shoot the burst from one spot, then try again.",
     "decode_failed": "{name} could not be read.",
     "cancelled": "Cancelled.",
+    "out_of_memory": "The device ran out of memory. Choose a smaller output size or fewer photos, then try again.",
     "unknown": "Something went wrong: {message}",
     "retry": "Try again"
   },

@@ -11,6 +11,7 @@ describe('PipelineError', () => {
       [{ kind: 'no_overlap' }, /common area/],
       [{ kind: 'decode_failed', name: 'IMG_1.jpg' }, /IMG_1\.jpg/],
       [{ kind: 'cancelled' }, /cancelled/],
+      [{ kind: 'out_of_memory' }, /out of memory/],
       [{ kind: 'unknown', message: 'weird' }, /weird/],
     ] as const;
     for (const [failure, message] of cases) {
@@ -37,6 +38,21 @@ describe('toPipelineFailure', () => {
   it("maps the stack's no-overlap error to its own kind", () => {
     expect(toPipelineFailure(new Error(NO_OVERLAP_MESSAGE))).toEqual({
       kind: 'no_overlap',
+    });
+  });
+
+  it('maps every engine’s failed allocation to out of memory', () => {
+    for (const message of [
+      'Array buffer allocation failed',
+      'out of memory',
+      'Out of memory',
+    ]) {
+      expect(toPipelineFailure(new RangeError(message))).toEqual({
+        kind: 'out_of_memory',
+      });
+    }
+    expect(toPipelineFailure(new Error('memory is fine'))).toMatchObject({
+      kind: 'unknown',
     });
   });
 

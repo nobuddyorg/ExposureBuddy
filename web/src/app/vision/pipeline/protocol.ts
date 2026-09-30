@@ -12,6 +12,8 @@ export interface WorkingSizing {
   readonly frameCount: number;
   readonly budgetBytes: number;
   readonly maxLongEdge: number;
+  /** How many align workers the device could run; the budget may allow fewer. */
+  readonly requestedWorkers: number;
 }
 
 export type AlignWorkerRequest =
@@ -39,6 +41,7 @@ export type AlignWorkerResponse =
       readonly id: number;
       readonly image: RgbaImage;
       readonly source: Size;
+      readonly alignWorkers: number;
       readonly features: FeatureSet;
     }
   | { readonly type: 'reference-set'; readonly id: number }
@@ -58,10 +61,11 @@ export type AlignWorkerResponse =
   | { readonly type: 'unreadable'; readonly id: number }
   | WorkerFailure;
 
-/** What decoding the reference yields: its pixels at the working size and the file's own dimensions. */
+/** What decoding the reference yields: its pixels at the working size, the file's own dimensions and how many align workers fit. */
 export interface DecodedReference {
   readonly image: RgbaImage;
   readonly source: Size;
+  readonly alignWorkers: number;
 }
 
 /** The two browser-only steps the align service needs, injected so it runs in Node under test. */

@@ -8,7 +8,8 @@ import {
   type RefObject,
 } from 'react';
 
-import { workerPoolSize, type OutputQuality } from '../vision/pipeline/budget';
+import type { OutputQuality } from '../vision/pipeline/budget';
+import type { DeviceProfile } from './deviceProfile';
 import { toPipelineFailure, type PipelineFailure } from './failure';
 import {
   runPipeline,
@@ -51,10 +52,10 @@ function disposeRun(activeRun: RefObject<Run | null>): void {
   run.result?.dispose();
 }
 
-/** Drives one burst through the pipeline; `hardwareConcurrency` sizes the worker pool. */
+/** Drives one burst through the pipeline, with as many workers and as much memory as `device` allows. */
 export function useExposure(
   workers: WorkerFactory,
-  hardwareConcurrency: number | undefined,
+  device: DeviceProfile,
 ): ExposureController {
   const [state, setState] = useState<ExposureState>({ status: 'idle' });
   const activeRun = useRef<Run | null>(null);
@@ -70,7 +71,11 @@ export function useExposure(
       runPipeline({
         files,
         names: files.map((file) => file.name),
-        options: { quality, poolSize: workerPoolSize(hardwareConcurrency) },
+        options: {
+          quality,
+          poolSize: device.poolSize,
+          budgetBytes: device.budgetBytes,
+        },
         workers,
         signal: run.controller.signal,
         // Progress only reaches a live run: abandoning one terminates its workers first.
@@ -88,7 +93,7 @@ export function useExposure(
         },
       );
     },
-    [hardwareConcurrency, workers],
+    [device, workers],
   );
 
   const reset = useCallback(() => {

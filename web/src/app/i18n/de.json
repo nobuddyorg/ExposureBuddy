@@ -29,6 +29,9 @@
     "quality_low": "Klein, schnell",
     "quality_standard": "Standard",
     "quality_high": "Groß, langsam",
+    "result_size": "Ergebnis bis {width} × {height} px",
+    "result_limited": "Kleiner als gewählt: So viele Fotos brauchen in voller Größe mehr Speicher, als dieses Gerät erlaubt. Weniger Fotos ergeben ein größeres Bild.",
+    "result_reading": "Ergebnisgröße wird ermittelt …",
     "combine_one": "{count} Foto kombinieren",
     "combine": "{count} Fotos kombinieren",
     "need_more": "Mindestens {count} Fotos hinzufügen",
@@ -95,6 +98,7 @@
     "no_overlap": "Die Fotos überlappen sich zu wenig, um eine gemeinsame Fläche zu haben. Die Serie von einer Stelle aus aufnehmen und noch einmal versuchen.",
     "decode_failed": "{name} konnte nicht gelesen werden.",
     "cancelled": "Abgebrochen.",
+    "out_of_memory": "Dem Gerät ist der Speicher ausgegangen. Wähle eine kleinere Ausgabegröße oder weniger Fotos und versuche es noch einmal.",
     "unknown": "Etwas ist schiefgelaufen: {message}",
     "retry": "Noch einmal"
   },

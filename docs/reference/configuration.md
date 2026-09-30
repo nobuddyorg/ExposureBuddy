@@ -77,11 +77,12 @@ The numbers the pipeline is sized by, each in the module that owns it.
 | --- | --- | --- |
 | Photos per burst | the picker | 100; extra files are dropped with a notice (`picker.too_many`) |
 | Minimum photos | `web/src/app/exposure/runPipeline.ts` | 2; the picker's Combine button says how many it still needs |
-| Memory budget | `web/src/app/vision/pipeline/budget.ts` `DEFAULT_BUDGET_BYTES` | 256 MiB for the peak, `max(frameCount × 3 + 5, 34) × width × height` bytes at the working size (`peakBytesPerPixel`) |
+| Memory budget | `web/src/app/vision/pipeline/deviceBudget.ts` `deviceBudgetBytes` | A quarter of the memory Chromium reports (`navigator.deviceMemory`), within 256 MiB…2 GiB; where none is reported, 768 MiB on a touch device and 1.5 GiB on a desktop. `DEFAULT_BUDGET_BYTES` (256 MiB) where no device budget is given. Provisional until measured on real phones |
+| Peak memory | `web/src/app/vision/pipeline/budget.ts` `chooseWorkingSize` | The larger of aligning, `(frameCount × 3 + 5 + workers × 8) × working pixels + workers × 6 × photo pixels`, and rendering, `34 × working pixels` |
 | Output long edge | same file, `qualityLongEdge` | Small 1024, Standard 1600, Large 2400 px; never upscaled |
 | Smallest working long edge | same file, `MIN_LONG_EDGE` | 640 px: the budget never pushes below it; a burst that still does not fit is refused, not crashed |
 | Alignment long edge | same file, `ALIGNMENT_LONG_EDGE` | 960 px: the grayscale copy features are detected on |
-| Align workers | same file, `workerPoolSize` | `hardwareConcurrency − 1`, clamped to 1…4; 2 when unknown; the stack worker is always one more |
+| Align workers | same file, `workerPoolSize` and `alignWorkersFor` | `hardwareConcurrency − 1`, clamped to 1…4; 2 when unknown; fewer when their full-size decodes would take more than a quarter of the budget; the stack worker is always one more |
 | RANSAC inlier threshold | `web/src/app/vision/geometry/ransac.ts` `DEFAULT_RANSAC_OPTIONS` | 3 px in alignment coordinates ([Architecture](architecture.md#the-pipeline)) |
 | Frame accepted as aligned | `web/src/app/vision/pipeline/alignment.ts` `MIN_INLIERS`, `MIN_INLIER_RATIO` | At least 20 inliers and at least 25% of the matches; otherwise the frame is skipped and reported |
 

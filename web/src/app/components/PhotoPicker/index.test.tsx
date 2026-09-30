@@ -27,6 +27,9 @@ function image(name: string) {
   return new File(['x'], name, { type: 'image/jpeg', lastModified: 1 });
 }
 
+const DEVICE = { poolSize: 1, budgetBytes: 256 * 1024 * 1024 };
+const PHONE = { width: 4032, height: 3024 };
+
 function picked(names: string[]): PickedPhoto[] {
   return names.map((name) => ({ id: name, file: image(name) }));
 }
@@ -36,6 +39,8 @@ function renderPicker(overrides: Partial<PhotoPickerProps> = {}) {
     photos: [],
     notice: null,
     unsupported: false,
+    referenceSize: { kind: 'none' },
+    device: DEVICE,
     onAdd: vi.fn(),
     onClear: vi.fn(),
     onCombine: vi.fn(),
@@ -61,6 +66,8 @@ function WiredPicker({
       photos={photos.photos}
       notice={photos.notice}
       unsupported={false}
+      referenceSize={{ kind: 'none' }}
+      device={DEVICE}
       onAdd={photos.add}
       onClear={photos.clear}
       onCombine={onCombine}
@@ -272,4 +279,50 @@ describe('PhotoPicker, wired to the hook', () => {
       expect(screen.getByTestId('picker-notice')).toBeEmptyDOMElement();
     },
   );
+});
+
+describe('PhotoPicker, result size', () => {
+  const sizeLine = () => screen.getByTestId('result-size');
+
+  it('says nothing before any photo is picked', () => {
+    renderPicker();
+    expect(sizeLine()).toHaveTextContent('');
+  });
+
+  it('says it is working the size out while the reference photo is read', () => {
+    renderPicker({ photos: picked(['a.jpg', 'b.jpg']) });
+    expect(sizeLine()).toHaveTextContent('Working out the result size');
+  });
+
+  it('says nothing for a reference photo the browser cannot read', () => {
+    renderPicker({
+      photos: picked(['a.jpg', 'b.jpg']),
+      referenceSize: { kind: 'unreadable' },
+    });
+    expect(sizeLine()).toHaveTextContent('');
+  });
+
+  it('shows the size the chosen quality comes out at, and follows the choice', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      photos: picked(['a.jpg', 'b.jpg', 'c.jpg']),
+      referenceSize: { kind: 'known', size: PHONE },
+    });
+    expect(sizeLine()).toHaveTextContent('Comes out up to 1,600 × 1,200 px');
+    expect(sizeLine()).not.toHaveTextContent('Smaller than the size chosen');
+    await user.selectOptions(screen.getByTestId('quality-select'), 'low');
+    expect(sizeLine()).toHaveTextContent('Comes out up to 1,024 × 768 px');
+    expect(screen.getByTestId('quality-select')).toHaveAttribute(
+      'aria-describedby',
+      sizeLine().id,
+    );
+  });
+
+  it('says so when this many photos make the result smaller than chosen', () => {
+    renderPicker({
+      photos: picked(Array.from({ length: 60 }, (_, index) => `${index}.jpg`)),
+      referenceSize: { kind: 'known', size: PHONE },
+    });
+    expect(sizeLine()).toHaveTextContent('Smaller than the size chosen');
+  });
 });

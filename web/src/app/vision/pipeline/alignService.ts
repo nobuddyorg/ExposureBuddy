@@ -34,13 +34,14 @@ export function createAlignService(
       }
       throw error;
     }
-    const { image, source } = decoded;
+    const { image, source, alignWorkers } = decoded;
     return {
       response: {
         type: 'reference-decoded',
         id: request.id,
         image,
         source,
+        alignWorkers,
         features: referenceFeatures(image),
       },
       transfer: transferablesOf({ image }),

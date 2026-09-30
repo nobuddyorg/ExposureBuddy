@@ -30,10 +30,15 @@ read, with a count. **Add more** appends to the selection, **Clear** starts
 again. A file that is not an image is left out and named in a notice.
 
 **Output size** sets how large the result is: **Small, fast** (1024 px on the
-long side), **Standard** (1600 px) or **Large, slow** (2400 px). A large
-burst may come out smaller than you chose: the app works within a fixed
-memory budget so a phone never runs out of memory, and a bigger burst means
-a smaller working size. The result never comes out larger than the photos.
+long side), **Standard** (1600 px) or **Large, slow** (2400 px). The line
+under the choice says what your burst will come out at. A large burst may
+come out smaller than you chose: the app works within a memory budget that
+depends on the device, so a phone does not run out of memory, and a bigger
+burst means a smaller working size; the line says so when that happens, and
+fewer photos give a larger result. The result never comes out larger than
+the photos, and cropping to what every photo covers can take a little more
+off. If a device runs out of memory anyway, the error says so: choose a
+smaller size or fewer photos.
 
 **Combine** starts the pipeline. It is disabled, and says how many more
 photos it needs, until the burst is big enough.

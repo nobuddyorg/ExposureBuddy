@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_BUDGET_BYTES } from '../vision/pipeline/budget';
-import type { WorkerMessage } from '../vision/pipeline/protocol';
+import type {
+  Served,
+  WorkerMessage,
+  WorkingSizing,
+} from '../vision/pipeline/protocol';
 import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/protocol';
 import { PipelineError } from './failure';
 import {
@@ -41,6 +45,8 @@ function alignHandler(): FakeHandler {
           id,
           image,
           source: { width: 80, height: 60 },
+          // The fake has memory to spare: every worker the device could run fits.
+          alignWorkers: (request.sizing as WorkingSizing).requestedWorkers,
           features: FEATURES,
         },
         transfer: [image.data.buffer],
@@ -266,7 +272,12 @@ describe('runPipeline', () => {
     await result;
     expect(factory.aligners[0].sent[0]).toMatchObject({
       type: 'decode-reference',
-      sizing: { frameCount: 3, budgetBytes, maxLongEdge: 1600 },
+      sizing: {
+        frameCount: 3,
+        budgetBytes,
+        maxLongEdge: 1600,
+        requestedWorkers: 2,
+      },
     });
   });
 
@@ -278,6 +289,7 @@ describe('runPipeline', () => {
         frameCount: 2,
         budgetBytes: DEFAULT_BUDGET_BYTES,
         maxLongEdge: 1024,
+        requestedWorkers: 2,
       },
     });
   });
@@ -304,6 +316,36 @@ describe('runPipeline', () => {
   it('never opens more aligners than there are frames to align', async () => {
     const { factory, result } = run(['ok', 'ok'], {
       options: { quality: 'low', poolSize: 4 },
+    });
+    await result;
+    expect(factory.aligners).toHaveLength(1);
+  });
+
+  it('opens as many aligners as the device could run when the budget allows them', async () => {
+    const { factory, result } = run(['ok', 'ok', 'ok', 'ok', 'ok'], {
+      options: { quality: 'low', poolSize: 3 },
+    });
+    await result;
+    expect(factory.aligners).toHaveLength(3);
+    // Only the first decoded the reference; every one of them got its features.
+    expect(
+      factory.aligners.map(
+        (port) => port.sent.map((message) => message.type)[0],
+      ),
+    ).toEqual(['decode-reference', 'set-reference', 'set-reference']);
+  });
+
+  it('opens only as many aligners as the reference decode planned for', async () => {
+    const align = alignHandler();
+    const frugal: FakeHandler = async (request, post) => {
+      const served = (await align(request, post)) as Served<WorkerMessage>;
+      if (request.type !== 'decode-reference') return served;
+      const response = { ...served.response, alignWorkers: 1 };
+      return { response, transfer: served.transfer };
+    };
+    const { factory, result } = run(['ok', 'ok', 'ok', 'ok', 'ok'], {
+      options: { quality: 'low', poolSize: 4 },
+      workers: createFakeFactory(frugal, stackHandler()),
     });
     await result;
     expect(factory.aligners).toHaveLength(1);

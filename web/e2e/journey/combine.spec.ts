@@ -50,6 +50,10 @@ test.describe('the whole journey', () => {
       .toBeGreaterThan(0);
 
     await app.picker.do.selectQuality('low');
+    // 640 px frames are never upscaled, so even the small size comes out at the photos' own size.
+    await expect(app.picker.locators.resultSize).toHaveText(
+      'Comes out up to 640 × 480 px',
+    );
     await app.picker.do.combine();
 
     await expect(app.progress()).toBeVisible();

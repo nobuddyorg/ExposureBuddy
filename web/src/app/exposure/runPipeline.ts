@@ -30,7 +30,7 @@ export interface PipelineProgress {
 
 interface PipelineOptions {
   readonly quality: OutputQuality;
-  /** Align workers to run at once; the stack worker is always one more. */
+  /** Align workers the device could run at once; the budget may allow fewer. The stack worker is always one more. */
   readonly poolSize: number;
   readonly budgetBytes?: number;
 }
@@ -96,10 +96,8 @@ export async function runPipeline(
     return lastId;
   };
 
-  const aligners: WorkerPort[] = Array.from(
-    { length: Math.max(1, Math.min(options.poolSize, total - 1)) },
-    () => workers.createAlignWorker(),
-  );
+  // One worker decodes the reference; how many more join depends on the photo's size and the budget.
+  const aligners: WorkerPort[] = [workers.createAlignWorker()];
   const stack = workers.createStackWorker();
   const terminateAligners = () => aligners.forEach((port) => port.terminate());
   const terminateAll = () => {
@@ -119,6 +117,7 @@ export async function runPipeline(
           frameCount: total,
           budgetBytes: options.budgetBytes ?? DEFAULT_BUDGET_BYTES,
           maxLongEdge: qualityLongEdge(options.quality),
+          requestedWorkers: options.poolSize,
         },
       },
       { signal },
@@ -177,6 +176,9 @@ export async function runPipeline(
       width: decoded.image.width,
       height: decoded.image.height,
     };
+    const poolSize = Math.max(1, Math.min(decoded.alignWorkers, total - 1));
+    while (aligners.length < poolSize)
+      aligners.push(workers.createAlignWorker());
     frames[reference] = {
       index: reference,
       status: 'reference',

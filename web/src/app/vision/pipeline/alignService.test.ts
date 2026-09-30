@@ -17,7 +17,7 @@ const decoders: Decoders = {
   decodeReference: async (file) => {
     if ((await file.text()) === 'bad') throw new Unreadable('nope');
     const image = toRgba(texturedScene(SCENE.width, SCENE.height, 1));
-    return { image, source: SCENE };
+    return { image, source: SCENE, alignWorkers: 2 };
   },
   decodeAt: async (file) => {
     const verdict = await file.text();
@@ -40,6 +40,7 @@ const sizing = {
   frameCount: 3,
   budgetBytes: 256 * 1024 * 1024,
   maxLongEdge: 1024,
+  requestedWorkers: 3,
 };
 
 async function primed() {
@@ -79,6 +80,7 @@ describe('createAlignService', () => {
       type: 'reference-decoded',
       id: 1,
       source: SCENE,
+      alignWorkers: 2,
     });
     const decoded = response as Extract<
       AlignWorkerResponse,
