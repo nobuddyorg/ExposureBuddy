@@ -40,6 +40,8 @@ export const MUTATE_TARGETS = [
   'src/app/exposure/pickedPhotos.ts',
   'src/app/exposure/deviceProfile.ts',
   'src/app/exposure/useReferenceSize.ts',
+  'src/app/exposure/exifDate.ts',
+  'src/app/exposure/useShotDate.ts',
   'src/app/components/Progress/labels.ts',
   'src/app/components/PipelineError/failureMessage.ts',
   'src/app/components/Result/exportFileName.ts',

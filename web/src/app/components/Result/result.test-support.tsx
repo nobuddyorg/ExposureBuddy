@@ -31,7 +31,12 @@ export function renderResult(
   localStorage.setItem('lang', 'en');
   const view = render(
     <I18nProvider>
-      <Result result={result} totalCount={6} onStartOver={onStartOver} />
+      <Result
+        result={result}
+        totalCount={6}
+        onStartOver={onStartOver}
+        shotDate={{ kind: 'undated' }}
+      />
     </I18nProvider>,
   );
   return { ...view, result, onStartOver };

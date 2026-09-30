@@ -14,7 +14,9 @@ import {
 import { isPipelineSupported } from './exposure/support';
 import { useExposure } from './exposure/useExposure';
 import { usePickedPhotos } from './exposure/usePickedPhotos';
+import { referenceIndex } from './exposure/runPipeline';
 import { useReferenceSize } from './exposure/useReferenceSize';
+import { useShotDate } from './exposure/useShotDate';
 import { browserWorkerFactory } from './exposure/workerFactory';
 import { useLeaveWarning } from './useLeaveWarning';
 import { useWakeLock } from './useWakeLock';
@@ -43,6 +45,9 @@ export default function Home() {
   const exposure = useExposure(browserWorkerFactory, device);
   const picked = usePickedPhotos();
   const referenceSize = useReferenceSize(picked.photos);
+  const shotDate = useShotDate(
+    picked.photos.at(referenceIndex(picked.photos.length)),
+  );
 
   const combine = (quality: OutputQuality) =>
     exposure.start(
@@ -82,6 +87,7 @@ export default function Home() {
           result={state.result}
           totalCount={picked.photos.length}
           onStartOver={startOver}
+          shotDate={shotDate}
         />
       )}
       {state.status === 'failed' && (

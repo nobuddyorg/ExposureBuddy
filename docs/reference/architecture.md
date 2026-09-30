@@ -23,7 +23,8 @@ web/src/app/
   components/      React only: AppShell (chrome around every page), Header, Help,
                    PhotoPicker, Progress, Result, PipelineError, ui/ (class helpers, Dialog)
   exposure/        the pipeline as the UI sees it: runPipeline (coordinator), decode, useExposure,
-                   deviceProfile (pool size and memory budget), useReferenceSize (for the picker's size line)
+                   deviceProfile (pool size and memory budget), useReferenceSize (for the picker's size line),
+                   exifDate + useShotDate (the reference photo's shooting date, written into the export)
   vision/          pure TypeScript over typed arrays -- no React, no Next, no DOM (enforced)
     image/         gray conversion, resize, box blur, integral image, RGB images in row bands
     features/      FAST corners, intensity-centroid orientation, rBRIEF descriptors, ORB front door

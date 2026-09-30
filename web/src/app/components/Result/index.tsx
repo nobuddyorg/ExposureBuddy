@@ -1,5 +1,6 @@
 'use client';
 
+import type { ShotDate } from '../../exposure/exifDate';
 import type { ExposureResult } from '../../exposure/runPipeline';
 import { useI18n } from '../../i18n/useI18n';
 import { useLeaveWarning } from '../../useLeaveWarning';
@@ -24,6 +25,8 @@ export interface ResultProps {
   totalCount: number;
   /** Back to the picker; the page disposes the result. */
   onStartOver: () => void;
+  /** When the reference photo was taken, for the saved image. */
+  shotDate: ShotDate;
 }
 
 /** The result screen: the composite on a canvas, the three sliders, compare, save, share and start over. */
@@ -31,6 +34,7 @@ export default function Result({
   result,
   totalCount,
   onStartOver,
+  shotDate,
 }: ResultProps): React.JSX.Element {
   const { t, tCount } = useI18n();
   const composite = useComposite(result);
@@ -39,7 +43,7 @@ export default function Result({
   const canvasRef = useCanvasImage(
     showingReference ? compare.reference : composite.image,
   );
-  const exporter = useExport(canvasRef);
+  const exporter = useExport(canvasRef, { shotDate });
   // Nothing is kept between visits, so an unsaved result is lost on leaving.
   useLeaveWarning(!exporter.exported);
 

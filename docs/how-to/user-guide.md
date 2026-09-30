@@ -112,6 +112,10 @@ see what the ghosts came from.
   sharing fails, the image is saved instead and the notice says so.
 - **Start over** discards the result and goes back to the picker.
 
+The saved JPEG carries one piece of metadata: the date and time the reference
+photo (the middle of the burst) was taken, so the gallery sorts it next to
+the burst. No location, no camera model, nothing else from the originals.
+
 Nothing is stored between visits: reloading the page forgets the burst and
 the result, which is why leaving asks for confirmation until the result is
 saved or shared.
