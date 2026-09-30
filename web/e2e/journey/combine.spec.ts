@@ -89,22 +89,6 @@ test.describe('the whole journey', () => {
       MAX_STILL_DIFFERENCE,
     );
 
-    for (const mode of ['trimmed', 'clipped', 'mode'] as const) {
-      await app.result.do.selectBackground(mode);
-      const pixels = await app.result.do.canvasPixels();
-      expect(
-        meanAbsoluteDifference(
-          pixels,
-          band.cropWindow,
-          expected,
-          band.frameWindow,
-          band.size,
-        ),
-        `road band vs the scene, ${mode} background, ghosts off`,
-      ).toBeLessThan(MAX_STILL_DIFFERENCE);
-    }
-    await app.result.do.selectBackground('median');
-
     await app.result.do.setSlider('ghost', 1);
     const ghosted = await app.result.do.canvasPixels();
     const ghostsOn = meanAbsoluteDifference(
@@ -122,6 +106,24 @@ test.describe('the whole journey', () => {
     await expect(app.result.locators.skipped).toHaveCount(0);
     await expectSlidersBehindTheBarOnAPhone(page, app.result);
     await expectLayoutFor(page, app.result.locators);
+
+    await app.result.do.setSlider('ghost', 0);
+    for (const mode of ['trimmed', 'clipped', 'mode'] as const) {
+      await app.result.do.selectBackground(mode);
+      const pixels = await app.result.do.canvasPixels();
+      expect(
+        meanAbsoluteDifference(
+          pixels,
+          band.cropWindow,
+          expected,
+          band.frameWindow,
+          band.size,
+        ),
+        `road band vs the scene, ${mode} background, ghosts off`,
+      ).toBeLessThan(MAX_STILL_DIFFERENCE);
+    }
+    await app.result.do.selectBackground('median');
+    await app.result.do.setSlider('ghost', 1);
 
     const beforeBlur = await app.result.do.canvasDigest();
     await app.result.do.setSlider('blur', 1);

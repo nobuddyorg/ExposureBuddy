@@ -158,6 +158,7 @@ export function initResult(page: Page): Result {
     },
     // Modes can render identical pixels on a simple scene, so wait for the canvas to hold still instead of to change.
     selectBackground: async (mode: Background) => {
+      await interactions.openControls();
       await locators.background.selectOption(mode);
       let previous = -1;
       await expect
