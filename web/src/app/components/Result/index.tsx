@@ -46,10 +46,7 @@ export default function Result({
   const sliders = toSliderValues(composite.params);
   const setSlider = (name: SliderName, value: number) =>
     composite.setParams(
-      toCompositeParams(
-        { ...sliders, [name]: value },
-        composite.params.background,
-      ),
+      toCompositeParams({ ...sliders, [name]: value }, composite.params),
     );
 
   const statusText = (status: ExportStatus): string => {
@@ -131,6 +128,10 @@ export default function Result({
             onChange={setSlider}
             onBackgroundChange={(background) =>
               composite.setParams({ ...composite.params, background })
+            }
+            trails={composite.params.trails}
+            onTrailsChange={(trails) =>
+              composite.setParams({ ...composite.params, trails })
             }
           />
         </AdjustPanel>

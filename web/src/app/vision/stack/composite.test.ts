@@ -57,6 +57,7 @@ function params(overrides: Partial<CompositeParams>): CompositeParams {
     ghostStrength: 0,
     ghostBlur: 0,
     glow: 0,
+    trails: false,
     ...overrides,
   };
 }
@@ -203,6 +204,17 @@ describe('composite', () => {
     expect(rgbOf(image.data, 20 * tall.width + 1)).toEqual([...BACKGROUND]);
   });
 
+  it('is exactly the brightest value at full strength with light trails, without blur or glow', () => {
+    const image = composite(stack, params({ ghostStrength: 1, trails: true }));
+    expect(rgbPixels(image)).toEqual(allPixels(stack.brightest));
+    // The dark block never raised the brightest value, so light trails keep the scene there.
+    const darkCenter = (DARK_RECT.y + 1) * SIZE.width + DARK_RECT.x + 1;
+    expect(rgbOf(image.data, darkCenter)).toEqual([...BACKGROUND]);
+    expect(
+      rgbOf(image.data, BRIGHT_RECT.y * SIZE.width + BRIGHT_RECT.x),
+    ).toEqual([...BRIGHT]);
+  });
+
   it('composites a stack exactly one band tall', () => {
     const band = { width: 2, height: 64 };
     const frames = [flatFrame(band, BACKGROUND), flatFrame(band, BRIGHT)];
@@ -232,6 +244,7 @@ describe('composite', () => {
             ghostStrength,
             ghostBlur,
             glow,
+            trails: false,
           });
           expect(isOpaque(image)).toBe(true);
           rgbPixels(image).forEach((value, index) => {

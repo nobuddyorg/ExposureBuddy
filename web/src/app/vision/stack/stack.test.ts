@@ -115,6 +115,16 @@ describe('stackFrames', () => {
     expect(stack.height).toBe(SIZE.height);
   });
 
+  it('keeps the brightest value of each channel on its own', () => {
+    const frames = [
+      flatFrame({ width: 1, height: 1 }, [200, 10, 30]),
+      flatFrame({ width: 1, height: 1 }, [20, 220, 40]),
+      flatFrame({ width: 1, height: 1 }, [5, 6, 250]),
+    ];
+    const result = stackFrames(frames, { rect: ONE_PIXEL });
+    expect(pixelOf(result.brightest, 0, 0)).toEqual([200, 220, 250]);
+  });
+
   it('averages the two middle values for an even frame count', () => {
     const result = stackFrames(framesOfValues([10, 200, 21, 30]), {
       rect: ONE_PIXEL,
@@ -272,6 +282,7 @@ describe('stackRows', () => {
         rows: { start, end: start + 50 },
       });
     expect(allPixels(inStrips.mean)).toEqual(allPixels(whole.mean));
+    expect(allPixels(inStrips.brightest)).toEqual(allPixels(whole.brightest));
     for (const mode of ['median', 'trimmed', 'clipped', 'mode'] as const)
       expect(allPixels(inStrips.backgrounds[mode])).toEqual(
         allPixels(whole.backgrounds[mode]),

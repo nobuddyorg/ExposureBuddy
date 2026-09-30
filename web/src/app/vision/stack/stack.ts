@@ -31,6 +31,7 @@ export function emptyStack(rect: Rect, frameCount: number): StackResult {
       mode: emptyBandedRgb(rect),
     },
     mean: emptyBandedRgb(rect),
+    brightest: emptyBandedRgb(rect),
     frameCount,
   };
 }
@@ -55,13 +56,14 @@ export function stackRows(
   if (frames.length === 0)
     throw new Error('stackRows needs at least one frame.');
   const frameCount = frames.length;
-  const { mean, backgrounds } = stack;
+  const { mean, brightest, backgrounds } = stack;
   const layers = [
     backgrounds.median,
     backgrounds.trimmed,
     backgrounds.clipped,
     backgrounds.mode,
     mean,
+    brightest,
   ];
   const red = new Uint8Array(frameCount);
   const green = new Uint8Array(frameCount);
@@ -83,19 +85,27 @@ export function stackRows(
     });
     for (let y = chunkStart; y < chunkEnd; y += 1) {
       const sourceRows = frames.map((frame) => rowOf(frame.image, rect.y + y));
-      const [medianRow, trimmedRow, clippedRow, modeRow, meanRow] = layers.map(
-        (layer) => rowOf(layer, y),
-      );
+      const [
+        medianRow,
+        trimmedRow,
+        clippedRow,
+        modeRow,
+        meanRow,
+        brightestRow,
+      ] = layers.map((layer) => rowOf(layer, y));
       for (const x of columns) {
         const source = (rect.x + x) * RGB;
         const target = x * RGB;
         for (let channel = 0; channel < RGB; channel += 1) {
           const values = channels[channel];
           let sum = 0;
+          let highest = 0;
           for (let frame = 0; frame < frameCount; frame += 1) {
             values[frame] = sourceRows[frame][source + channel];
             sum += values[frame];
+            highest = Math.max(highest, values[frame]);
           }
+          brightestRow[target + channel] = highest;
           const median = selectMedian(values, frameCount);
           medianRow[target + channel] = median;
           meanRow[target + channel] = Math.round(sum / frameCount);

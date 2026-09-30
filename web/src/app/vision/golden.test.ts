@@ -52,19 +52,79 @@ function warpedFrames(): AlignedFrame[] {
 }
 
 const COMPOSITE_PARAMS: CompositeParams[] = [
-  { background: 'median', ghostStrength: 0, ghostBlur: 0, glow: 0 },
-  { background: 'median', ghostStrength: 1, ghostBlur: 0, glow: 0 },
-  { background: 'trimmed', ghostStrength: 0.6, ghostBlur: 3, glow: 0.25 },
-  { background: 'clipped', ghostStrength: 0.35, ghostBlur: 7, glow: 0.8 },
-  { background: 'mode', ghostStrength: 0.9, ghostBlur: 20, glow: 1 },
-  { background: 'median', ghostStrength: 0, ghostBlur: 5, glow: 0.5 },
+  {
+    background: 'median',
+    ghostStrength: 0,
+    ghostBlur: 0,
+    glow: 0,
+    trails: false,
+  },
+  {
+    background: 'median',
+    ghostStrength: 1,
+    ghostBlur: 0,
+    glow: 0,
+    trails: false,
+  },
+  {
+    background: 'trimmed',
+    ghostStrength: 0.6,
+    ghostBlur: 3,
+    glow: 0.25,
+    trails: false,
+  },
+  {
+    background: 'clipped',
+    ghostStrength: 0.35,
+    ghostBlur: 7,
+    glow: 0.8,
+    trails: false,
+  },
+  {
+    background: 'mode',
+    ghostStrength: 0.9,
+    ghostBlur: 20,
+    glow: 1,
+    trails: false,
+  },
+  {
+    background: 'median',
+    ghostStrength: 0,
+    ghostBlur: 5,
+    glow: 0.5,
+    trails: false,
+  },
 ];
 
 const BIG_PARAMS: CompositeParams[] = [
-  { background: 'median', ghostStrength: 0.6, ghostBlur: 4, glow: 0.25 },
-  { background: 'mode', ghostStrength: 1, ghostBlur: 60, glow: 1 },
-  { background: 'clipped', ghostStrength: 0.2, ghostBlur: 128, glow: 0.7 },
-  { background: 'trimmed', ghostStrength: 0.5, ghostBlur: 1, glow: 0 },
+  {
+    background: 'median',
+    ghostStrength: 0.6,
+    ghostBlur: 4,
+    glow: 0.25,
+    trails: false,
+  },
+  {
+    background: 'mode',
+    ghostStrength: 1,
+    ghostBlur: 60,
+    glow: 1,
+    trails: false,
+  },
+  {
+    background: 'clipped',
+    ghostStrength: 0.2,
+    ghostBlur: 128,
+    glow: 0.7,
+    trails: false,
+  },
+  {
+    background: 'trimmed',
+    ghostStrength: 0.5,
+    ghostBlur: 1,
+    glow: 0,
+    trails: false,
+  },
 ];
 
 describe('the rewritten kernels against the digests of the originals', () => {
@@ -137,6 +197,7 @@ describe('the rewritten kernels against the digests of the originals', () => {
       ...size,
       backgrounds: { median, trimmed, clipped, mode },
       mean,
+      brightest: mean,
       frameCount: 5,
     };
     const digests = BIG_PARAMS.map((params) => {

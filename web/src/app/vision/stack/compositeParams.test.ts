@@ -32,6 +32,7 @@ describe('clampCompositeParams', () => {
       ghostStrength: 1,
       ghostBlur: MAX_GHOST_BLUR,
       glow: 0,
+      trails: false,
     };
     expect(clampCompositeParams(edge)).toEqual(edge);
   });
@@ -43,12 +44,14 @@ describe('clampCompositeParams', () => {
         ghostStrength: 1.5,
         ghostBlur: 200,
         glow: -1,
+        trails: false,
       }),
     ).toEqual({
       background: 'median' as const,
       ghostStrength: 1,
       ghostBlur: 128,
       glow: 0,
+      trails: false,
     });
     expect(
       clampCompositeParams({
@@ -56,12 +59,14 @@ describe('clampCompositeParams', () => {
         ghostStrength: -0.2,
         ghostBlur: -3,
         glow: 7,
+        trails: false,
       }),
     ).toEqual({
       background: 'median' as const,
       ghostStrength: 0,
       ghostBlur: 0,
       glow: 1,
+      trails: false,
     });
   });
 
@@ -72,6 +77,7 @@ describe('clampCompositeParams', () => {
         ghostStrength: 0.5,
         ghostBlur: 2.5,
         glow: 0,
+        trails: false,
       }).ghostBlur,
     ).toBe(3);
     expect(
@@ -80,8 +86,18 @@ describe('clampCompositeParams', () => {
         ghostStrength: 0.5,
         ghostBlur: 2.4,
         glow: 0,
+        trails: false,
       }).ghostBlur,
     ).toBe(2);
+  });
+
+  it('keeps light trails on only for a true switch', () => {
+    const base = { ...DEFAULT_COMPOSITE_PARAMS };
+    expect(clampCompositeParams({ ...base, trails: true }).trails).toBe(true);
+    expect(clampCompositeParams({ ...base, trails: false }).trails).toBe(false);
+    // A value from outside the type, as a stored or hand-made params object could carry.
+    const odd = { ...base, trails: 'yes' } as unknown as typeof base;
+    expect(clampCompositeParams(odd).trails).toBe(false);
   });
 
   it('replaces NaN with the default, field by field', () => {
@@ -91,6 +107,7 @@ describe('clampCompositeParams', () => {
         ghostStrength: NaN,
         ghostBlur: NaN,
         glow: NaN,
+        trails: false,
       }),
     ).toEqual(DEFAULT_COMPOSITE_PARAMS);
     expect(
@@ -99,12 +116,14 @@ describe('clampCompositeParams', () => {
         ghostStrength: NaN,
         ghostBlur: 2,
         glow: 0.1,
+        trails: false,
       }),
     ).toEqual({
       background: 'median' as const,
       ghostStrength: DEFAULT_COMPOSITE_PARAMS.ghostStrength,
       ghostBlur: 2,
       glow: 0.1,
+      trails: false,
     });
   });
 });
@@ -116,12 +135,14 @@ describe('defaultCompositeParams', () => {
       ghostStrength: 0.6,
       ghostBlur: 4,
       glow: 0.25,
+      trails: false,
     });
     expect(defaultCompositeParams({ frameCount: 40, longEdge: 1600 })).toEqual({
       background: 'median' as const,
       ghostStrength: 0.6,
       ghostBlur: 4,
       glow: 0.25,
+      trails: false,
     });
   });
 
@@ -131,12 +152,14 @@ describe('defaultCompositeParams', () => {
       ghostStrength: 0.48,
       ghostBlur: 5,
       glow: 0.25,
+      trails: false,
     });
     expect(defaultCompositeParams({ frameCount: 4, longEdge: 1600 })).toEqual({
       background: 'median' as const,
       ghostStrength: 0.25,
       ghostBlur: 10,
       glow: 0.25,
+      trails: false,
     });
   });
 
@@ -146,6 +169,7 @@ describe('defaultCompositeParams', () => {
       ghostStrength: 0.25,
       ghostBlur: 12,
       glow: 0.25,
+      trails: false,
     });
   });
 

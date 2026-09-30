@@ -285,6 +285,7 @@ describe('runPipeline', () => {
       ghostStrength: 1,
       ghostBlur: 0,
       glow: 0,
+      trails: false,
     });
     expect(rendered.data[0]).toBe(5);
     expect(stack.sent.at(-1)).toMatchObject({

@@ -115,6 +115,8 @@ export interface StackResult {
   readonly backgrounds: Readonly<Record<BackgroundMode, BandedRgb>>;
   /** Per-channel mean over the frames: the long exposure, ghosts included. */
   readonly mean: BandedRgb;
+  /** Per-channel maximum over the frames: every light that passed, at full strength, as light trails are shot. */
+  readonly brightest: BandedRgb;
   readonly frameCount: number;
 }
 
@@ -128,6 +130,8 @@ export interface CompositeParams {
   readonly ghostBlur: number;
   /** Bloom added where moving things were brighter than the scene, like light trails. */
   readonly glow: number;
+  /** Measure what moved by the brightest value each pixel saw instead of the mean: light trails instead of ghosts. */
+  readonly trails: boolean;
 }
 
 /** `pending` until the frame is looked at; `unreadable` when it could not be decoded at all. */

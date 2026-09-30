@@ -61,6 +61,7 @@ const MEDIAN: CompositeParams = {
   ghostStrength: 0,
   ghostBlur: 0,
   glow: 0,
+  trails: false,
 };
 
 describe('createStackSession', () => {

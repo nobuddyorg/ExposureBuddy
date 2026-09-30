@@ -122,8 +122,20 @@ describe('a burst stacked in strips', () => {
     expect(strips.alignedCount).toBe(whole.alignedCount);
     expect([strips.width, strips.height]).toEqual([whole.width, whole.height]);
     const looks: CompositeParams[] = [
-      { background: 'median', ghostStrength: 0, ghostBlur: 0, glow: 0 },
-      { background: 'mode', ghostStrength: 0.8, ghostBlur: 4, glow: 0.6 },
+      {
+        background: 'median',
+        ghostStrength: 0,
+        ghostBlur: 0,
+        glow: 0,
+        trails: false,
+      },
+      {
+        background: 'mode',
+        ghostStrength: 0.8,
+        ghostBlur: 4,
+        glow: 0.6,
+        trails: false,
+      },
     ];
     for (const params of looks)
       expect(await strips.render(params)).toEqual(await whole.render(params));

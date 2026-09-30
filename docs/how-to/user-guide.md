@@ -89,6 +89,11 @@ Three sliders then re-render the result live:
 - **Glow** adds a bloom to bright moving things, such as headlights, for
   light trails.
 
+**Light trails** above the sliders keeps the brightest value every spot saw
+instead of the average: headlights and stars stay at full strength as
+lines, where the average would fade them. The sliders keep working on the
+trails as they do on ghosts; switch it off to go back.
+
 A line on the result screen says how many photos were aligned out of how
 many, and the result's size in pixels.
 

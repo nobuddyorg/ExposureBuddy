@@ -10,7 +10,8 @@ const RGBA = 4;
 const OPAQUE = 255;
 
 /**
- * Returns the composite `background + ghostStrength × blur(mean − background) + glow × 1.5 × blur(max(mean − background, 0))`, opaque.
+ * Returns the composite `background + ghostStrength × blur(moved − background) + glow × 1.5 × blur(max(moved − background, 0))`, opaque,
+ * where `moved` is the mean, or the brightest value with `trails`.
  * One colour channel at a time, so only two single-channel float layers exist at once.
  */
 export function composite(
@@ -19,6 +20,7 @@ export function composite(
 ): RgbaImage {
   const { width, height } = stack;
   const background = stack.backgrounds[params.background];
+  const moved = params.trails ? stack.brightest : stack.mean;
   const ghost = new Float32Array(width * height);
   const glowSource = new Float32Array(width * height);
   const glowWeight = params.glow * GLOW_SCALE;
@@ -27,10 +29,10 @@ export function composite(
   for (let channel = 0; channel < RGB; channel += 1) {
     let pixel = 0;
     for (let y = 0; y < height; y += 1) {
-      const meanRow = rowOf(stack.mean, y);
+      const movedRow = rowOf(moved, y);
       const backgroundRow = rowOf(background, y);
-      for (let offset = channel; offset < meanRow.length; offset += RGB) {
-        const difference = meanRow[offset] - backgroundRow[offset];
+      for (let offset = channel; offset < movedRow.length; offset += RGB) {
+        const difference = movedRow[offset] - backgroundRow[offset];
         ghost[pixel] = difference;
         glowSource[pixel] = Math.max(difference, 0);
         pixel += 1;

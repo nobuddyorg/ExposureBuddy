@@ -23,6 +23,7 @@ interface Result {
     setSlider(slider: Slider, fraction: number): Promise<void>;
     startOver(): Promise<void>;
     toggleCompare(): Promise<void>;
+    toggleTrails(): Promise<void>;
   };
   locators: {
     buttons: {
@@ -37,6 +38,7 @@ interface Result {
     skipped: Locator;
     sliders: Record<Slider, Locator>;
     stats: Locator;
+    trails: Locator;
   };
 }
 
@@ -96,6 +98,7 @@ export function initResult(page: Page): Result {
       glow: page.getByTestId('glow-slider'),
     },
     stats: page.getByTestId('result-stats'),
+    trails: page.getByTestId('trails-toggle'),
   };
   // The composite re-renders in a worker after a debounce: wait for a change, then for two identical reads of it.
   const waitForRender = async (previousDigest: number) => {
@@ -178,6 +181,13 @@ export function initResult(page: Page): Result {
     },
     toggleCompare: async () => {
       await locators.buttons.compare.click();
+    },
+    // Returns once the canvas shows the other look.
+    toggleTrails: async () => {
+      await interactions.openControls();
+      const before = await canvasDigest(locators.canvas);
+      await locators.trails.click();
+      await waitForRender(before);
     },
   };
   return Object.assign(() => root, { locators, do: interactions });

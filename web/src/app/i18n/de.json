@@ -79,6 +79,8 @@
     "background_clipped_help": "Mittelt alles nahe am Median und verwirft Ausreißer.",
     "background_mode": "Häufigster Wert",
     "background_mode_help": "Der Wert, auf den sich die meisten Fotos einigen: kommt besser mit Stehenden klar.",
+    "trails": "Lichtspuren",
+    "trails_help": "Behält den hellsten Wert, den jede Stelle gesehen hat, wie eine Langzeitbelichtung von Scheinwerfern bei Nacht, statt des Durchschnitts.",
     "compare": "Mit einem Einzelfoto vergleichen",
     "compare_hint": "Bild gedrückt halten, um es mit einem Einzelfoto zu vergleichen",
     "adjust": "Darstellung anpassen",
@@ -112,7 +114,7 @@
     "shoot_title": "Aufnehmen",
     "shoot_body": "Das Handy abstützen oder ein Stativ nehmen. Gleicher Ausschnitt, gleiche Belichtung, 10 bis 50 Fotos. Serienbild ist ideal.",
     "sliders_title": "Die Regler",
-    "sliders_body": "Geister bestimmt, wie sichtbar Bewegtes bleibt; bei null verschwindet es. Unschärfe verwischt die Geister. Leuchten legt einen Schimmer auf helle bewegte Dinge wie Scheinwerfer.",
+    "sliders_body": "Geister bestimmt, wie sichtbar Bewegtes bleibt; bei null verschwindet es. Unschärfe verwischt die Geister. Leuchten legt einen Schimmer auf helle bewegte Dinge wie Scheinwerfer. Lichtspuren behält statt des Durchschnitts den hellsten Wert jeder Stelle, für Scheinwerfer und Sterne.",
     "privacy_title": "Datenschutz",
     "privacy_body": "Alles läuft im Browser. Fotos verlassen das Gerät nie; es gibt kein Konto und keinen Upload.",
     "shortcut_hint": "Diese Hilfe lässt sich jederzeit mit {shortcut} öffnen."

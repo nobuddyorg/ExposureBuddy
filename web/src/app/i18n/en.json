@@ -79,6 +79,8 @@
     "background_clipped_help": "Averages everything close to the median and discards outliers.",
     "background_mode": "Most common value",
     "background_mode_help": "The value most photos agree on: copes better with someone standing still.",
+    "trails": "Light trails",
+    "trails_help": "Keeps the brightest value every spot saw, as a long exposure of headlights at night does, instead of the average.",
     "compare": "Compare with one photo",
     "compare_hint": "Press and hold the image to compare it with one photo",
     "adjust": "Adjust the look",
@@ -112,7 +114,7 @@
     "shoot_title": "Shooting",
     "shoot_body": "Brace the phone or use a tripod. Same framing, same exposure, 10 to 50 photos. Burst mode is ideal.",
     "sliders_title": "The sliders",
-    "sliders_body": "Ghosts sets how visible moving things stay; at zero they vanish. Blur smears the ghosts. Glow adds a bloom to bright moving things such as headlights.",
+    "sliders_body": "Ghosts sets how visible moving things stay; at zero they vanish. Blur smears the ghosts. Glow adds a bloom to bright moving things such as headlights. Light trails keeps the brightest value every spot saw instead of the average, for headlights and stars.",
     "privacy_title": "Privacy",
     "privacy_body": "Everything runs in your browser. Photos never leave your device; there is no account and no upload.",
     "shortcut_hint": "Open this help any time with {shortcut}."

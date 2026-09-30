@@ -23,22 +23,22 @@ export const MAX_WORKING_PIXELS = 4096 * 4096;
 export const MAX_PASSES = 8;
 /** An aligned frame is RGB in bands; what it covers is two numbers per row, not a mask. */
 export const FRAME_BYTES_PER_PIXEL = 3;
-/** While stacking, on top of the frames: the reference copy kept for compare (3) and one band of the five output layers in flight. */
+/** While stacking, on top of the frames: the reference copy kept for compare (3) and one band of the six output layers in flight. */
 export const STACKING_OVERHEAD_BYTES_PER_PIXEL = 5;
 /**
- * Rendering holds the stack (four backgrounds and the mean, RGB: 15), the reference copy (3), two single-channel float layers (8),
- * the RGBA output (4) and at most one more layer's worth of saved rows in the blur (4); the frames are gone by then.
+ * Rendering holds the stack (four backgrounds, the mean and the brightest, RGB: 18), the reference copy (3), two single-channel
+ * float layers (8), the RGBA output (4) and at most one more layer's worth of saved rows in the blur (4); the frames are gone by then.
  */
-export const RENDER_BYTES_PER_PIXEL = 34;
+export const RENDER_BYTES_PER_PIXEL = 37;
 /** An align worker holds its photo decoded at full size (4) and the halved copies on the way down (at most 4/3), rounded up. */
 export const DECODE_BYTES_PER_SOURCE_PIXEL = 6;
 /** An align worker holds, at working size, the decoded RGBA (4), the warped RGB (3) and the grey copies (at most 1). */
 export const ALIGN_BYTES_PER_WORKING_PIXEL = 8;
 /**
  * A pass over strips holds, on top of the rows of the current strip, the whole reference (3) and its crop for compare (3),
- * and the stack's five layers (15) filling in strip by strip.
+ * and the stack's six layers (18) filling in strip by strip.
  */
-const STRIP_BASE_BYTES_PER_PIXEL = 21;
+const STRIP_BASE_BYTES_PER_PIXEL = 24;
 /** The share of the budget the align workers' full-size decodes may take; beyond it fewer workers run. */
 const DECODE_SHARE = 0.25;
 const MIN_WORKING_EDGE = 2;

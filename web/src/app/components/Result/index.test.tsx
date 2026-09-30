@@ -126,6 +126,7 @@ describe('Result: sliders', () => {
         ghostStrength: 0.4,
         ghostBlur: 0,
         glow: 0.25,
+        trails: false,
       }),
     );
     fireEvent.change(screen.getByTestId('blur-slider'), {
@@ -140,9 +141,47 @@ describe('Result: sliders', () => {
         ghostStrength: 0.4,
         ghostBlur: 16,
         glow: 0.8,
+        trails: false,
       }),
     );
     expect(render).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('Result: light trails', () => {
+  it('switches the composite to light trails and back, keeping the sliders', async () => {
+    const user = userEvent.setup();
+    const render = vi.fn(async () => rgbaImage(4, 3));
+    renderResult(fakeResult({ render }));
+    const toggle = screen.getByRole('switch', { name: 'Light trails' });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAccessibleDescription(/brightest value/);
+    await user.click(toggle);
+    expect(toggle).toBeChecked();
+    await waitFor(() =>
+      expect(render).toHaveBeenLastCalledWith({
+        ...FAKE_RESULT_DEFAULTS,
+        trails: true,
+      }),
+    );
+    fireEvent.change(screen.getByTestId('ghost-slider'), {
+      target: { value: '100' },
+    });
+    await waitFor(() =>
+      expect(render).toHaveBeenLastCalledWith({
+        ...FAKE_RESULT_DEFAULTS,
+        ghostStrength: 1,
+        trails: true,
+      }),
+    );
+    await user.click(toggle);
+    await waitFor(() =>
+      expect(render).toHaveBeenLastCalledWith({
+        ...FAKE_RESULT_DEFAULTS,
+        ghostStrength: 1,
+        trails: false,
+      }),
+    );
   });
 });
 

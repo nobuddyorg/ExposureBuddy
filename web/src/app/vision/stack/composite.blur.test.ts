@@ -27,6 +27,7 @@ describe('composite blur work', () => {
       ghostStrength: 0,
       ghostBlur: 4,
       glow: 0,
+      trails: false,
     });
     expect(boxBlurInPlace).not.toHaveBeenCalled();
   });
@@ -38,6 +39,7 @@ describe('composite blur work', () => {
       ghostStrength: 0.5,
       ghostBlur: 4,
       glow: 0,
+      trails: false,
     });
     expect(boxBlurInPlace).toHaveBeenCalledTimes(3);
     expect(vi.mocked(boxBlurInPlace).mock.calls.map((call) => call[2])).toEqual(
@@ -52,6 +54,7 @@ describe('composite blur work', () => {
       ghostStrength: 0,
       ghostBlur: 4,
       glow: 0.5,
+      trails: false,
     });
     expect(vi.mocked(boxBlurInPlace).mock.calls.map((call) => call[2])).toEqual(
       [14, 14, 14],

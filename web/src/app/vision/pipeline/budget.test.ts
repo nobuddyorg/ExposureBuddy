@@ -268,17 +268,17 @@ describe('peakBytes', () => {
 
   it('holds one strip of every frame and of each worker in flight over strips', () => {
     expect(peakBytes({ ...base, passes: 5 })).toBe(
-      pixels * (21 + 2 * 8) + (10 + 2) * 3 * 128 * 500 + decodes,
+      pixels * (24 + 2 * 8) + (10 + 2) * 3 * 128 * 500 + decodes,
     );
   });
 
   it('is at least what rendering holds', () => {
     expect(
       peakBytes({ ...base, frameCount: 1, alignWorkers: 0, passes: 1 }),
-    ).toBe(pixels * 34);
+    ).toBe(pixels * 37);
     expect(
       peakBytes({ ...base, frameCount: 1, alignWorkers: 0, passes: 8 }),
-    ).toBe(pixels * 34);
+    ).toBe(pixels * 37);
   });
 });
 
@@ -292,9 +292,9 @@ describe('aligningBytesPerPixel', () => {
     );
   });
 
-  it('counts three bytes per frame, 34 for rendering and 6 per source pixel for a decode', () => {
+  it('counts three bytes per frame, 37 for rendering and 6 per source pixel for a decode', () => {
     expect(FRAME_BYTES_PER_PIXEL).toBe(3);
-    expect(RENDER_BYTES_PER_PIXEL).toBe(34);
+    expect(RENDER_BYTES_PER_PIXEL).toBe(37);
     expect(DECODE_BYTES_PER_SOURCE_PIXEL).toBe(6);
   });
 });
@@ -431,7 +431,7 @@ describe('estimateOutput', () => {
     const estimate = estimateOutput({
       source: { width: 2000, height: 1000 },
       frameCount: 1,
-      budgetBytes: 34 * 1500 * 750,
+      budgetBytes: 37 * 1500 * 750,
       quality: 'high',
       requestedWorkers: 1,
     });
@@ -459,8 +459,8 @@ describe('estimateOutput', () => {
         quality: 'standard',
         requestedWorkers: 1,
       });
-    // For one frame rendering is the peak, 34 B/px: these budgets give 1598 and 1596 px after even rounding.
-    expect(at(34 * 1599 * 1599)).toMatchObject({ width: 1598, limited: false });
-    expect(at(34 * 1597 * 1597)).toMatchObject({ width: 1596, limited: true });
+    // For one frame rendering is the peak, 37 B/px: these budgets give 1598 and 1596 px after even rounding.
+    expect(at(37 * 1599 * 1599)).toMatchObject({ width: 1598, limited: false });
+    expect(at(37 * 1597 * 1597)).toMatchObject({ width: 1596, limited: true });
   });
 });

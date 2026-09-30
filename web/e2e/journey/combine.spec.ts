@@ -133,6 +133,13 @@ test.describe('the whole journey', () => {
     await app.result.do.setSlider('blur', 1);
     expect(await app.result.do.canvasDigest()).not.toBe(beforeBlur);
 
+    // Light trails keep the walker at full strength where the mean faded him; switching back restores the ghosts.
+    const ghosts = await app.result.do.canvasDigest();
+    await app.result.do.toggleTrails();
+    await expect(app.result.locators.trails).toBeChecked();
+    await app.result.do.toggleTrails();
+    await expect.poll(() => app.result.do.canvasDigest()).toBe(ghosts);
+
     const composite = await app.result.do.canvasDigest();
     await app.result.do.toggleCompare();
     await expect.poll(() => app.result.do.canvasDigest()).not.toBe(composite);

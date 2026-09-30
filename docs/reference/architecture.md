@@ -60,7 +60,7 @@ One burst goes through five stages. Each stage reports progress to the UI as
    from the reference photo's dimensions, the frame count and the device's
    memory budget (`vision/pipeline/deviceBudget.ts`, `budget.ts`): the
    pipeline's peak,
-   `max(frameCount × 3 + 5, 34) × width × height` bytes (every aligned
+   `max(frameCount × 3 + 5, 37) × width × height` bytes (every aligned
    frame as RGB, plus the reference copy and one band of output; or the
    stack and two float layers once the frames are gone), must fit the budget, and
    the long edge never exceeds the chosen output size (small 1024, standard
@@ -90,7 +90,8 @@ One burst goes through five stages. Each stage reports progress to the UI as
    (`StackResult.backgrounds`: the **median**, a **trimmed** mean of the
    middle half, a **clipped** mean of everything within three MAD-sigmas of
    the median, and the median of the densest 32-level window, the **mode**)
-   and the **mean** (the long exposure). Stacking walks the crop band by
+   the **mean** (the long exposure) and the **brightest** value (light
+   trails). Stacking walks the crop band by
    band and frees each frame's band once its rows are done, so the frames
    shrink while the result grows.
 
@@ -106,8 +107,9 @@ One burst goes through five stages. Each stage reports progress to the UI as
    per strip.
 5. **Composite.** From those buffers the result is rendered for the current
    background choice and slider values: `background + ghostStrength ×
-   blur(mean − background) + glow × blur(max(mean − background, 0))`, where
-   `background` is the estimate picked in `CompositeParams.background`. It
+   blur(moved − background) + glow × blur(max(moved − background, 0))`, where
+   `background` is the estimate picked in `CompositeParams.background` and
+   `moved` is the mean, or the brightest value with `CompositeParams.trails`. It
    works one colour channel at a time with the blur done in place, so only
    two single-channel float layers exist at once. It re-runs on every slider
    change in the stack worker, so the aligned frames are never touched again,
@@ -121,16 +123,16 @@ link.
 
 Everything at working resolution lives in one worker as RGB `Uint8ClampedArray`
 bands of 64 rows; the main thread only forwards transferable buffers. Peak
-memory is `max(frameCount × 3 + 5, 34)` bytes per working pixel
+memory is `max(frameCount × 3 + 5, 37)` bytes per working pixel
 (`peakBytesPerPixel`):
 
 - while stacking, every aligned frame (3 bytes, no alpha and no coverage
   mask: a frame's coverage is two numbers per row), plus the copy of the
   reference that compare shows and one band of output in flight (5). The
-  stack's own 15 bytes (four backgrounds and the mean) never add to that
+  stack's own 18 bytes (four backgrounds, the mean and the brightest) never add to that
   peak: each output band is allocated as the frames' bands above it are
   freed.
-- while rendering, the stack (15), the reference copy (3), two
+- while rendering, the stack (18), the reference copy (3), two
   single-channel float layers (8), the RGBA output (4) and at most a layer's
   worth of rows the blur saves before overwriting them (4), by which time the
   frames have been released.
@@ -189,7 +191,7 @@ One route. Three states of one page, driven by `useExposure`:
 | --- | --- | --- |
 | Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-thumb`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
 | Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
-| Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `adjust-toggle`, `background-select`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
+| Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
 | Failed | `PipelineError` | `pipeline-error`, `retry` |
 
 Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),
