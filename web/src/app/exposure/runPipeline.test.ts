@@ -242,6 +242,7 @@ describe('runPipeline', () => {
     expect(progress.at(-1)?.frames[2].status).toBe('reference');
 
     const rendered = await exposure.render({
+      background: 'median',
       ghostStrength: 1,
       ghostBlur: 0,
       glow: 0,
@@ -249,7 +250,7 @@ describe('runPipeline', () => {
     expect(rendered.data[0]).toBe(5);
     expect(stack.sent.at(-1)).toMatchObject({
       type: 'render',
-      params: { ghostStrength: 1 },
+      params: { background: 'median', ghostStrength: 1 },
     });
     const reference = await exposure.renderReference();
     expect(reference.data[0]).toBe(7);

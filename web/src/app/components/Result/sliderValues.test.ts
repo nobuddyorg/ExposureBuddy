@@ -19,7 +19,10 @@ describe('slider values', () => {
   });
 
   it('maps percent to a 0–1 strength and keeps the blur in pixels', () => {
-    expect(toCompositeParams({ ghost: 50, blur: 12, glow: 100 })).toEqual({
+    expect(
+      toCompositeParams({ ghost: 50, blur: 12, glow: 100 }, 'median'),
+    ).toEqual({
+      background: 'median',
       ghostStrength: 0.5,
       ghostBlur: 12,
       glow: 1,
@@ -27,7 +30,10 @@ describe('slider values', () => {
   });
 
   it('clamps a value past the slider range instead of passing it on', () => {
-    expect(toCompositeParams({ ghost: 150, blur: -3, glow: 200 })).toEqual({
+    expect(
+      toCompositeParams({ ghost: 150, blur: -3, glow: 200 }, 'median'),
+    ).toEqual({
+      background: 'median',
       ghostStrength: 1,
       ghostBlur: 0,
       glow: 1,
@@ -42,7 +48,9 @@ describe('slider values', () => {
     });
     fc.assert(
       fc.property(values, (sliders) => {
-        expect(toSliderValues(toCompositeParams(sliders))).toEqual(sliders);
+        expect(toSliderValues(toCompositeParams(sliders, 'median'))).toEqual(
+          sliders,
+        );
       }),
     );
   });

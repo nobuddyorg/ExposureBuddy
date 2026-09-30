@@ -77,7 +77,7 @@ The numbers the pipeline is sized by, each in the module that owns it.
 | --- | --- | --- |
 | Photos per burst | the picker | 100; extra files are dropped with a notice (`picker.too_many`) |
 | Minimum photos | `web/src/app/exposure/runPipeline.ts` | 2; the picker's Combine button says how many it still needs |
-| Memory budget | `web/src/app/vision/pipeline/budget.ts` `DEFAULT_BUDGET_BYTES` | 256 MiB for the peak, `max(frameCount × 5 + 10, 80) × width × height` bytes at the working size (`peakBytesPerPixel`) |
+| Memory budget | `web/src/app/vision/pipeline/budget.ts` `DEFAULT_BUDGET_BYTES` | 256 MiB for the peak, `max(frameCount × 5 + 22, 80) × width × height` bytes at the working size (`peakBytesPerPixel`) |
 | Output long edge | same file, `qualityLongEdge` | Small 1024, Standard 1600, Large 2400 px; never upscaled |
 | Smallest working long edge | same file, `MIN_LONG_EDGE` | 640 px: the budget never pushes below it; a burst that still does not fit is refused, not crashed |
 | Alignment long edge | same file, `ALIGNMENT_LONG_EDGE` | 960 px: the grayscale copy features are detected on |

@@ -8,6 +8,7 @@ import {
 import type { DecodedPng } from '../png';
 
 type Slider = 'ghost' | 'blur' | 'glow';
+type Background = 'median' | 'trimmed' | 'clipped' | 'mode';
 
 interface Result {
   (): Locator;
@@ -18,6 +19,7 @@ interface Result {
     holdCompare(): Promise<void>;
     openControls(): Promise<void>;
     releaseCompare(): Promise<void>;
+    selectBackground(mode: Background): Promise<void>;
     setSlider(slider: Slider, fraction: number): Promise<void>;
     startOver(): Promise<void>;
     toggleCompare(): Promise<void>;
@@ -30,6 +32,7 @@ interface Result {
       share: Locator;
       startOver: Locator;
     };
+    background: Locator;
     canvas: Locator;
     skipped: Locator;
     sliders: Record<Slider, Locator>;
@@ -77,6 +80,7 @@ export function initResult(page: Page): Result {
     .getByRole('main')
     .filter({ has: page.getByTestId('result-canvas') });
   const locators = {
+    background: page.getByTestId('background-select'),
     buttons: {
       adjust: page.getByTestId('adjust-toggle'),
       compare: page.getByTestId('compare-toggle'),
@@ -151,6 +155,22 @@ export function initResult(page: Page): Result {
       const before = await canvasDigest(locators.canvas);
       const changed = await setRangeValue(locators.sliders[slider], fraction);
       if (changed) await waitForRender(before);
+    },
+    // Modes can render identical pixels on a simple scene, so wait for the canvas to hold still instead of to change.
+    selectBackground: async (mode: Background) => {
+      await locators.background.selectOption(mode);
+      let previous = -1;
+      await expect
+        .poll(
+          async () => {
+            const digest = await canvasDigest(locators.canvas);
+            const settled = digest === previous;
+            previous = digest;
+            return settled;
+          },
+          { intervals: [250], timeout: 15_000 },
+        )
+        .toBe(true);
     },
     startOver: async () => {
       await locators.buttons.startOver.click();

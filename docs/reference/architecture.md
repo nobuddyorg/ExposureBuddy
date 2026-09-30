@@ -56,7 +56,7 @@ One burst goes through five stages. Each stage reports progress to the UI as
    onto an `OffscreenCanvas` at the *working size*. The working size comes
    from the first frame's dimensions, the frame count and a memory budget
    (`vision/pipeline/budget.ts`): the pipeline's peak,
-   `max(frameCount × 5 + 10, 80) × width × height` bytes (every aligned
+   `max(frameCount × 5 + 22, 80) × width × height` bytes (every aligned
    frame as RGBA plus its coverage mask, the stack's buffers on top; or the
    render's float layers once the frames are gone), must fit the budget, and
    the long edge never exceeds the chosen output size (small 1024, standard
@@ -78,13 +78,17 @@ One burst goes through five stages. Each stage reports progress to the UI as
    overlap flattens auto-exposure flicker between frames. A frame with too
    few inliers is **skipped**, not guessed at.
 4. **Stack.** A dedicated worker keeps every aligned frame and computes, per
-   pixel over the frames that cover it: the **median** (the static scene),
+   pixel over the frames that cover it: four estimates of the static scene
+   (`StackResult.backgrounds`: the **median**, a **trimmed** mean of the
+   middle half, a **clipped** mean of everything within three MAD-sigmas of
+   the median, and the median of the densest 32-level window, the **mode**),
    the **mean** (the long exposure) and the largest per-channel **mean
    absolute deviation** from the median (how much the pixel moved). The
    largest rectangle every aligned frame covers becomes the output crop.
-5. **Composite.** From those three buffers the result is rendered for the
-   current slider values: `median + ghostStrength × blur(mean − median) +
-   glow × blur(max(mean − median, 0))`. It re-runs on every slider change in
+5. **Composite.** From those buffers the result is rendered for the current
+   background choice and slider values: `background + ghostStrength ×
+   blur(mean − background) + glow × blur(max(mean − background, 0))`, where
+   `background` is the estimate picked in `CompositeParams.background`. It re-runs on every slider change in
    the stack worker, so the aligned frames are never touched again, and the
    canvas shows the new frame within a debounce.
 
@@ -96,7 +100,7 @@ link.
 
 Everything at working resolution is a `Uint8ClampedArray` in one worker; the
 main thread only forwards transferable buffers. Peak memory is
-`max(frameCount × 5 + 10, 80)` bytes per working pixel: while stacking, every
+`max(frameCount × 5 + 22, 80)` bytes per working pixel: while stacking, every
 aligned frame (RGBA plus a coverage mask) and the stack's own buffers; while
 rendering, the float layers and scratch of the composite, by which time the
 frames have been released. The budget defaults to 256 MiB and is the input to
@@ -134,7 +138,7 @@ One route. Three states of one page, driven by `useExposure`:
 | --- | --- | --- |
 | Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-thumb`, `photo-count`, `clear-photos`, `quality-select`, `combine`, `picker-notice` |
 | Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
-| Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `adjust-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
+| Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `adjust-toggle`, `background-select`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
 | Failed | `PipelineError` | `pipeline-error`, `retry` |
 
 Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),

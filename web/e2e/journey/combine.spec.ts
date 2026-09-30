@@ -89,6 +89,22 @@ test.describe('the whole journey', () => {
       MAX_STILL_DIFFERENCE,
     );
 
+    for (const mode of ['trimmed', 'clipped', 'mode'] as const) {
+      await app.result.do.selectBackground(mode);
+      const pixels = await app.result.do.canvasPixels();
+      expect(
+        meanAbsoluteDifference(
+          pixels,
+          band.cropWindow,
+          expected,
+          band.frameWindow,
+          band.size,
+        ),
+        `road band vs the scene, ${mode} background, ghosts off`,
+      ).toBeLessThan(MAX_STILL_DIFFERENCE);
+    }
+    await app.result.do.selectBackground('median');
+
     await app.result.do.setSlider('ghost', 1);
     const ghosted = await app.result.do.canvasPixels();
     const ghostsOn = meanAbsoluteDifference(

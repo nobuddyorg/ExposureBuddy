@@ -8,7 +8,7 @@ const RGB = 3;
 const RGBA = 4;
 const OPAQUE = 255;
 
-/** Returns the `rect`-sized composite `median + ghostStrength × blur(mean − median) + glow × 1.5 × blur(max(mean − median, 0))`, opaque; reads only pixels inside `rect`. */
+/** Returns the `rect`-sized composite `background + ghostStrength × blur(mean − background) + glow × 1.5 × blur(max(mean − background, 0))`, opaque; reads only pixels inside `rect`. */
 export function composite(
   stack: StackResult,
   params: CompositeParams,
@@ -17,6 +17,7 @@ export function composite(
   const { width, height } = rect;
   const pixelCount = width * height;
   const rowStarts = rectRowStarts(stack.width, rect);
+  const background = stack.backgrounds[params.background];
   const ghost = new Float32Array(pixelCount * RGB);
   const glowSource = new Float32Array(pixelCount * RGB);
   let target = 0;
@@ -25,7 +26,7 @@ export function composite(
     for (let x = 0; x < width; x += 1) {
       for (let channel = 0; channel < RGB; channel += 1) {
         const difference =
-          stack.mean[source + channel] - stack.median[source + channel];
+          stack.mean[source + channel] - background[source + channel];
         ghost[target] = difference;
         glowSource[target] = Math.max(difference, 0);
         target += 1;
@@ -54,8 +55,8 @@ export function composite(
   let rgb = 0;
   let rgba = 0;
   for (const rowStart of rowStarts) {
-    // Each row starts as the median; the ghost and the glow are added in place.
-    output.set(stack.median.subarray(rowStart, rowStart + rowBytes), rgba);
+    // Each row starts as the chosen background; the ghost and the glow are added in place.
+    output.set(background.subarray(rowStart, rowStart + rowBytes), rgba);
     for (let x = 0; x < width; x += 1) {
       output[rgba + 3] = OPAQUE;
       for (let channel = 0; channel < RGB; channel += 1) {

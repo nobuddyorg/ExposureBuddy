@@ -2,24 +2,30 @@
 
 import { useI18n } from '../../i18n/useI18n';
 import { cardClasses } from '../ui/cardClasses';
+import { BackgroundSelect } from './BackgroundSelect';
 import { ParamSlider } from './ParamSlider';
+import type { BackgroundMode } from '../../vision/types';
 import { type SliderName, type SliderValues } from './sliderValues';
 
 export interface SliderPanelProps {
   values: SliderValues;
+  background: BackgroundMode;
   /** The top of each slider. */
   max: Record<SliderName, number>;
   /** While comparing with one photo the sliders have nothing to drive. */
   disabled: boolean;
   onChange: (name: SliderName, value: number) => void;
+  onBackgroundChange: (mode: BackgroundMode) => void;
 }
 
-/** The card with the three composite sliders: ghosts, blur and glow. */
+/** The card with the background choice and the three composite sliders: ghosts, blur and glow. */
 export function SliderPanel({
   values,
+  background,
   max,
   disabled,
   onChange,
+  onBackgroundChange,
 }: SliderPanelProps) {
   const { t } = useI18n();
   // Spelled out per slider: the i18n parity test only credits literal t('…') keys.
@@ -49,6 +55,11 @@ export function SliderPanel({
 
   return (
     <div className={cardClasses('space-y-1 p-4 sm:p-5')}>
+      <BackgroundSelect
+        value={background}
+        disabled={disabled}
+        onChange={onBackgroundChange}
+      />
       {sliders.map((slider) => (
         <ParamSlider
           key={slider.name}

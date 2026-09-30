@@ -52,6 +52,55 @@ function progressOf(size: Size): number[] {
   return fractions;
 }
 
+describe('stackFrames backgrounds', () => {
+  it('aliases the median buffer and fills every mode with opaque pixels', () => {
+    const result = stackFrames(burstWithPerson(5));
+    expect(result.backgrounds.median).toBe(result.median);
+    for (const buffer of Object.values(result.backgrounds)) {
+      expect(buffer[3]).toBe(255);
+    }
+  });
+
+  it('gives the static background in every mode where a person covers a minority of frames', () => {
+    const result = stackFrames(burstWithPerson(5));
+    const pixel = (PERSON_RECT.y * SIZE.width + PERSON_RECT.x) * 4;
+    expect(
+      Array.from(result.backgrounds.clipped.subarray(pixel, pixel + 3)),
+    ).toEqual(BACKGROUND);
+    expect(
+      Array.from(result.backgrounds.mode.subarray(pixel, pixel + 3)),
+    ).toEqual(BACKGROUND);
+  });
+
+  it('keeps each channel of each pixel in its own place in every mode', () => {
+    const colors: Rgb[] = [
+      [10, 20, 30],
+      [40, 50, 60],
+      [70, 80, 90],
+    ];
+    const frames = Array.from({ length: 5 }, () =>
+      flatFrame({ width: 3, height: 1 }, [0, 0, 0]),
+    );
+    for (const { image } of frames) {
+      colors.forEach((color, x) =>
+        paintRect(image, { x, y: 0, width: 1, height: 1 }, color),
+      );
+    }
+    const expected = colors.flatMap((color) => [...color, 255]);
+    for (const buffer of Object.values(stackFrames(frames).backgrounds)) {
+      expect(Array.from(buffer)).toEqual(expected);
+    }
+  });
+
+  it('leaves uncovered pixels empty in every mode', () => {
+    const frame = flatFrame({ width: 2, height: 1 }, [50, 60, 70]);
+    frame.coverage[1] = 0;
+    for (const buffer of Object.values(stackFrames([frame]).backgrounds)) {
+      expect(Array.from(buffer.subarray(4, 8))).toEqual([0, 0, 0, 0]);
+    }
+  });
+});
+
 describe('stackFrames', () => {
   const stack = stackFrames(burstWithPerson(5));
   const pixelCount = SIZE.width * SIZE.height;

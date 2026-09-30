@@ -122,6 +122,7 @@ describe('Result: sliders', () => {
     expect(screen.getAllByRole('status')[0]).toHaveTextContent('40 %');
     await waitFor(() =>
       expect(render).toHaveBeenLastCalledWith({
+        background: 'median',
         ghostStrength: 0.4,
         ghostBlur: 0,
         glow: 0.25,
@@ -135,6 +136,7 @@ describe('Result: sliders', () => {
     });
     await waitFor(() =>
       expect(render).toHaveBeenLastCalledWith({
+        background: 'median',
         ghostStrength: 0.4,
         ghostBlur: 16,
         glow: 0.8,
