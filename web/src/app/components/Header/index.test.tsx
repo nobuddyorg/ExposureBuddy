@@ -33,6 +33,14 @@ describe('Header', () => {
     expect(screen.getByText('Buddy').className).toContain('text-accent');
   });
 
+  it('underlines only "Exposure", in the text colour', () => {
+    renderHeader();
+    expect(screen.getByText('Exposure').className).toContain(
+      'border-b-2 border-foreground',
+    );
+    expect(screen.getByText('Buddy').className).not.toContain('border-b');
+  });
+
   it('names its three controls for assistive tech', () => {
     renderHeader();
     expect(screen.getByRole('button', { name: 'Theme: System' })).toBeVisible();
