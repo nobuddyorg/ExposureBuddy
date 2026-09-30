@@ -55,13 +55,14 @@ test.describe('when the burst is not a burst', () => {
     await app.picker.do.selectQuality('high');
     await app.picker.do.combine();
 
-    // A 640 px burst is never upscaled, so even 'high' can finish before the click lands: then the result is the end state.
-    const cancelled = await app.progress.do.tryCancel();
-    if (cancelled) {
-      await expect(app.picker()).toBeVisible();
+    // A 640 px burst is never upscaled, so even 'high' can finish before the click lands, and a click the unmounting
+    // Cancel button no longer takes lands on the result screen: the screen that shows, not the click, says which it was.
+    await app.progress.do.tryCancel();
+    await expect(app.picker().or(app.result())).toBeVisible({
+      timeout: PIPELINE_TIMEOUT,
+    });
+    if (await app.picker().isVisible()) {
       await expect(app.result()).toBeHidden();
-    } else {
-      await expect(app.result()).toBeVisible({ timeout: PIPELINE_TIMEOUT });
     }
   });
 });
