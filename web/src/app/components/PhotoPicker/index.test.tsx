@@ -94,7 +94,7 @@ describe('PhotoPicker, empty', () => {
     expect(screen.queryByTestId('photo-count')).toBeNull();
   });
 
-  it('keeps the app name and tagline as the heading', () => {
+  it('keeps the tagline as the heading, the app name living in the header', () => {
     renderPicker();
     expect(
       screen.getByRole('heading', {
@@ -102,7 +102,7 @@ describe('PhotoPicker, empty', () => {
         name: 'Long exposures from a burst of phone photos',
       }),
     ).toBeVisible();
-    expect(screen.getByText('ExposureBuddy')).toBeVisible();
+    expect(screen.queryByText('ExposureBuddy')).toBeNull();
   });
 
   it('opens the hidden file input from the choose button', async () => {

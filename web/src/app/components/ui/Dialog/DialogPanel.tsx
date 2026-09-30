@@ -13,7 +13,7 @@ export type DialogTestIds = {
   close: string;
 };
 
-/** The centred (bottom sheet on phones) panel with a titled header and a close button; mounted only while open. */
+/** The centred (full screen on phones) panel with a titled header and a close button; mounted only while open. */
 export function DialogPanel({
   title,
   closeLabel,
@@ -34,14 +34,14 @@ export function DialogPanel({
 
   return (
     // pointer-events-none lets a click beside the panel fall through to the backdrop underneath.
-    <div className="pointer-events-none fixed inset-0 z-modal flex items-end justify-center sm:items-center sm:p-4">
+    <div className="pointer-events-none fixed inset-0 z-modal flex items-stretch justify-center sm:items-center sm:p-4">
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         data-testid={testIds.dialog}
-        className="fade-up card-lift pointer-events-auto flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-card text-foreground ring-1 ring-border sm:rounded-2xl"
+        className="fade-up card-lift pointer-events-auto flex h-dvh w-full flex-col overflow-hidden bg-card pt-[env(safe-area-inset-top)] text-foreground ring-1 ring-border sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:rounded-2xl sm:pt-0"
       >
         <div className="flex items-center justify-between gap-3 border-b border-border py-2 pr-2 pl-5">
           <h2 id={titleId} className="font-display text-base font-semibold">
@@ -55,7 +55,7 @@ export function DialogPanel({
             <Icon name="close" />
           </IconButton>
         </div>
-        <div className="overflow-y-auto px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {children}
         </div>
       </div>

@@ -36,7 +36,7 @@ describe('canvasToJpeg', () => {
 });
 
 describe('saveBlob', () => {
-  it('clicks a transient download anchor for the blob and revokes its URL afterwards', () => {
+  it('clicks a transient download anchor for the blob and revokes its URL afterwards', async () => {
     vi.useFakeTimers();
     const createObjectURL = vi.fn(() => 'blob:exposure');
     const revokeObjectURL = vi.fn();
@@ -50,7 +50,7 @@ describe('saveBlob', () => {
     });
     const blob = new Blob(['x'], { type: 'image/jpeg' });
 
-    saveBlob(blob, 'shot.jpg');
+    await saveBlob(blob, 'shot.jpg');
 
     expect(createObjectURL).toHaveBeenCalledWith(blob);
     expect(clicked).toHaveLength(1);
@@ -66,5 +66,36 @@ describe('saveBlob', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:exposure');
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it('writes through the save dialog where the browser has one', async () => {
+    const write = vi.fn(async () => {});
+    const close = vi.fn(async () => {});
+    const showSaveFilePicker = vi.fn(async () => ({
+      createWritable: async () => ({ write, close }),
+    }));
+    vi.stubGlobal('showSaveFilePicker', showSaveFilePicker);
+    const blob = new Blob(['x'], { type: 'image/jpeg' });
+
+    await saveBlob(blob, 'shot.jpg');
+
+    expect(showSaveFilePicker).toHaveBeenCalledWith({
+      suggestedName: 'shot.jpg',
+      types: [{ accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+    });
+    expect(write).toHaveBeenCalledWith(blob);
+    expect(close).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
+
+  it('rejects when the save dialog is cancelled', async () => {
+    vi.stubGlobal(
+      'showSaveFilePicker',
+      vi.fn(() => Promise.reject(new DOMException('cancelled', 'AbortError'))),
+    );
+    await expect(
+      saveBlob(new Blob(['x'], { type: 'image/jpeg' }), 'shot.jpg'),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    vi.unstubAllGlobals();
   });
 });

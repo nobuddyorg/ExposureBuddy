@@ -109,6 +109,11 @@ test.describe('the whole journey', () => {
     await app.result.do.toggleCompare();
     await expect.poll(() => app.result.do.canvasDigest()).toBe(composite);
 
+    await app.result.do.holdCompare();
+    await expect.poll(() => app.result.do.canvasDigest()).not.toBe(composite);
+    await app.result.do.releaseCompare();
+    await expect.poll(() => app.result.do.canvasDigest()).toBe(composite);
+
     const download = await app.result.do.download();
     expect(download.suggestedFilename()).toMatch(/\.jpg$/);
     const bytes = readFileSync(await download.path());

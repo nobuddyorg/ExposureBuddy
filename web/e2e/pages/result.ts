@@ -15,6 +15,8 @@ interface Result {
     canvasDigest(): Promise<number>;
     canvasPixels(): Promise<DecodedPng>;
     download(): Promise<Download>;
+    holdCompare(): Promise<void>;
+    releaseCompare(): Promise<void>;
     setSlider(slider: Slider, fraction: number): Promise<void>;
     startOver(): Promise<void>;
     toggleCompare(): Promise<void>;
@@ -111,11 +113,24 @@ export function initResult(page: Page): Result {
         return { width: image.width, height: image.height, data: image.data };
       }),
     download: async () => {
+      // A headless save dialog never resolves: take the `<a download>` path, which Playwright can observe.
+      await page.evaluate(() =>
+        Object.defineProperty(window, 'showSaveFilePicker', {
+          value: undefined,
+        }),
+      );
       const [download] = await Promise.all([
         page.waitForEvent('download'),
         locators.buttons.download.click(),
       ]);
       return download;
+    },
+    holdCompare: async () => {
+      await locators.canvas.hover();
+      await page.mouse.down();
+    },
+    releaseCompare: async () => {
+      await page.mouse.up();
     },
     // `fraction` is 0–1 of the input's own range; returns once the canvas shows the new value.
     setSlider: async (slider: Slider, fraction: number) => {

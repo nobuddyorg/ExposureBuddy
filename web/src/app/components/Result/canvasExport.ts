@@ -15,10 +15,37 @@ export function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-/** Offers `blob` to the browser's download flow under `name` through a transient `<a download>` click. */
 export const REVOKE_DELAY_MS = 60_000;
 
-export function saveBlob(blob: Blob, name: string): void {
+interface SavePicker {
+  showSaveFilePicker?: (options: {
+    suggestedName: string;
+    types: { accept: Record<string, string[]> }[];
+  }) => Promise<{
+    createWritable: () => Promise<{
+      write: (data: Blob) => Promise<void>;
+      close: () => Promise<void>;
+    }>;
+  }>;
+}
+
+/**
+ * Saves `blob` under `name`: through the save dialog where the browser has one, which rejects with an
+ * AbortError when cancelled; elsewhere through a transient `<a download>` click, which cannot report a cancel.
+ */
+export async function saveBlob(blob: Blob, name: string): Promise<void> {
+  const { showSaveFilePicker } = window as SavePicker;
+  if (!showSaveFilePicker) return downloadBlob(blob, name);
+  const handle = await showSaveFilePicker.call(window, {
+    suggestedName: name,
+    types: [{ accept: { [JPEG_TYPE]: ['.jpg', '.jpeg'] } }],
+  });
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+function downloadBlob(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

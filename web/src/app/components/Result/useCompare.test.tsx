@@ -17,6 +17,34 @@ describe('useCompare', () => {
     expect(renderReference).not.toHaveBeenCalled();
   });
 
+  it('shows the photo only while the image is held past the short delay', () => {
+    vi.useFakeTimers();
+    const result = fakeResult({ renderReference: async () => rgbaImage(1, 1) });
+    const { result: hook } = renderHook(() => useCompare(result));
+
+    act(() => hook.current.hold(true));
+    act(() => void vi.advanceTimersByTime(149));
+    expect(hook.current.comparing).toBe(false);
+    act(() => void vi.advanceTimersByTime(1));
+    expect(hook.current.comparing).toBe(true);
+    expect(hook.current.toggled).toBe(false);
+    act(() => hook.current.hold(false));
+    expect(hook.current.comparing).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it('never shows the photo when the touch ends before the delay', () => {
+    vi.useFakeTimers();
+    const result = fakeResult({ renderReference: async () => rgbaImage(1, 1) });
+    const { result: hook } = renderHook(() => useCompare(result));
+
+    act(() => hook.current.hold(true));
+    act(() => hook.current.hold(false));
+    act(() => void vi.advanceTimersByTime(500));
+    expect(hook.current.comparing).toBe(false);
+    vi.useRealTimers();
+  });
+
   it('fetches the reference on the first press and keeps it for later ones', async () => {
     const reference = rgbaImage(4, 3, 200);
     const renderReference = vi.fn(async () => reference);

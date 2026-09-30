@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "ExposureBuddy",
     "tagline": "Long exposures from a burst of phone photos",
     "description": "Turn a burst of phone photos into one long exposure: the scene stays sharp, whatever moved fades into a ghost. Runs entirely in your browser."
   },
@@ -66,6 +65,7 @@
     "glow": "Glow",
     "glow_help": "Light-trail bloom on bright moving things",
     "compare": "Compare with one photo",
+    "compare_hint": "Press and hold the image to compare it with one photo",
     "download": "Save image",
     "share": "Share",
     "start_over": "Start over",
