@@ -41,7 +41,9 @@ function renderProgress(overrides: Partial<PipelineProgress> = {}) {
 describe('Progress', () => {
   it('names the screen and the stage, with the count', () => {
     renderProgress();
-    expect(screen.getByRole('heading', { name: 'Combining' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Combining' }),
+    ).toBeVisible();
     expect(screen.getByTestId('progress-stage')).toHaveTextContent(
       'Aligning photos',
     );

@@ -166,6 +166,9 @@ describe('PhotoPicker, with photos', () => {
     expect(thumbs[2]).toHaveAttribute('alt', 'Photo 3');
     expect(thumbs[0]).toHaveAttribute('src', 'blob:thumb');
     expect(thumbs[0]).toHaveAttribute('loading', 'lazy');
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Your photos' }),
+    ).toBeVisible();
     expect(screen.getByTestId('photo-count')).toHaveTextContent('3 photos');
     expect(screen.getByRole('button', { name: 'Add more' })).toHaveAttribute(
       'data-testid',

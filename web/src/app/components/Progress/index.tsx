@@ -33,9 +33,9 @@ export default function Progress({ progress, onCancel }: ProgressProps) {
       )}
     >
       <div className="flex items-start justify-between gap-4">
-        <h2 id={titleId} className="font-display text-2xl font-semibold">
+        <h1 id={titleId} className="font-display text-2xl font-semibold">
           {t('progress.title')}
-        </h2>
+        </h1>
         <span
           aria-hidden="true"
           className="mt-1 h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-control-border border-t-accent"

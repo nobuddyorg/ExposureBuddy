@@ -101,7 +101,7 @@ export default function PhotoPicker({
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <div>
                 <h2 id={titleId} className="font-display text-lg font-semibold">
-                  {t('picker.title')}
+                  {t('picker.title_selected')}
                 </h2>
                 <p
                   data-testid="photo-count"

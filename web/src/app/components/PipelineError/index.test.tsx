@@ -28,7 +28,7 @@ describe('PipelineError', () => {
     const alert = screen.getByRole('alert');
     expect(alert).toHaveAttribute('data-testid', 'pipeline-error');
     expect(
-      screen.getByRole('heading', { name: 'That did not work' }),
+      screen.getByRole('heading', { level: 1, name: 'That did not work' }),
     ).toBeVisible();
     expect(screen.getByRole('button', { name: 'Try again' })).toHaveAttribute(
       'data-testid',

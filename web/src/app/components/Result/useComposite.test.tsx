@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_COMPOSITE_PARAMS } from '../../vision/stack/compositeParams';
+import { defaultCompositeParams } from '../../vision/stack/compositeParams';
 import type { RgbaImage } from '../../vision/types';
 import { deferred, rgbaImage } from './canvas.test-support';
 import { fakeResult } from './result.test-support';
@@ -14,14 +14,20 @@ const tick = () =>
 const PARAMS_A = { ghostStrength: 0.1, ghostBlur: 1, glow: 0.1 };
 const PARAMS_B = { ghostStrength: 0.9, ghostBlur: 9, glow: 0.9 };
 
+// fakeResult: 5 aligned frames, 4 × 3 px.
+const FAKE_RESULT_DEFAULTS = defaultCompositeParams({
+  frameCount: 5,
+  longEdge: 4,
+});
+
 describe('useComposite', () => {
   it('renders the defaults at once on mount and exposes the image', async () => {
     const image = rgbaImage(4, 3, 7);
     const render = vi.fn(async () => image);
     const result = fakeResult({ render });
     const { result: hook } = renderHook(() => useComposite(result));
-    expect(hook.current.params).toEqual(DEFAULT_COMPOSITE_PARAMS);
-    expect(render).toHaveBeenCalledExactlyOnceWith(DEFAULT_COMPOSITE_PARAMS);
+    expect(hook.current.params).toEqual(FAKE_RESULT_DEFAULTS);
+    expect(render).toHaveBeenCalledExactlyOnceWith(FAKE_RESULT_DEFAULTS);
     await waitFor(() => expect(hook.current.image).toBe(image));
     expect(hook.current.error).toBe('');
   });
