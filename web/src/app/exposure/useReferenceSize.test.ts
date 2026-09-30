@@ -3,7 +3,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PickedPhoto } from './pickedPhotos';
-import { readImageSize, useReferenceSize } from './useReferenceSize';
+import {
+  readImageSize,
+  useReferenceSize,
+  type ReferenceSize,
+} from './useReferenceSize';
 
 function photo(id: string): PickedPhoto {
   return { id, file: new File([id], `${id}.jpg`, { type: 'image/jpeg' }) };
@@ -12,27 +16,30 @@ function photo(id: string): PickedPhoto {
 const SIZE = { width: 4032, height: 3024 };
 
 describe('useReferenceSize', () => {
-  it('knows nothing without photos and reads nothing', () => {
+  it('knows nothing without a reference photo and reads nothing', () => {
     const read = vi.fn(() => Promise.resolve(SIZE));
-    const { result } = renderHook(() => useReferenceSize([], read));
+    const { result } = renderHook(() => useReferenceSize(undefined, read));
     expect(result.current).toEqual({ kind: 'none' });
     expect(read).not.toHaveBeenCalled();
   });
 
-  it('reads the middle photo, the one the pipeline aligns to', async () => {
-    const photos = ['a', 'b', 'c', 'd'].map(photo);
+  it('reads the reference photo once', async () => {
+    const reference = photo('b');
     const read = vi.fn(() => Promise.resolve(SIZE));
-    const { result } = renderHook(() => useReferenceSize(photos, read));
+    const { result, rerender } = renderHook(() =>
+      useReferenceSize(reference, read),
+    );
     await waitFor(() =>
       expect(result.current).toEqual({ kind: 'known', size: SIZE }),
     );
-    expect(read).toHaveBeenCalledExactlyOnceWith(photos[1].file);
+    rerender();
+    expect(read).toHaveBeenCalledExactlyOnceWith(reference.file);
   });
 
   it('reports a photo the browser cannot read', async () => {
     const read = vi.fn(() => Promise.reject(new Error('no')));
-    const photos = [photo('a')];
-    const { result } = renderHook(() => useReferenceSize(photos, read));
+    const reference = photo('a');
+    const { result } = renderHook(() => useReferenceSize(reference, read));
     await waitFor(() => expect(result.current).toEqual({ kind: 'unreadable' }));
   });
 
@@ -42,13 +49,12 @@ describe('useReferenceSize', () => {
         ? Promise.resolve(SIZE)
         : new Promise<typeof SIZE>(() => {}),
     );
-    const one = [photo('a')];
     const { result, rerender } = renderHook(
-      ({ photos }) => useReferenceSize(photos, read),
-      { initialProps: { photos: one } },
+      ({ reference }) => useReferenceSize(reference, read),
+      { initialProps: { reference: photo('a') } },
     );
     await waitFor(() => expect(result.current.kind).toBe('known'));
-    rerender({ photos: [...one, photo('bb'), photo('cc')] });
+    rerender({ reference: photo('bb') });
     expect(result.current).toEqual({ kind: 'none' });
   });
 
@@ -64,10 +70,10 @@ describe('useReferenceSize', () => {
         ),
     );
     const { result, rerender } = renderHook(
-      ({ photos }) => useReferenceSize(photos, read),
-      { initialProps: { photos: [photo('a')] } },
+      ({ reference }) => useReferenceSize(reference, read),
+      { initialProps: { reference: photo('a') } },
     );
-    rerender({ photos: [photo('b')] });
+    rerender({ reference: photo('b') });
     const newer = { width: 10, height: 20 };
     answers[1].resolve(newer);
     await waitFor(() =>
@@ -86,10 +92,10 @@ describe('useReferenceSize', () => {
       )
       .mockImplementationOnce(() => Promise.resolve(SIZE));
     const { result, rerender } = renderHook(
-      ({ photos }) => useReferenceSize(photos, read),
-      { initialProps: { photos: [photo('a')] } },
+      ({ reference }) => useReferenceSize(reference, read),
+      { initialProps: { reference: photo('a') } },
     );
-    rerender({ photos: [photo('b')] });
+    rerender({ reference: photo('b') });
     await waitFor(() => expect(result.current.kind).toBe('known'));
     await act(async () => answers[0].reject(new Error('late')));
     expect(result.current).toEqual({ kind: 'known', size: SIZE });
@@ -97,12 +103,14 @@ describe('useReferenceSize', () => {
 
   it('knows nothing again once the photos are cleared', async () => {
     const read = vi.fn(() => Promise.resolve(SIZE));
-    const { result, rerender } = renderHook(
-      ({ photos }) => useReferenceSize(photos, read),
-      { initialProps: { photos: [photo('a')] } },
-    );
+    const { result, rerender } = renderHook<
+      ReferenceSize,
+      { reference: PickedPhoto | undefined }
+    >(({ reference }) => useReferenceSize(reference, read), {
+      initialProps: { reference: photo('a') },
+    });
     await waitFor(() => expect(result.current.kind).toBe('known'));
-    rerender({ photos: [] });
+    rerender({ reference: undefined });
     expect(result.current).toEqual({ kind: 'none' });
   });
 });

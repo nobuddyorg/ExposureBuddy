@@ -14,9 +14,9 @@ import {
   type FakeFactory,
   type FakeHandler,
 } from './fakeWorkers.test-support';
+import { middleIndex } from './pickedPhotos';
 import {
   countAligned,
-  referenceIndex,
   runPipeline,
   type PipelineInput,
   type PipelineProgress,
@@ -156,6 +156,7 @@ function run(verdicts: string[], overrides: RunOverrides = {}) {
   const files = verdicts.map((verdict) => file(verdict));
   const result = runPipeline({
     files,
+    reference: middleIndex((overrides.files ?? files).length),
     names: files.map((each) => each.name),
     options: { quality: 'low', poolSize: 2 },
     onProgress: (update) => progress.push(update),
@@ -183,14 +184,6 @@ function outcomeOf(result: Promise<unknown>): Promise<string> {
     }),
   ]);
 }
-
-describe('referenceIndex', () => {
-  it('picks the middle frame, the earlier one for an even count', () => {
-    expect(referenceIndex(2)).toBe(0);
-    expect(referenceIndex(3)).toBe(1);
-    expect(referenceIndex(12)).toBe(5);
-  });
-});
 
 describe('countAligned', () => {
   it('counts the reference and the aligned frames only', () => {
@@ -457,6 +450,30 @@ describe('runPipeline', () => {
         message: 'Unexpected reference-set while warping a strip.',
       },
     });
+  });
+
+  it('aligns to the photo it is given as the reference, first or last', async () => {
+    for (const reference of [0, 3]) {
+      const { factory, result } = run(['a', 'b', 'c', 'd'], { reference });
+      const exposure = await result;
+      expect(exposure.frames.map((frame) => frame.status)).toEqual(
+        [0, 1, 2, 3].map((index) =>
+          index === reference ? 'reference' : 'aligned',
+        ),
+      );
+      const decoded = factory.aligners[0].sent[0].file as Blob;
+      expect(await decoded.text()).toBe('abcd'[reference]);
+    }
+  });
+
+  it('refuses a reference outside the burst before touching a worker', async () => {
+    for (const reference of [-1, 3]) {
+      const { factory, result } = run(['ok', 'ok', 'ok'], { reference });
+      await expect(result).rejects.toThrow(
+        new RangeError(`No photo ${reference} among 3 to align to.`),
+      );
+      expect(factory.aligners).toHaveLength(0);
+    }
   });
 
   it('refuses fewer than two photos before touching a worker', async () => {

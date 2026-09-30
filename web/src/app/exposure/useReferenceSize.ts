@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 
 import type { Size } from '../vision/types';
 import type { PickedPhoto } from './pickedPhotos';
-import { referenceIndex } from './runPipeline';
 
 export type ReferenceSize =
   | { readonly kind: 'none' }
@@ -35,11 +34,9 @@ interface Measured {
 
 /** The size of the photo the pipeline will align to, read once per reference photo, so the picker can say what will come out. */
 export function useReferenceSize(
-  photos: readonly PickedPhoto[],
+  reference: PickedPhoto | undefined,
   read: ImageSizeReader = readImageSize,
 ): ReferenceSize {
-  // Empty: referenceIndex(0) is −1, which `at` answers with undefined.
-  const reference = photos.at(referenceIndex(photos.length));
   const [measured, setMeasured] = useState<Measured>({
     photo: undefined,
     size: NONE,

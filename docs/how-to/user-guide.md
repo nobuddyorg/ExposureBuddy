@@ -29,6 +29,13 @@ can also drop files onto the dotted area. Thumbnails appear as the photos are
 read, with a count. **Add more** appends to the selection, **Clear** starts
 again. A file that is not an image is left out and named in a notice.
 
+The **×** on a thumbnail leaves that photo out, for one that is blurred or
+where someone walked right up to the camera. The photo marked **Reference**
+is the one the others are lined up on, so the result has its framing; it
+starts as the middle one of the burst. Tap another thumbnail to use that
+photo instead, for example the one that is framed best or where the scene is
+emptiest.
+
 **Output size** sets how large the result is: **Small, fast** (1024 px on the
 long side), **Standard** (1600 px), **Large, slow** (2400 px) or **Original
 size, slowest** (the photos' own size, up to about 16 megapixels). The line
@@ -50,7 +57,7 @@ photos it needs, until the burst is big enough.
 ## While it combines
 
 The progress screen names the stage: reading the photos, finding features in
-the reference photo (the middle one of the burst), aligning the others onto
+the reference photo (the middle one of the burst, or the one you marked), aligning the others onto
 it, stacking, rendering. Every photo has its own status line: waiting,
 reference, aligned with how many matches held, skipped, or could not be read.
 
@@ -113,7 +120,7 @@ see what the ghosts came from.
 - **Start over** discards the result and goes back to the picker.
 
 The saved JPEG carries one piece of metadata: the date and time the reference
-photo (the middle of the burst) was taken, so the gallery sorts it next to
+photo was taken, so the gallery sorts it next to
 the burst. No location, no camera model, nothing else from the originals.
 
 Nothing is stored between visits: reloading the page forgets the burst and

@@ -24,9 +24,15 @@ type ExposureState =
   | { readonly status: 'ready'; readonly result: ExposureResult }
   | { readonly status: 'failed'; readonly failure: PipelineFailure };
 
+/** The photos to combine and the index of the one the others align to. */
+export interface Burst {
+  readonly files: readonly File[];
+  readonly reference: number;
+}
+
 export interface ExposureController {
   readonly state: ExposureState;
-  start(files: readonly File[], quality: OutputQuality): void;
+  start(burst: Burst, quality: OutputQuality): void;
   /** Aborts a run in flight or discards a result; either way back to idle. */
   reset(): void;
 }
@@ -63,13 +69,14 @@ export function useExposure(
   useEffect(() => () => disposeRun(activeRun), []);
 
   const start = useCallback(
-    (files: readonly File[], quality: OutputQuality) => {
+    ({ files, reference }: Burst, quality: OutputQuality) => {
       disposeRun(activeRun);
       const run: Run = { controller: new AbortController(), result: null };
       activeRun.current = run;
       setState({ status: 'running', progress: INITIAL_PROGRESS });
       runPipeline({
         files,
+        reference,
         names: files.map((file) => file.name),
         options: {
           quality,

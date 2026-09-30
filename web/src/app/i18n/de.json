@@ -44,7 +44,11 @@
     "unsupported": "Dieser Browser kann die Verarbeitung nicht ausführen: Er braucht Web Worker und OffscreenCanvas. Bitte ein aktuelles Chrome, Firefox, Safari oder Edge verwenden.",
     "too_many": "Das sind mehr als {count} Fotos, deshalb werden nur die ersten {count} verwendet.",
     "not_image": "{name} ist kein Bild und wurde ausgelassen.",
-    "thumbnail_alt": "Foto {index}"
+    "thumbnail_alt": "Foto {index}",
+    "reference": "Referenz",
+    "use_as_reference": "Die anderen auf Foto {index} ausrichten",
+    "remove": "Foto {index} entfernen",
+    "reference_hint": "Die anderen Fotos werden auf das mit Referenz markierte ausgerichtet, das Ergebnis behält dessen Bildausschnitt. Ein anderes Foto antippen, um es stattdessen zu nehmen, oder ×, um ein Foto wegzulassen."
   },
   "progress": {
     "title": "Kombinieren",

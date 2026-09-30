@@ -40,7 +40,7 @@ It runs entirely in the browser. There is no account, no upload and no server: t
 
 ## Features
 
-- **Aligns on the static scene**: ORB-style feature matching and RANSAC homographies register every photo onto the middle one, so a hand-held burst still stacks sharp.
+- **Aligns on the static scene**: ORB-style feature matching and RANSAC homographies register every photo onto the middle one (or the one you mark), so a hand-held burst still stacks sharp.
 - **Median and mean stacking**: the per-pixel median is the still scene, the mean is the long exposure; a photo that does not line up is skipped and reported, never blended in.
 - **Ghosts, blur and glow**: three sliders set how visible moving things stay, how much they smear, and how much bright moving things bloom; the result re-renders live.
 - **Compare, save, share**: flip between the result and one original, save the JPEG, or hand it to the phone's share sheet.

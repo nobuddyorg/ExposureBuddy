@@ -6,9 +6,11 @@ interface Picker {
   (): Locator;
   do: {
     addPhotos(paths: readonly string[]): Promise<void>;
+    chooseReference(index: number): Promise<void>;
     clear(): Promise<void>;
     combine(): Promise<void>;
     open(): Promise<void>;
+    removePhoto(index: number): Promise<void>;
     selectQuality(quality: Quality): Promise<void>;
     thumbnailNaturalWidth(index: number): Promise<number>;
   };
@@ -23,8 +25,10 @@ interface Picker {
     input: Locator;
     notice: Locator;
     quality: Locator;
+    referenceTile: Locator;
     resultSize: Locator;
     thumbnails: Locator;
+    tiles: Locator;
   };
 }
 
@@ -44,13 +48,20 @@ export function initPicker(page: Page): Picker {
     input: page.getByTestId('photo-input'),
     notice: page.getByTestId('picker-notice'),
     quality: page.getByTestId('quality-select'),
+    referenceTile: page
+      .getByTestId('photo-tile')
+      .and(page.locator('[data-reference="true"]')),
     resultSize: page.getByTestId('result-size'),
     thumbnails: page.getByTestId('photo-thumb'),
+    tiles: page.getByTestId('photo-tile'),
   };
   const interactions = {
     // Straight into the hidden file input: the native chooser is not scriptable.
     addPhotos: async (paths: readonly string[]) => {
       await locators.input.setInputFiles([...paths]);
+    },
+    chooseReference: async (index: number) => {
+      await locators.tiles.nth(index).getByTestId('choose-reference').click();
     },
     clear: async () => {
       await locators.buttons.clear.click();
@@ -62,6 +73,9 @@ export function initPicker(page: Page): Picker {
     open: async () => {
       await page.goto('', { waitUntil: 'networkidle' });
       await expect(locators.dropzone).toBeVisible();
+    },
+    removePhoto: async (index: number) => {
+      await locators.tiles.nth(index).getByTestId('remove-photo').click();
     },
     selectQuality: async (quality: Quality) => {
       await locators.quality.selectOption(quality);

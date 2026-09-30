@@ -66,7 +66,8 @@ One burst goes through five stages. Each stage reports progress to the UI as
    stack and two float layers once the frames are gone), must fit the budget, and
    the long edge never exceeds the chosen output size (small 1024, standard
    1600, large 2400).
-2. **Reference features.** The middle frame of the burst is the reference:
+2. **Reference features.** The middle frame of the burst is the reference
+   unless the picker marked another (`usePickedPhotos`, `referencePosition`):
    it minimises the largest camera drift to any other frame. Its grayscale
    copy at the *alignment size* (long edge ≤ 960) goes through ORB:
    FAST-9 corners with non-maximum suppression, bucketed on a grid so the
@@ -190,7 +191,7 @@ One route. Three states of one page, driven by `useExposure`:
 
 | State | Component | Test ids |
 | --- | --- | --- |
-| Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-thumb`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
+| Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-tile` (with `data-reference`), `photo-thumb`, `choose-reference`, `remove-photo`, `reference-badge`, `reference-hint`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
 | Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
 | Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
 | Failed | `PipelineError` | `pipeline-error`, `retry` |

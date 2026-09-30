@@ -40,6 +40,8 @@ interface PipelineOptions {
 
 export interface PipelineInput {
   readonly files: readonly Blob[];
+  /** The index of the file every other one is aligned to. */
+  readonly reference: number;
   /** One per file, for error messages. */
   readonly names: readonly string[];
   readonly options: PipelineOptions;
@@ -66,11 +68,6 @@ type ReferenceDecoded = Extract<
 >;
 type Cropped = Extract<StackWorkerResponse, { type: 'cropped' }>;
 type Rendered = Extract<StackWorkerResponse, { type: 'rendered' }>;
-
-/** The middle of the burst: it minimises the largest camera drift to any other frame. */
-export function referenceIndex(frameCount: number): number {
-  return Math.floor((frameCount - 1) / 2);
-}
 
 function pendingReport(index: number): FrameReport {
   return { index, status: 'pending', matches: 0, inliers: 0 };
@@ -102,10 +99,13 @@ export function countAligned(frames: readonly FrameReport[]): number {
 export async function runPipeline(
   input: PipelineInput,
 ): Promise<ExposureResult> {
-  const { files, names, options, workers, onProgress, signal } = input;
+  const { files, reference, names, options, workers, onProgress, signal } =
+    input;
   const total = files.length;
   if (total < 2)
     throw new PipelineError({ kind: 'too_few_aligned', count: total });
+  if (reference < 0 || reference >= total)
+    throw new RangeError(`No photo ${reference} among ${total} to align to.`);
 
   const frames = files.map((_, index) => pendingReport(index));
   // The transform of every frame that aligned, by burst index: a strip warps with it again.
@@ -219,7 +219,6 @@ export async function runPipeline(
     });
 
   try {
-    const reference = referenceIndex(total);
     emit('reference', 0, 1);
     const decoded = await decodeReference(reference);
     const working: Size = {

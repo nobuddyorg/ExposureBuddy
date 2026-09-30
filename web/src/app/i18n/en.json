@@ -44,7 +44,11 @@
     "unsupported": "This browser cannot run the pipeline: it needs Web Workers and OffscreenCanvas. Try a current Chrome, Firefox, Safari or Edge.",
     "too_many": "That is more than {count} photos, so only the first {count} are used.",
     "not_image": "{name} is not an image and was left out.",
-    "thumbnail_alt": "Photo {index}"
+    "thumbnail_alt": "Photo {index}",
+    "reference": "Reference",
+    "use_as_reference": "Align the others to photo {index}",
+    "remove": "Remove photo {index}",
+    "reference_hint": "The others are aligned to the photo marked Reference, so the result keeps its framing. Tap another photo to use that one instead, or × to leave a photo out."
   },
   "progress": {
     "title": "Combining",

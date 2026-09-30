@@ -10,7 +10,8 @@ import {
   type FakeFactory,
   type FakeHandler,
 } from './fakeWorkers.test-support';
-import { useExposure } from './useExposure';
+import { middleIndex } from './pickedPhotos';
+import { useExposure, type Burst } from './useExposure';
 
 const WORKING = { width: 4, height: 4 };
 
@@ -87,6 +88,12 @@ const stackHandler: FakeHandler = (request) => {
 const file = (verdict: string) =>
   new File([verdict], `${verdict}.jpg`, { type: 'image/jpeg' });
 
+/** The files as a burst aligned to its middle photo. */
+const burst = (files: File[]): Burst => ({
+  files,
+  reference: middleIndex(files.length),
+});
+
 const pending = { status: 'pending' };
 
 /** A device that could run `poolSize` align workers, with the default budget. */
@@ -101,7 +108,10 @@ describe('useExposure', () => {
     expect(result.current.state.status).toBe('idle');
 
     act(() =>
-      result.current.start([file('ok'), file('ok'), file('ok')], 'standard'),
+      result.current.start(
+        burst([file('ok'), file('ok'), file('ok')]),
+        'standard',
+      ),
     );
     // The pipeline's first report, one pending frame per photo, has already replaced the initial progress.
     expect(result.current.state).toMatchObject({
@@ -123,10 +133,26 @@ describe('useExposure', () => {
     const { result } = renderHook(() =>
       useExposure(factory, { poolSize: 2, budgetBytes }),
     );
-    act(() => result.current.start([file('ok'), file('ok')], 'low'));
+    act(() => result.current.start(burst([file('ok'), file('ok')]), 'low'));
     await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
     expect(factory.aligners[0].sent[0]).toMatchObject({
       sizing: { budgetBytes, requestedWorkers: 2 },
+    });
+  });
+
+  it('aligns to the reference photo of the burst it is given', async () => {
+    const factory = createFakeFactory(alignHandler(), stackHandler);
+    const { result } = renderHook(() => useExposure(factory, device(2)));
+    act(() =>
+      result.current.start(
+        { files: [file('ok'), file('ok'), file('last')], reference: 2 },
+        'low',
+      ),
+    );
+    await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
+    expect(factory.aligners[0].sent[0]).toMatchObject({
+      type: 'decode-reference',
+      file: { name: 'last.jpg' },
     });
   });
 
@@ -134,7 +160,10 @@ describe('useExposure', () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
     const { result } = renderHook(() => useExposure(factory, device(2)));
     act(() =>
-      result.current.start([file('skip'), file('ok'), file('skip')], 'low'),
+      result.current.start(
+        burst([file('skip'), file('ok'), file('skip')]),
+        'low',
+      ),
     );
     await vi.waitFor(() => expect(result.current.state.status).toBe('failed'));
     expect(result.current.state).toMatchObject({
@@ -145,7 +174,7 @@ describe('useExposure', () => {
   it('shows the reference stage with no frames until the pipeline reports; a lone photo is refused before it does', async () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
     const { result } = renderHook(() => useExposure(factory, device(1)));
-    act(() => result.current.start([file('ok')], 'low'));
+    act(() => result.current.start(burst([file('ok')]), 'low'));
     expect(result.current.state).toEqual({
       status: 'running',
       progress: { stage: 'reference', done: 0, total: 1, frames: [] },
@@ -160,7 +189,7 @@ describe('useExposure', () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
     const { result } = renderHook(() => useExposure(factory, device(1)));
     act(() =>
-      result.current.start([file('ok'), file('bad'), file('ok')], 'low'),
+      result.current.start(burst([file('ok'), file('bad'), file('ok')]), 'low'),
     );
     await vi.waitFor(() => expect(result.current.state.status).toBe('failed'));
     expect(result.current.state).toMatchObject({
@@ -179,7 +208,7 @@ describe('useExposure', () => {
     rerender({ factory: second, poolSize: 4 });
     act(() =>
       result.current.start(
-        [file('ok'), file('ok'), file('ok'), file('ok')],
+        burst([file('ok'), file('ok'), file('ok'), file('ok')]),
         'low',
       ),
     );
@@ -192,7 +221,7 @@ describe('useExposure', () => {
   it('reset during a run aborts it, stops the workers and goes back to idle', async () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
     const { result } = renderHook(() => useExposure(factory, device(1)));
-    act(() => result.current.start([file('ok'), file('ok')], 'low'));
+    act(() => result.current.start(burst([file('ok'), file('ok')]), 'low'));
     act(() => result.current.reset());
     expect(result.current.state.status).toBe('idle');
     await vi.waitFor(() => expect(factory.stacks[0].terminated).toBe(true));
@@ -204,7 +233,7 @@ describe('useExposure', () => {
   it('reset after a result disposes it', async () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
     const { result } = renderHook(() => useExposure(factory, device(1)));
-    act(() => result.current.start([file('ok'), file('ok')], 'low'));
+    act(() => result.current.start(burst([file('ok'), file('ok')]), 'low'));
     await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
     act(() => result.current.reset());
     expect(result.current.state.status).toBe('idle');
@@ -214,9 +243,9 @@ describe('useExposure', () => {
   it('starting again aborts the earlier run and its workers', async () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
     const { result } = renderHook(() => useExposure(factory, device(1)));
-    act(() => result.current.start([file('ok'), file('ok')], 'low'));
+    act(() => result.current.start(burst([file('ok'), file('ok')]), 'low'));
     act(() =>
-      result.current.start([file('ok'), file('ok'), file('ok')], 'low'),
+      result.current.start(burst([file('ok'), file('ok'), file('ok')]), 'low'),
     );
     await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
     expect(result.current.state).toMatchObject({ result: { totalCount: 3 } });
@@ -229,7 +258,7 @@ describe('useExposure', () => {
     const { result, unmount } = renderHook(() =>
       useExposure(factory, device(1)),
     );
-    act(() => result.current.start([file('ok'), file('ok')], 'low'));
+    act(() => result.current.start(burst([file('ok'), file('ok')]), 'low'));
     await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
     unmount();
     expect(factory.stacks[0].terminated).toBe(true);

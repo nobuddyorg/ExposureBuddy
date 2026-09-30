@@ -17,6 +17,8 @@ import { useDropzone } from './useDropzone';
 
 export interface PhotoPickerProps {
   photos: readonly PickedPhoto[];
+  /** Where in `photos` the one the others align to sits. */
+  reference: number;
   notice: PickerNotice | null;
   /** The browser lacks what the pipeline needs; picking still works, combining does not. */
   unsupported: boolean;
@@ -24,6 +26,8 @@ export interface PhotoPickerProps {
   referenceSize: ReferenceSize;
   device: DeviceProfile;
   onAdd: (files: File[]) => void;
+  onRemove: (id: string) => void;
+  onChooseReference: (id: string) => void;
   onClear: () => void;
   onCombine: (quality: OutputQuality) => void;
 }
@@ -53,11 +57,14 @@ function BurstIllustration() {
 /** The first screen: the burst is picked here, checked over, and the pipeline started. */
 export default function PhotoPicker({
   photos,
+  reference,
   notice,
   unsupported,
   referenceSize,
   device,
   onAdd,
+  onRemove,
+  onChooseReference,
   onClear,
   onCombine,
 }: PhotoPickerProps) {
@@ -136,7 +143,18 @@ export default function PhotoPicker({
                 </button>
               </div>
             </div>
-            <PhotoGrid photos={photos} />
+            <PhotoGrid
+              photos={photos}
+              reference={reference}
+              onRemove={onRemove}
+              onChooseReference={onChooseReference}
+            />
+            <p
+              data-testid="reference-hint"
+              className="text-sm text-muted-foreground"
+            >
+              {t('picker.reference_hint')}
+            </p>
             <p className="hidden text-center text-xs text-muted-foreground sm:block">
               {t('picker.drop_hint')}
             </p>

@@ -14,7 +14,6 @@ import {
 import { isPipelineSupported } from './exposure/support';
 import { useExposure } from './exposure/useExposure';
 import { usePickedPhotos } from './exposure/usePickedPhotos';
-import { referenceIndex } from './exposure/runPipeline';
 import { useReferenceSize } from './exposure/useReferenceSize';
 import { useShotDate } from './exposure/useShotDate';
 import { browserWorkerFactory } from './exposure/workerFactory';
@@ -44,14 +43,17 @@ export default function Home() {
   );
   const exposure = useExposure(browserWorkerFactory, device);
   const picked = usePickedPhotos();
-  const referenceSize = useReferenceSize(picked.photos);
-  const shotDate = useShotDate(
-    picked.photos.at(referenceIndex(picked.photos.length)),
-  );
+  // Empty: the reference position is −1, which `at` answers with undefined.
+  const referencePhoto = picked.photos.at(picked.reference);
+  const referenceSize = useReferenceSize(referencePhoto);
+  const shotDate = useShotDate(referencePhoto);
 
   const combine = (quality: OutputQuality) =>
     exposure.start(
-      picked.photos.map((photo) => photo.file),
+      {
+        files: picked.photos.map((photo) => photo.file),
+        reference: picked.reference,
+      },
       quality,
     );
   // Arrows over the hook's methods: the controller is an object, and unbound-method has a point.
@@ -70,11 +72,14 @@ export default function Home() {
       {state.status === 'idle' && (
         <PhotoPicker
           photos={picked.photos}
+          reference={picked.reference}
           notice={picked.notice}
           unsupported={!supported}
           referenceSize={referenceSize}
           device={device}
           onAdd={picked.add}
+          onRemove={picked.remove}
+          onChooseReference={picked.chooseReference}
           onClear={picked.clear}
           onCombine={combine}
         />

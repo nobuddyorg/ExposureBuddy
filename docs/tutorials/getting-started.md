@@ -29,7 +29,8 @@ drop the files onto the dotted area. Thumbnails and a count appear. Leave
 **Output size** on **Standard** for now.
 
 Tap **Combine**. The progress screen names each stage and lists every photo
-with its status: *reference* for the middle one, *aligned* with its match
+with its status: *reference* for the one the others line up on (the middle
+one, unless you tapped another thumbnail), *aligned* with its match
 count for the rest. A photo marked *skipped* did not line up well enough and
 was left out; one or two in a hand-held burst is normal.
 

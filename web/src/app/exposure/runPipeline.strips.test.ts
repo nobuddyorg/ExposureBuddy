@@ -81,6 +81,7 @@ async function combine(budgetBytes: number) {
   const files = BURST.map((text) => new Blob([text]));
   return runPipeline({
     files,
+    reference: 4,
     names: BURST,
     options: { quality: 'low', poolSize: 2, budgetBytes },
     workers: realWorkers(),
