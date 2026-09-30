@@ -79,9 +79,10 @@ describe('saveBlob', () => {
 
     await saveBlob(blob, 'shot.jpg');
 
-    expect(showSaveFilePicker).toHaveBeenCalledWith(
-      expect.objectContaining({ suggestedName: 'shot.jpg' }),
-    );
+    expect(showSaveFilePicker).toHaveBeenCalledWith({
+      suggestedName: 'shot.jpg',
+      types: [{ accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+    });
     expect(write).toHaveBeenCalledWith(blob);
     expect(close).toHaveBeenCalledOnce();
     vi.unstubAllGlobals();

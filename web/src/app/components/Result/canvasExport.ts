@@ -38,7 +38,7 @@ export async function saveBlob(blob: Blob, name: string): Promise<void> {
   if (!showSaveFilePicker) return downloadBlob(blob, name);
   const handle = await showSaveFilePicker.call(window, {
     suggestedName: name,
-    types: [{ accept: { [blob.type]: ['.jpg', '.jpeg'] } }],
+    types: [{ accept: { [JPEG_TYPE]: ['.jpg', '.jpeg'] } }],
   });
   const writable = await handle.createWritable();
   await writable.write(blob);
