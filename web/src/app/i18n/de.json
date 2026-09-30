@@ -61,6 +61,7 @@
     "frame_pending": "wartet",
     "frame_reference": "Referenz",
     "frame_aligned": "ausgerichtet",
+    "frame_blurred": "verwackelt",
     "frame_skipped": "übersprungen",
     "frame_unreadable": "nicht lesbar",
     "frame_detail": "{inliers} von {matches} Treffern"
@@ -97,6 +98,8 @@
     "saved": "Gespeichert als {name}",
     "skipped_one": "{count} Foto ließ sich nicht auf die anderen ausrichten und blieb draußen. Das Handy zwischen den Aufnahmen möglichst ruhig halten.",
     "skipped": "{count} Fotos ließen sich nicht auf die anderen ausrichten und blieben draußen. Das Handy zwischen den Aufnahmen möglichst ruhig halten.",
+    "blurred_one": "{count} Foto war verwackelt und blieb draußen, damit es das Ergebnis nicht weichzeichnet.",
+    "blurred": "{count} Fotos waren verwackelt und blieben draußen, damit sie das Ergebnis nicht weichzeichnen.",
     "share_failed": "Teilen hat nicht geklappt, das Bild wurde stattdessen gespeichert."
   },
   "errors": {

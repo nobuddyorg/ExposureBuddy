@@ -134,9 +134,9 @@ export interface CompositeParams {
   readonly trails: boolean;
 }
 
-/** `pending` until the frame is looked at; `unreadable` when it could not be decoded at all. */
+/** `pending` until the frame is looked at; `unreadable` when it could not be decoded at all; `blurred` aligned but left out. */
 export type AlignmentStatus =
-  'pending' | 'reference' | 'aligned' | 'skipped' | 'unreadable';
+  'pending' | 'reference' | 'aligned' | 'blurred' | 'skipped' | 'unreadable';
 
 /** What one frame contributed, shown per photo on the progress and result screens. */
 export interface FrameReport {

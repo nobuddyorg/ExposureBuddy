@@ -24,6 +24,7 @@ function fakeSession() {
     frameCount: 0,
     addReference: vi.fn(() => session.calls.push('reference')),
     addFrame: vi.fn(() => session.calls.push('frame')),
+    dropFrame: vi.fn(() => session.calls.push('drop')),
     crop: vi.fn(() => SUMMARY),
     stackRows: vi.fn((_rows, onProgress?: (fraction: number) => void) => {
       onProgress?.(0.5);
@@ -56,6 +57,11 @@ describe('createStackService', () => {
       serve({ type: 'add-frame', id: 2, index: 4, frame }),
     ).resolves.toEqual({ response: { type: 'added', id: 2 }, transfer: [] });
     expect(session.addFrame).toHaveBeenCalledWith(4, frame);
+
+    await expect(
+      serve({ type: 'drop-frame', id: 9, index: 4 }),
+    ).resolves.toEqual({ response: { type: 'dropped', id: 9 }, transfer: [] });
+    expect(session.dropFrame).toHaveBeenCalledWith(4);
 
     await expect(serve({ type: 'crop', id: 3 })).resolves.toEqual({
       response: { type: 'cropped', id: 3, ...SUMMARY },

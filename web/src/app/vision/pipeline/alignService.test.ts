@@ -89,6 +89,7 @@ describe('createAlignService', () => {
       { type: 'reference-decoded' }
     >;
     expect(decoded.features.keypoints.length).toBeGreaterThan(50);
+    expect(decoded.sharpness).toBeGreaterThan(0);
     expect(transfer).toEqual([decoded.image.data.buffer]);
   });
 
@@ -143,6 +144,9 @@ describe('createAlignService', () => {
       { type: 'aligned' }
     >;
     expect(aligned.inliers).toBeGreaterThan(20);
+    // A shifted copy is about as crisp as the reference it came from.
+    expect(aligned.sharpness).toBeGreaterThan(reference.sharpness * 0.8);
+    expect(aligned.sharpness).toBeLessThan(reference.sharpness * 1.25);
     const { image, spans } = aligned.frame;
     expect(transfer).toEqual([
       ...image.bands.map((band) => band.buffer),

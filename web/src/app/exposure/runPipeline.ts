@@ -4,6 +4,7 @@ import {
   stripRanges,
   type OutputQuality,
 } from '../vision/pipeline/budget';
+import { blurredFrames } from '../vision/pipeline/blurred';
 import type {
   AlignWorkerResponse,
   StackProgress,
@@ -110,6 +111,8 @@ export async function runPipeline(
   const frames = files.map((_, index) => pendingReport(index));
   // The transform of every frame that aligned, by burst index: a strip warps with it again.
   const homographies = new Map<number, Homography>();
+  // How crisp the reference and every aligned frame are, by burst index: the blurred ones are dropped before the crop.
+  const sharpnessByFrame = new Map<number, number>();
   const emit = (stage: PipelineStage, done: number, outOf: number) =>
     onProgress({ stage, done, total: outOf, frames: [...frames] });
   let lastId = 0;
@@ -178,6 +181,7 @@ export async function runPipeline(
     if (response.type !== 'aligned')
       throw new Error(`Unexpected ${response.type} while aligning.`);
     homographies.set(index, response.homography);
+    sharpnessByFrame.set(index, response.sharpness);
     await request(
       stack,
       { type: 'add-frame', id: nextId(), index, frame: response.frame },
@@ -234,6 +238,7 @@ export async function runPipeline(
       matches: 0,
       inliers: 0,
     };
+    sharpnessByFrame.set(reference, decoded.sharpness);
     await Promise.all([
       request(
         stack,
@@ -264,6 +269,16 @@ export async function runPipeline(
       done += 1;
       emit('aligning', done, order.length);
     });
+
+    for (const index of blurredFrames(sharpnessByFrame, reference)) {
+      await request(
+        stack,
+        { type: 'drop-frame', id: nextId(), index },
+        { signal },
+      );
+      homographies.delete(index);
+      frames[index] = { ...frames[index], status: 'blurred' };
+    }
 
     const alignedCount = countAligned(frames);
     if (alignedCount < 2)

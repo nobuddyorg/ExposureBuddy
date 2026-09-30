@@ -1,4 +1,4 @@
-import { alignToReference, referenceFeatures } from './alignment';
+import { alignToReference, analyseReference } from './alignment';
 import type {
   AlignWorkerRequest,
   AlignWorkerResponse,
@@ -36,6 +36,7 @@ export function createAlignService(
       throw error;
     }
     const { image, source, alignWorkers, stripRows, passes } = decoded;
+    const { features, sharpness } = analyseReference(image);
     return {
       response: {
         type: 'reference-decoded',
@@ -45,7 +46,8 @@ export function createAlignService(
         alignWorkers,
         stripRows,
         passes,
-        features: referenceFeatures(image),
+        features,
+        sharpness,
       },
       transfer: transferablesOf({ image }),
     };
@@ -83,6 +85,7 @@ export function createAlignService(
         homography: outcome.homography,
         matches,
         inliers,
+        sharpness: outcome.sharpness,
       },
       transfer: transferablesOf(outcome.frame),
     };

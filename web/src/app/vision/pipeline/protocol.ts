@@ -56,6 +56,8 @@ export type AlignWorkerResponse =
       readonly stripRows: number;
       readonly passes: number;
       readonly features: FeatureSet;
+      /** How crisp the reference is at the alignment size; the other frames are judged against the burst's median. */
+      readonly sharpness: number;
     }
   | { readonly type: 'reference-set'; readonly id: number }
   | {
@@ -66,6 +68,7 @@ export type AlignWorkerResponse =
       readonly homography: Homography;
       readonly matches: number;
       readonly inliers: number;
+      readonly sharpness: number;
     }
   | {
       readonly type: 'warped-rows';
@@ -116,6 +119,12 @@ export type StackWorkerRequest =
       readonly index: number;
       readonly frame: AlignedFrame;
     }
+  | {
+      readonly type: 'drop-frame';
+      readonly id: number;
+      /** A frame added earlier that must not go into the stack after all; only before the crop. */
+      readonly index: number;
+    }
   | { readonly type: 'crop'; readonly id: number }
   | {
       readonly type: 'stack-rows';
@@ -145,6 +154,7 @@ export interface StackSummary {
 
 export type StackWorkerResponse =
   | { readonly type: 'added'; readonly id: number }
+  | { readonly type: 'dropped'; readonly id: number }
   | {
       readonly type: 'stack-progress';
       readonly id: number;

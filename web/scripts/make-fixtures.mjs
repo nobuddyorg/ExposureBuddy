@@ -306,7 +306,7 @@ function writePng(directory, name, image) {
   writeFileSync(resolve(directory, name), encodePng(image));
 }
 
-/** `frameCount` shaken frames of one scene with a walker crossing the road, plus the clean scene and meta.json. */
+/** `frameCount` shaken frames of one scene with a walker crossing the road, plus the clean scene and meta.json; returns the frames. */
 function writeBurst({ name, seed, width, height, frameCount }) {
   const directory = resolve(outputRoot, name);
   const random = mulberry32(seed + 1);
@@ -317,6 +317,7 @@ function writeBurst({ name, seed, width, height, frameCount }) {
   const walkEnd = Math.round(width * 0.85);
   const stride = (walkEnd - walkStart) / Math.max(1, frameCount - 1);
   const frames = [];
+  const images = [];
   for (let index = 0; index < frameCount; index += 1) {
     const feetX = Math.round(walkStart + stride * index);
     const scene = { width, height, data: background.data.slice() };
@@ -324,7 +325,9 @@ function writeBurst({ name, seed, width, height, frameCount }) {
     const transform = randomTransform(random, width);
     const gain = 1 + between(random, -1, 1) * MAX_GAIN_JITTER;
     const file = `frame-${String(index).padStart(2, '0')}.png`;
-    writePng(directory, file, renderFrame(scene, transform, gain, random));
+    const image = renderFrame(scene, transform, gain, random);
+    writePng(directory, file, image);
+    images.push(image);
     frames.push({ file, transform, gain, person: { x: feetX, y: feetY } });
   }
   writePng(directory, 'background.png', background);
@@ -346,13 +349,42 @@ function writeBurst({ name, seed, width, height, frameCount }) {
     frames,
   };
   writeFileSync(resolve(directory, 'meta.json'), JSON.stringify(meta, null, 2));
+  return images;
+}
+
+/** `image` smeared horizontally over `length` pixels, as a camera moving during the exposure would; edges replicated. */
+function motionBlur(image, length) {
+  const { width, height } = image;
+  const blurred = createImage(width, height);
+  const half = Math.floor(length / 2);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      for (let channel = 0; channel < CHANNELS; channel += 1) {
+        let sum = 0;
+        for (let offset = -half; offset <= half; offset += 1) {
+          const sourceX = Math.max(0, Math.min(width - 1, x + offset));
+          sum += image.data[(y * width + sourceX) * CHANNELS + channel];
+        }
+        blurred.data[(y * width + x) * CHANNELS + channel] = Math.round(
+          sum / (2 * half + 1),
+        );
+      }
+    }
+  }
+  return blurred;
 }
 
 const BURSTS = [
   { name: 'burst-street', seed: 7, width: 640, height: 480, frameCount: 12 },
   { name: 'burst-tiny', seed: 11, width: 320, height: 240, frameCount: 3 },
 ];
-BURSTS.forEach(writeBurst);
+const [street] = BURSTS.map(writeBurst);
+// Soft enough to be left out as blurred, sharp enough to still align (a 7 px smear no longer does).
+writePng(
+  resolve(outputRoot, 'shaken'),
+  'frame-07-blurred.png',
+  motionBlur(street[7], 3),
+);
 const unrelated = resolve(outputRoot, 'unrelated');
 writePng(unrelated, 'scene-a.png', renderScene(101, 640, 480).image);
 writePng(unrelated, 'scene-b.png', renderScene(202, 640, 480).image);

@@ -235,6 +235,37 @@ describe('createStackSession', () => {
     expect(allPixels(frame.image)).toHaveLength(0);
   });
 
+  it('leaves a dropped frame out of the crop and the stack', () => {
+    const session = createStackSession();
+    session.addReference(flat(10, 20, 30), HEIGHT);
+    session.addFrame(1, covered([10, 20, 30]));
+    // A bright frame covering only part of the scene: kept, it would narrow the crop and brighten the mean.
+    session.addFrame(2, covered([200, 200, 200], 2));
+    session.dropFrame(2);
+    expect(session.frameCount).toBe(2);
+    expect(session.crop()).toMatchObject({
+      rect: { x: 0, y: 0, width: WIDTH, height: HEIGHT },
+      frameCount: 2,
+    });
+    session.stackRows(ALL_ROWS);
+    expect(
+      Array.from(
+        session.render({ ...MEDIAN, ghostStrength: 1 }).data.subarray(0, 4),
+      ),
+    ).toEqual([10, 20, 30, 255]);
+  });
+
+  it('drops only a frame it has, and only before the crop', () => {
+    const session = createStackSession();
+    session.addReference(flat(1, 2, 3), HEIGHT);
+    session.addFrame(1, covered([1, 2, 3]));
+    expect(() => session.dropFrame(5)).toThrow('Frame 5 was never added.');
+    session.crop();
+    expect(() => session.dropFrame(1)).toThrow(
+      'A frame cannot be dropped after the crop.',
+    );
+  });
+
   it('refuses a burst whose aligned frames share no pixel', () => {
     const session = createStackSession();
     session.addReference(flat(1, 2, 3), HEIGHT);

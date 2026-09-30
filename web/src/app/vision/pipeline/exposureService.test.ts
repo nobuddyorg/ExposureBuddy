@@ -29,6 +29,7 @@ const ALIGN_REQUESTS: readonly WorkerRequest['type'][] = [
 const STACK_REQUESTS: readonly WorkerRequest['type'][] = [
   'add-reference',
   'add-frame',
+  'drop-frame',
   'crop',
   'stack-rows',
   'add-rows',

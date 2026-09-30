@@ -24,6 +24,7 @@ export function createExposureService(
         return align(request);
       case 'add-reference':
       case 'add-frame':
+      case 'drop-frame':
       case 'crop':
       case 'stack-rows':
       case 'add-rows':
@@ -31,7 +32,10 @@ export function createExposureService(
       case 'render-reference':
         return stack(request);
       default:
-        return Promise.reject(unexpectedRequest('worker', request));
+        // `satisfies never`: a request type added to the protocol but not routed here fails to compile.
+        return Promise.reject(
+          unexpectedRequest('worker', request satisfies never),
+        );
     }
   };
 }

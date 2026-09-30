@@ -38,6 +38,7 @@ function alignHandler(): FakeHandler {
             keypoints: [],
             descriptors: new Uint32Array(0),
           },
+          sharpness: 1,
         },
         transfer: [],
       };
@@ -60,6 +61,7 @@ function alignHandler(): FakeHandler {
         },
         matches: 9,
         inliers: 9,
+        sharpness: 1,
       },
       transfer: [],
     };

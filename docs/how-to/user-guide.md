@@ -59,12 +59,19 @@ photos it needs, until the burst is big enough.
 The progress screen names the stage: reading the photos, finding features in
 the reference photo (the middle one of the burst, or the one you marked), aligning the others onto
 it, stacking, rendering. Every photo has its own status line: waiting,
-reference, aligned with how many matches held, skipped, or could not be read.
+reference, aligned with how many matches held, blurred, skipped, or could
+not be read.
 
 A **skipped** photo did not line up well enough with the reference and is
 left out rather than blended in blurry; a few skips in a hand-held burst are
 normal. If too few line up, the result screen is replaced by an error saying
 so; **Try again** goes back to the picker.
+
+A **blurred** photo lined up, but is much softer than the rest of the burst,
+usually because the phone moved while it was taken. It is left out so it
+does not soften the result, and the result screen says how many were. The
+reference photo is never left out, even when it is the soft one: tap a
+sharper thumbnail in the picker to use that as the reference instead.
 
 **Cancel** stops everything and returns to the picker.
 

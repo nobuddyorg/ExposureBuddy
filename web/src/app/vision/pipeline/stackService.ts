@@ -31,6 +31,9 @@ export function createStackService(
       case 'add-frame':
         session.addFrame(request.index, request.frame);
         return served({ type: 'added', id });
+      case 'drop-frame':
+        session.dropFrame(request.index);
+        return served({ type: 'dropped', id });
       case 'crop':
         return served({ type: 'cropped', id, ...session.crop() });
       case 'stack-rows':
@@ -56,7 +59,7 @@ export function createStackService(
         );
       }
       default:
-        throw unexpectedRequest('stack service', request);
+        throw unexpectedRequest('stack service', request satisfies never);
     }
   };
 

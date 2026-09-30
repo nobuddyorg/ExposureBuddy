@@ -67,6 +67,36 @@ describe('Result: mounting', () => {
     );
   });
 
+  it('tells the blurred photos apart from those that did not line up', () => {
+    const report = (index: number, status: 'aligned' | 'blurred') => ({
+      index,
+      status,
+      matches: 90,
+      inliers: 60,
+    });
+    renderResult(
+      fakeResult({
+        alignedCount: 3,
+        frames: [
+          report(0, 'blurred'),
+          report(1, 'aligned'),
+          report(2, 'blurred'),
+        ],
+      }),
+    );
+    expect(screen.getByTestId('result-blurred')).toHaveTextContent(
+      '2 photos were blurred, so they were left out rather than soften the result.',
+    );
+    expect(screen.getByTestId('result-skipped')).toHaveTextContent(
+      '1 photo did not line up',
+    );
+  });
+
+  it('shows no blurred notice when no photo was blurred', () => {
+    renderResult(fakeResult({ alignedCount: 5 }));
+    expect(screen.queryByTestId('result-blurred')).toBeNull();
+  });
+
   it('shows no skipped notice when every photo lined up', () => {
     renderResult(fakeResult({ alignedCount: 6 }));
     expect(screen.queryByTestId('result-skipped')).toBeNull();

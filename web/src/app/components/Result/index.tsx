@@ -66,7 +66,10 @@ export default function Result({
     }
   };
 
-  const skippedCount = totalCount - result.alignedCount;
+  const blurredCount = result.frames.filter(
+    (frame) => frame.status === 'blurred',
+  ).length;
+  const skippedCount = totalCount - result.alignedCount - blurredCount;
   const longEdge = Math.max(result.width, result.height);
 
   return (
@@ -90,6 +93,14 @@ export default function Result({
             className="pt-1 text-sm text-foreground"
           >
             {tCount('result.skipped', skippedCount)}
+          </p>
+        )}
+        {blurredCount > 0 && (
+          <p
+            data-testid="result-blurred"
+            className="pt-1 text-sm text-foreground"
+          >
+            {tCount('result.blurred', blurredCount)}
           </p>
         )}
       </div>

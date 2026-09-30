@@ -61,6 +61,7 @@
     "frame_pending": "waiting",
     "frame_reference": "reference",
     "frame_aligned": "aligned",
+    "frame_blurred": "blurred",
     "frame_skipped": "skipped",
     "frame_unreadable": "could not be read",
     "frame_detail": "{inliers} of {matches} matches"
@@ -97,6 +98,8 @@
     "saved": "Saved as {name}",
     "skipped_one": "{count} photo did not line up with the others and was left out. Keep the phone as still as you can between shots.",
     "skipped": "{count} photos did not line up with the others and were left out. Keep the phone as still as you can between shots.",
+    "blurred_one": "{count} photo was blurred, so it was left out rather than soften the result.",
+    "blurred": "{count} photos were blurred, so they were left out rather than soften the result.",
     "share_failed": "Sharing did not work, so the image was saved instead."
   },
   "errors": {

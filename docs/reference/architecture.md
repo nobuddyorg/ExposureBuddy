@@ -26,7 +26,7 @@ web/src/app/
                    deviceProfile (pool size and memory budget), useReferenceSize (for the picker's size line),
                    exifDate + useShotDate (the reference photo's shooting date, written into the export)
   vision/          pure TypeScript over typed arrays -- no React, no Next, no DOM (enforced)
-    image/         gray conversion, resize, box blur, integral image, RGB images in row bands
+    image/         gray conversion, resize, box blur, integral image, RGB images in row bands, sharpness
     features/      FAST corners, intensity-centroid orientation, rBRIEF descriptors, ORB front door
     matching/      Hamming distance, ratio + cross-check matching
     geometry/      homography algebra, normalised DLT, RANSAC
@@ -84,7 +84,13 @@ One burst goes through five stages. Each stage reports progress to the UI as
    source covers (a warped rectangle is convex, so a row never covers two
    runs). A per-channel gain estimated over the
    overlap flattens auto-exposure flicker between frames. A frame with too
-   few inliers is **skipped**, not guessed at.
+   few inliers is **skipped**, not guessed at. Every aligned frame, and the
+   reference, also reports its **sharpness** at the alignment size
+   (`vision/image/sharpness.ts`: the variance of the 4-neighbour Laplacian
+   over the variance of the pixels, so exposure does not count). Once all
+   are aligned, a frame below 0.7 of the burst's lower median is
+   **blurred** (`vision/pipeline/blurred.ts`) and dropped from the stack
+   worker before the crop; the reference never is.
 4. **Stack.** A dedicated worker keeps every aligned frame. The largest
    rectangle every aligned frame covers, found from the row runs alone,
    becomes the output crop, and only its pixels are stacked: per pixel over
@@ -165,7 +171,7 @@ as transferables. There is one worker script, a few lines of glue: every
 worker the coordinator starts runs it, and `vision/pipeline/exposureService.ts`
 routes each request by type to the align handlers or the stack session, so a
 worker's role is only which requests it is sent. The logic lives in
-`vision/pipeline/` as pure functions (`referenceFeatures`,
+`vision/pipeline/` as pure functions (`analyseReference`,
 `alignToReference`) and a `createStackSession()` object, all tested in Node
 without a browser. Decoding (`exposure/decode.ts`,
 `createImageBitmap` plus `OffscreenCanvas`) is the one step only a browser can
@@ -179,7 +185,8 @@ computed once, and both go out: the features to every align worker, the frame
 itself to the stack worker. Every other frame is decoded, aligned and warped
 inside one align worker and then forwarded, still as a transferable, to the
 stack worker (`add-frame`), which applies the exposure gain against the
-reference and keeps its first strip. `crop` then fixes the crop, and
+reference and keeps its first strip. `drop-frame` forgets a frame again
+that turned out blurred. `crop` then fixes the crop, and
 `stack-rows` stacks one strip; between strips, `warp-rows` has every align
 worker decode and warp its frames' rows again and `add-rows` hands them to
 the stack worker. With one strip that is `crop` and one `stack-rows`, and the
@@ -193,7 +200,7 @@ One route. Three states of one page, driven by `useExposure`:
 | --- | --- | --- |
 | Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-tile` (with `data-reference`), `photo-thumb`, `choose-reference`, `remove-photo`, `reference-badge`, `reference-hint`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
 | Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
-| Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
+| Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `result-blurred`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
 | Failed | `PipelineError` | `pipeline-error`, `retry` |
 
 Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),

@@ -27,6 +27,8 @@ export function frameLabel(t: Translate, status: AlignmentStatus): string {
       return t('progress.frame_reference');
     case 'aligned':
       return t('progress.frame_aligned');
+    case 'blurred':
+      return t('progress.frame_blurred');
     case 'skipped':
       return t('progress.frame_skipped');
     case 'unreadable':

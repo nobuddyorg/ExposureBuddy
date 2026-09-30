@@ -31,6 +31,8 @@ export interface StackSession {
   addReference: (image: RgbaImage, stripRows: number) => void;
   /** Normalises the frame's exposure to the reference and keeps its first strip, under the burst `index` addRows refers to. */
   addFrame: (index: number, frame: AlignedFrame) => void;
+  /** Forgets frame `index` again, so it neither decides the crop nor is stacked; only before `crop()`. */
+  dropFrame: (index: number) => void;
   readonly frameCount: number;
   /** Fixes the crop every frame covers and makes room for the result; after the last addFrame. */
   crop: () => StackSummary;
@@ -103,6 +105,11 @@ export function createStackSession(): StackSession {
       applyGain(frame, gain, kept);
       releaseBandsFrom(frame.image, kept.end);
       frames.set(index, { frame, gain });
+    },
+    dropFrame(index) {
+      if (cropped) throw new Error('A frame cannot be dropped after the crop.');
+      if (!frames.delete(index))
+        throw new Error(`Frame ${index} was never added.`);
     },
     get frameCount() {
       return frames.size + (reference ? 1 : 0);

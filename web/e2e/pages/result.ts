@@ -36,6 +36,7 @@ interface Result {
     background: Locator;
     canvas: Locator;
     skipped: Locator;
+    blurred: Locator;
     sliders: Record<Slider, Locator>;
     stats: Locator;
     trails: Locator;
@@ -92,6 +93,7 @@ export function initResult(page: Page): Result {
     },
     canvas: page.getByTestId('result-canvas'),
     skipped: page.getByTestId('result-skipped'),
+    blurred: page.getByTestId('result-blurred'),
     sliders: {
       ghost: page.getByTestId('ghost-slider'),
       blur: page.getByTestId('blur-slider'),

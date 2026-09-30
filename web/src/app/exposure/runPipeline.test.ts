@@ -24,6 +24,9 @@ import {
 
 const WORKING = { width: 8, height: 6 };
 const HOMOGRAPHY = Float64Array.from([1, 0, 0.5, 0, 1, 0, 0, 0, 1]);
+// Sharpness of a crisp frame and of one blurred well below the burst's median.
+const CRISP = 0.4;
+const SOFT = 0.1;
 const FEATURES = {
   width: 8,
   height: 6,
@@ -31,7 +34,7 @@ const FEATURES = {
   descriptors: new Uint32Array(0),
 };
 
-/** An align worker that reads the file's text as its verdict: 'skip', 'bad', 'crash', or anything else for aligned. */
+/** An align worker that reads the file's text as its verdict: 'skip', 'bad', 'crash', 'blur' for aligned but soft, or anything else for aligned. */
 function alignHandler(): FakeHandler {
   return async (request) => {
     const { id } = request;
@@ -51,6 +54,7 @@ function alignHandler(): FakeHandler {
           stripRows: WORKING.height,
           passes: 1,
           features: FEATURES,
+          sharpness: verdict === 'blur' ? SOFT : CRISP,
         },
         transfer: [image.data.buffer],
       };
@@ -84,6 +88,7 @@ function alignHandler(): FakeHandler {
         homography: HOMOGRAPHY,
         matches: 120,
         inliers: 90,
+        sharpness: verdict === 'blur' ? SOFT : CRISP,
       },
       transfer: [image.data.buffer],
     };
@@ -466,6 +471,42 @@ describe('runPipeline', () => {
     }
   });
 
+  it('drops a blurred frame before the crop and never warps it again', async () => {
+    const factory = createFakeFactory(stripAlignHandler(3), stackHandler());
+    const { result } = run(['ok', 'blur', 'ok', 'ok', 'ok'], {
+      workers: factory,
+    });
+    const exposure = await result;
+    expect(exposure.frames.map((frame) => frame.status)).toEqual([
+      'aligned',
+      'blurred',
+      'reference',
+      'aligned',
+      'aligned',
+    ]);
+    expect(exposure.alignedCount).toBe(4);
+    const sent = factory.stacks[0].sent;
+    const drop = sent.findIndex((message) => message.type === 'drop-frame');
+    expect(sent[drop]).toMatchObject({ index: 1 });
+    expect(drop).toBeLessThan(
+      sent.findIndex((message) => message.type === 'crop'),
+    );
+    const warped = factory.aligners
+      .flatMap((port) => port.sent)
+      .filter((message) => message.type === 'warp-rows');
+    // Three aligned frames, warped again for the one strip after the first.
+    expect(warped).toHaveLength(3);
+    for (const message of warped)
+      expect(await (message.file as Blob).text()).toBe('ok');
+  });
+
+  it('keeps a blurred reference and judges the others against it', async () => {
+    const { result } = run(['ok', 'ok', 'blur', 'ok', 'ok']);
+    const exposure = await result;
+    expect(exposure.frames[2].status).toBe('reference');
+    expect(exposure.alignedCount).toBe(5);
+  });
+
   it('refuses a reference outside the burst before touching a worker', async () => {
     for (const reference of [-1, 3]) {
       const { factory, result } = run(['ok', 'ok', 'ok'], { reference });
@@ -588,6 +629,24 @@ describe('runPipeline', () => {
     });
     await vi.waitFor(() =>
       expect(factory.stacks[0].sent.map((m) => m.type)).toContain('crop'),
+    );
+    controller.abort();
+    expect(await outcomeOf(result)).toBe('cancelled');
+  });
+
+  it('cancels promptly when the abort lands while a blurred frame is being dropped', async () => {
+    const controller = new AbortController();
+    const stack = stackHandler();
+    const { factory, result } = run(['ok', 'ok', 'blur'], {
+      workers: createFakeFactory(alignHandler(), (request, post) =>
+        request.type === 'drop-frame'
+          ? new Promise<void>(() => {})
+          : stack(request, post),
+      ),
+      signal: controller.signal,
+    });
+    await vi.waitFor(() =>
+      expect(factory.stacks[0].sent.map((m) => m.type)).toContain('drop-frame'),
     );
     controller.abort();
     expect(await outcomeOf(result)).toBe('cancelled');

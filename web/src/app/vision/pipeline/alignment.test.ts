@@ -8,13 +8,14 @@ import {
   MIN_INLIERS,
   MIN_INLIER_RATIO,
   alignToReference,
+  analyseReference,
   explainsEnough,
-  referenceFeatures,
 } from './alignment';
 import { toRgba } from './images.test-support';
 
 const image = toRgba(texturedScene(200, 150, 3));
-const reference = referenceFeatures(image);
+const { features: reference, sharpness: referenceSharpness } =
+  analyseReference(image);
 
 function fit(inlierCount: number, scale = 1): RansacResult {
   const homography = identityHomography();
@@ -93,6 +94,9 @@ describe('alignToReference with an injected fit', () => {
     if (outcome.kind !== 'aligned') throw new Error('unreachable');
     expect(bandedToRgba(outcome.frame.image)).toEqual(image);
     expect(Array.from(outcome.homography)).toEqual([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+    // The frame is the reference itself, so it is exactly as crisp, measured the same way.
+    expect(referenceSharpness).toBeGreaterThan(0);
+    expect(outcome.sharpness).toBe(referenceSharpness);
     expect(Array.from(outcome.frame.spans.start)).toEqual(
       Array(image.height).fill(0),
     );
