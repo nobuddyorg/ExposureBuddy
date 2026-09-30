@@ -136,6 +136,22 @@
     outline: none;
   }
 
+  /* On touch only the thumb takes the finger, so a scroll that starts on the track scrolls the page and a drag on the thumb never does. */
+  @media (pointer: coarse) {
+    .range {
+      pointer-events: none;
+      touch-action: none;
+    }
+
+    .range::-webkit-slider-thumb {
+      pointer-events: auto;
+    }
+
+    .range::-moz-range-thumb {
+      pointer-events: auto;
+    }
+  }
+
   .range::-webkit-slider-runnable-track {
     height: 0.25rem;
     border-radius: 9999px;
@@ -157,10 +173,10 @@
   .range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 1.375rem;
-    height: 1.375rem;
+    width: 1.75rem;
+    height: 1.75rem;
     /* Centres the thumb on the 4px track: (track - thumb) / 2. */
-    margin-top: -0.5625rem;
+    margin-top: -0.75rem;
     border-radius: 9999px;
     border: 2px solid var(--background);
     background: var(--accent);
@@ -168,8 +184,8 @@
   }
 
   .range::-moz-range-thumb {
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 1.5rem;
+    height: 1.5rem;
     border-radius: 9999px;
     border: 2px solid var(--background);
     background: var(--accent);

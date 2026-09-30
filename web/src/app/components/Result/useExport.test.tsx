@@ -48,6 +48,15 @@ describe('useExport: download', () => {
     });
   });
 
+  it('reports nothing when the save dialog is cancelled', async () => {
+    const save = vi.fn(() =>
+      Promise.reject(new DOMException('cancelled', 'AbortError')),
+    );
+    const { result } = setup({ save });
+    await act(() => result.current.download());
+    expect(result.current.status).toEqual({ kind: 'idle' });
+  });
+
   it('reports a canvas that cannot be encoded', async () => {
     stubs.toBlob.mockImplementation((callback: BlobCallback) => callback(null));
     const { result, save } = setup();

@@ -159,6 +159,33 @@ describe('Result: compare', () => {
     expect(render).toHaveBeenCalledOnce();
   });
 
+  it('shows the single photo while the image is pressed and the composite again on release', async () => {
+    const composite = rgbaImage(4, 3, 100);
+    const reference = rgbaImage(4, 3, 200);
+    renderResult(
+      fakeResult({
+        render: async () => composite,
+        renderReference: async () => reference,
+      }),
+    );
+    await waitFor(() => expect(stubs.context.putImageData).toHaveBeenCalled());
+    const canvas = screen.getByTestId('result-canvas');
+
+    fireEvent.pointerDown(canvas);
+    await waitFor(() =>
+      expect(drawnImages().at(-1)?.data).toBe(reference.data),
+    );
+    expect(screen.getByTestId('compare-toggle')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+
+    fireEvent.pointerUp(canvas);
+    await waitFor(() =>
+      expect(drawnImages().at(-1)?.data).toBe(composite.data),
+    );
+  });
+
   it('keeps the composite on screen until the reference arrives', async () => {
     const user = userEvent.setup();
     const pending = deferred<RgbaImage>();

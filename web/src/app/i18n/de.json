@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "ExposureBuddy",
     "tagline": "Langzeitbelichtung aus einer Serie Handyfotos",
     "description": "Macht aus einer Fotoserie vom Handy eine Langzeitbelichtung: Die Szene bleibt scharf, alles Bewegte verblasst zum Geist. Läuft komplett im Browser."
   },
@@ -66,6 +65,7 @@
     "glow": "Leuchten",
     "glow_help": "Lichtspur-Schimmer auf hellen bewegten Dingen",
     "compare": "Mit einem Einzelfoto vergleichen",
+    "compare_hint": "Bild gedrückt halten, um es mit einem Einzelfoto zu vergleichen",
     "download": "Bild speichern",
     "share": "Teilen",
     "start_over": "Von vorn",

@@ -27,7 +27,7 @@ export default function Header({ onOpenHelp }: { onOpenHelp: () => void }) {
             fetchPriority="high"
             className="h-7 w-7 shrink-0"
           />
-          <span className="font-display truncate text-lg font-semibold">
+          <span className="font-display truncate text-lg font-semibold underline decoration-accent decoration-2 underline-offset-4">
             {t('brand.exposure')}
             <span className="text-accent">{t('brand.buddy')}</span>
           </span>

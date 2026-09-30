@@ -28,7 +28,7 @@ export interface ExportController {
 
 export interface ExportOptions {
   readonly sharer?: FileSharer;
-  readonly save?: (blob: Blob, name: string) => void;
+  readonly save?: (blob: Blob, name: string) => void | Promise<void>;
   readonly now?: () => Date;
 }
 
@@ -66,9 +66,11 @@ export function useExport(
   const download = useCallback(async () => {
     try {
       const file = await encode();
-      save(file, file.name);
+      await save(file, file.name);
       setStatus({ kind: 'saved', name: file.name });
     } catch (error) {
+      // A dismissed save dialog saved nothing, so there is nothing to report.
+      if (isAbort(error)) return setStatus({ kind: 'idle' });
       setStatus({ kind: 'failed', message: errorMessage(error) });
     }
   }, [encode, save]);
@@ -87,7 +89,7 @@ export function useExport(
       } catch (error) {
         // A dismissed share sheet is not a failure; anything else falls back to a plain save.
         if (isAbort(error)) return;
-        save(file, file.name);
+        await save(file, file.name);
         setStatus({ kind: 'share_failed', name: file.name });
       }
     },

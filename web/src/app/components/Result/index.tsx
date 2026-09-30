@@ -83,7 +83,12 @@ export default function Result({
               showingReference ? t('result.single_alt') : t('result.alt')
             }
             style={{ aspectRatio: `${result.width} / ${result.height}` }}
-            className="card-lift h-auto max-h-[78dvh] w-auto max-w-full rounded-xl bg-muted ring-1 ring-border"
+            onPointerDown={() => compare.hold(true)}
+            onPointerUp={() => compare.hold(false)}
+            onPointerCancel={() => compare.hold(false)}
+            onPointerLeave={() => compare.hold(false)}
+            onContextMenu={(event) => event.preventDefault()}
+            className="card-lift h-auto max-h-[78svh] w-auto max-w-full touch-pan-y select-none rounded-xl bg-muted ring-1 ring-border [-webkit-touch-callout:none]"
           />
         </div>
 
@@ -95,12 +100,15 @@ export default function Result({
           />
           <ActionRow
             shareSupported={exporter.shareSupported}
-            comparing={compare.comparing}
+            comparing={compare.toggled}
             onDownload={() => void exporter.download()}
             onShare={() => void exporter.share(t('result.title'))}
             onToggleCompare={compare.toggle}
             onStartOver={onStartOver}
           />
+          <p className="text-xs text-muted-foreground">
+            {t('result.compare_hint')}
+          </p>
           <p
             role="status"
             data-testid="export-status"

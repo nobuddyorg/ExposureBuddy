@@ -34,30 +34,28 @@ export function CombineControls({
   ];
 
   return (
-    <div
-      className={cardClasses(
-        'flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:p-5',
-      )}
-    >
-      <div className="flex-1">
-        <label htmlFor={selectId} className={labelClasses('mb-1.5')}>
-          {t('picker.quality')}
-        </label>
-        <select
-          id={selectId}
-          data-testid="quality-select"
-          value={quality}
-          onChange={(event) => setQuality(event.target.value as OutputQuality)}
-          className={fieldClasses()}
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1.5 sm:items-end">
+    <div className={cardClasses('flex flex-col gap-3 p-4 sm:p-5')}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <label htmlFor={selectId} className={labelClasses('mb-1.5')}>
+            {t('picker.quality')}
+          </label>
+          <select
+            id={selectId}
+            data-testid="quality-select"
+            value={quality}
+            onChange={(event) =>
+              setQuality(event.target.value as OutputQuality)
+            }
+            className={fieldClasses()}
+          >
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="button"
           data-testid="combine"
@@ -68,12 +66,15 @@ export function CombineControls({
         >
           {tCount('picker.combine', count)}
         </button>
-        {tooFew && (
-          <p id={reasonId} className="text-xs text-muted-foreground">
-            {t('picker.need_more', { count: MIN_PHOTOS })}
-          </p>
-        )}
       </div>
+      {tooFew && (
+        <p
+          id={reasonId}
+          className="text-xs text-muted-foreground sm:text-right"
+        >
+          {t('picker.need_more', { count: MIN_PHOTOS })}
+        </p>
+      )}
     </div>
   );
 }

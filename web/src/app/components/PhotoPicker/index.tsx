@@ -7,7 +7,6 @@ import { useI18n } from '../../i18n/useI18n';
 import type { OutputQuality } from '../../vision/pipeline/budget';
 import { buttonClasses } from '../ui/buttonClasses';
 import { cardClasses } from '../ui/cardClasses';
-import { labelClasses } from '../ui/fieldClasses';
 import { CombineControls } from './CombineControls';
 import { PhotoGrid } from './PhotoGrid';
 import { PickerNotice as NoticeRegion } from './PickerNotice';
@@ -71,12 +70,9 @@ export default function PhotoPicker({
 
   return (
     <div className="fade-up mx-auto flex max-w-3xl flex-col gap-6">
-      <div>
-        <p className={labelClasses('text-accent')}>{t('app.name')}</p>
-        <h1 className="font-display mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">
-          {t('app.tagline')}
-        </h1>
-      </div>
+      <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-4xl">
+        {t('app.tagline')}
+      </h1>
 
       <section
         data-testid="photo-dropzone"
