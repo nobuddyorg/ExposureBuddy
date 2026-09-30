@@ -2,7 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import type { AlignedFrame, Rect, RowSpans, Size } from '../types';
-import { fullCoverageRect, selectMedian, stackFrames } from './stack';
+import { emptyStack, fullCoverageRect, selectMedian, stackRows } from './stack';
 import {
   allPixels,
   flatFrame,
@@ -12,6 +12,7 @@ import {
   paintRect,
   pixelOf,
   rectSpans,
+  stackFrames,
   type Rgb,
 } from './synthetic.test-support';
 
@@ -161,10 +162,6 @@ describe('stackFrames', () => {
     );
   });
 
-  it('throws on an empty burst', () => {
-    expect(() => stackFrames([], { rect: FULL })).toThrow(/at least one/);
-  });
-
   it('reports monotone progress that reaches 1 exactly once, at the end', () => {
     const fractions: number[] = [];
     const tall = { width: 3, height: 300 };
@@ -240,6 +237,89 @@ describe('stackFrames', () => {
         },
       ),
     );
+  });
+});
+
+describe('stackRows', () => {
+  const tall = { width: 2, height: 150 };
+  const rect: Rect = { x: 0, y: 10, width: 2, height: 130 };
+
+  function tallBurst(): AlignedFrame[] {
+    const frames = [
+      flatFrame(tall, BACKGROUND, 64),
+      flatFrame(tall, BACKGROUND, 64),
+      flatFrame(tall, PERSON, 64),
+    ];
+    paintRect(frames[1].image, { x: 1, y: 70, width: 1, height: 3 }, PERSON);
+    return frames;
+  }
+
+  it('starts empty, the size of the rect', () => {
+    const stack = emptyStack(rect, 3);
+    expect(stack).toMatchObject({ width: 2, height: 130, frameCount: 3 });
+    expect(stack.mean.bands.every((band) => band.length === 0)).toBe(true);
+  });
+
+  it('stacks strip by strip into the same result as all rows at once', () => {
+    const whole = emptyStack(rect, 3);
+    stackRows(tallBurst(), whole, { rect, rows: { start: 0, end: 150 } });
+
+    const inStrips = emptyStack(rect, 3);
+    // Strips of 50 rows: the result's bands (64 rows from the rect's top) straddle them.
+    for (const start of [0, 50, 100])
+      stackRows(tallBurst(), inStrips, {
+        rect,
+        rows: { start, end: start + 50 },
+      });
+    expect(allPixels(inStrips.mean)).toEqual(allPixels(whole.mean));
+    for (const mode of ['median', 'trimmed', 'clipped', 'mode'] as const)
+      expect(allPixels(inStrips.backgrounds[mode])).toEqual(
+        allPixels(whole.backgrounds[mode]),
+      );
+    expect(pixelOf(whole.backgrounds.median, 1, 61)).toEqual([...PERSON]);
+  });
+
+  it('reports progress within the rows it was given, from wherever they start', () => {
+    const square = { width: 1, height: 256 };
+    const progress: number[] = [];
+    stackRows(
+      [flatFrame(square, BACKGROUND)],
+      emptyStack({ x: 0, y: 0, ...square }, 1),
+      {
+        rect: { x: 0, y: 0, ...square },
+        rows: { start: 64, end: 256 },
+        onProgress: (fraction) => progress.push(fraction),
+      },
+    );
+    expect(progress).toEqual([1 / 3, 2 / 3, 1]);
+  });
+
+  it('stacks nothing and reports nothing for rows outside the rect', () => {
+    const stack = emptyStack(rect, 3);
+    const progress: number[] = [];
+    stackRows(tallBurst(), stack, {
+      rect,
+      rows: { start: 0, end: 10 },
+      onProgress: (fraction) => progress.push(fraction),
+    });
+    expect(stack.mean.bands.every((band) => band.length === 0)).toBe(true);
+    expect(progress).toEqual([]);
+  });
+
+  it('frees every band of the frames once the last row is stacked', () => {
+    const frames = tallBurst();
+    stackRows(frames, emptyStack(rect, 3), {
+      rect: { x: 0, y: 0, ...tall },
+      rows: { start: 0, end: 150 },
+    });
+    for (const frame of frames)
+      expect(frame.image.bands.every((band) => band.length === 0)).toBe(true);
+  });
+
+  it('throws on an empty burst', () => {
+    expect(() =>
+      stackRows([], emptyStack(rect, 0), { rect, rows: { start: 0, end: 1 } }),
+    ).toThrow(/at least one/);
   });
 });
 

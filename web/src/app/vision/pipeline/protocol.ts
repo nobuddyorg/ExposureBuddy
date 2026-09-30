@@ -2,8 +2,10 @@ import type {
   AlignedFrame,
   CompositeParams,
   FeatureSet,
+  Homography,
   Rect,
   RgbaImage,
+  RowRange,
   Size,
 } from '../types';
 
@@ -33,6 +35,15 @@ export type AlignWorkerRequest =
       readonly id: number;
       readonly file: Blob;
       readonly target: Size;
+    }
+  | {
+      readonly type: 'warp-rows';
+      readonly id: number;
+      readonly file: Blob;
+      readonly target: Size;
+      /** The transform the frame's `aligned` answer carried. */
+      readonly homography: Homography;
+      readonly rows: RowRange;
     };
 
 export type AlignWorkerResponse =
@@ -42,6 +53,8 @@ export type AlignWorkerResponse =
       readonly image: RgbaImage;
       readonly source: Size;
       readonly alignWorkers: number;
+      readonly stripRows: number;
+      readonly passes: number;
       readonly features: FeatureSet;
     }
   | { readonly type: 'reference-set'; readonly id: number }
@@ -49,8 +62,15 @@ export type AlignWorkerResponse =
       readonly type: 'aligned';
       readonly id: number;
       readonly frame: AlignedFrame;
+      /** Frame → reference at the working size; a strip warps with it again. */
+      readonly homography: Homography;
       readonly matches: number;
       readonly inliers: number;
+    }
+  | {
+      readonly type: 'warped-rows';
+      readonly id: number;
+      readonly frame: AlignedFrame;
     }
   | {
       readonly type: 'skipped';
@@ -61,11 +81,13 @@ export type AlignWorkerResponse =
   | { readonly type: 'unreadable'; readonly id: number }
   | WorkerFailure;
 
-/** What decoding the reference yields: its pixels at the working size, the file's own dimensions and how many align workers fit. */
+/** What decoding the reference yields: its pixels at the working size, the file's own dimensions, and the plan's workers and strips. */
 export interface DecodedReference {
   readonly image: RgbaImage;
   readonly source: Size;
   readonly alignWorkers: number;
+  readonly stripRows: number;
+  readonly passes: number;
 }
 
 /** The two browser-only steps the align service needs, injected so it runs in Node under test. */
@@ -85,13 +107,28 @@ export type StackWorkerRequest =
       readonly type: 'add-reference';
       readonly id: number;
       readonly image: RgbaImage;
+      readonly stripRows: number;
     }
   | {
       readonly type: 'add-frame';
       readonly id: number;
+      /** The frame's place in the burst; its later strips name it again. */
+      readonly index: number;
       readonly frame: AlignedFrame;
     }
-  | { readonly type: 'stack'; readonly id: number }
+  | { readonly type: 'crop'; readonly id: number }
+  | {
+      readonly type: 'stack-rows';
+      readonly id: number;
+      readonly rows: RowRange;
+    }
+  | {
+      readonly type: 'add-rows';
+      readonly id: number;
+      readonly index: number;
+      readonly frame: AlignedFrame;
+      readonly rows: RowRange;
+    }
   | {
       readonly type: 'render';
       readonly id: number;
@@ -113,7 +150,8 @@ export type StackWorkerResponse =
       readonly id: number;
       readonly fraction: number;
     }
-  | ({ readonly type: 'stacked'; readonly id: number } & StackSummary)
+  | ({ readonly type: 'cropped'; readonly id: number } & StackSummary)
+  | { readonly type: 'stacked'; readonly id: number }
   | {
       readonly type: 'rendered';
       readonly id: number;

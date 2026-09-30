@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { boxBlurInPlace } from './boxBlur';
 import { composite } from './composite';
-import { stackFrames } from './stack';
-import { flatFrame } from './synthetic.test-support';
+import { flatFrame, stackFrames } from './synthetic.test-support';
 
 vi.mock('./boxBlur', async (importOriginal) => {
   const original = await importOriginal<typeof import('./boxBlur')>();

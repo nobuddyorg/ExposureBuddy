@@ -10,11 +10,11 @@ import type {
   StackResult,
 } from '../types';
 import { composite } from './composite';
-import { stackFrames } from './stack';
 import {
   allPixels,
   flatFrame,
   paintRect,
+  stackFrames,
   type Rgb,
 } from './synthetic.test-support';
 

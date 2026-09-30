@@ -80,6 +80,12 @@ export interface BandedRgb {
   readonly bands: Uint8ClampedArray[];
 }
 
+/** Rows [start, end) of an image. */
+export interface RowRange {
+  readonly start: number;
+  readonly end: number;
+}
+
 /** Per row y, the covered columns are [start[y], end[y]); a row with end ≤ start covers nothing. */
 export interface RowSpans {
   readonly start: Int32Array;

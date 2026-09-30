@@ -1,5 +1,13 @@
 import { createBandedRgb, rowOf } from '../image/banded';
-import type { AlignedFrame, BandedRgb, Rect, RowSpans, Size } from '../types';
+import { emptyStack, stackRows } from './stack';
+import type {
+  AlignedFrame,
+  BandedRgb,
+  Rect,
+  RowSpans,
+  Size,
+  StackResult,
+} from '../types';
 
 export type Rgb = readonly [number, number, number];
 
@@ -80,4 +88,20 @@ export function isRectCovered(spans: readonly RowSpans[], rect: Rect): boolean {
     }
   }
   return true;
+}
+
+/** Every row of `rect` stacked in one go, as a single-pass run does. */
+export function stackFrames(
+  frames: readonly AlignedFrame[],
+  options: {
+    readonly rect: Rect;
+    readonly onProgress?: (fraction: number) => void;
+  },
+): StackResult {
+  const stack = emptyStack(options.rect, frames.length);
+  stackRows(frames, stack, {
+    ...options,
+    rows: { start: 0, end: options.rect.y + options.rect.height },
+  });
+  return stack;
 }

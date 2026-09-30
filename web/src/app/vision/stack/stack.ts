@@ -4,7 +4,14 @@ import {
   releaseBandsAbove,
   rowOf,
 } from '../image/banded';
-import type { AlignedFrame, Rect, RowSpans, Size, StackResult } from '../types';
+import type {
+  AlignedFrame,
+  Rect,
+  RowRange,
+  RowSpans,
+  Size,
+  StackResult,
+} from '../types';
 import { indices } from '../indices';
 import { ROBUST_MODE_COUNT, robustBackgrounds } from './backgrounds';
 
@@ -12,50 +19,73 @@ const RGB = 3;
 const OPAQUE = 255;
 const PROGRESS_STEP = 0.02;
 
-interface StackOptions {
-  /** The crop every frame covers entirely (see fullCoverageRect); only its pixels are stacked. */
+/** An empty result the size of `rect`: every layer's bands unallocated until stackRows reaches them. */
+export function emptyStack(rect: Rect, frameCount: number): StackResult {
+  return {
+    width: rect.width,
+    height: rect.height,
+    backgrounds: {
+      median: emptyBandedRgb(rect),
+      trimmed: emptyBandedRgb(rect),
+      clipped: emptyBandedRgb(rect),
+      mode: emptyBandedRgb(rect),
+    },
+    mean: emptyBandedRgb(rect),
+    frameCount,
+  };
+}
+
+interface StackRowsOptions {
+  /** The crop every frame covers entirely (see fullCoverageRect); `stack` is its size. */
   readonly rect: Rect;
+  /** Which rows of the frames to stack; the part inside `rect` is. */
+  readonly rows: RowRange;
   readonly onProgress?: (fraction: number) => void;
 }
 
 /**
- * Returns, for every pixel of `rect`, the four background estimates and the mean over all frames.
+ * Writes, for every pixel of `rows` inside `rect`, the four background estimates and the mean over all frames into `stack`.
  * Consumes the frames: each band is freed once its rows are stacked, so the peak stays near one copy of the burst.
  */
-export function stackFrames(
+export function stackRows(
   frames: readonly AlignedFrame[],
-  { rect, onProgress = noProgress }: StackOptions,
-): StackResult {
+  stack: StackResult,
+  { rect, rows, onProgress = noProgress }: StackRowsOptions,
+): void {
   if (frames.length === 0)
-    throw new Error('stackFrames needs at least one frame.');
+    throw new Error('stackRows needs at least one frame.');
   const frameCount = frames.length;
-  const layers = {
-    median: emptyBandedRgb(rect),
-    trimmed: emptyBandedRgb(rect),
-    clipped: emptyBandedRgb(rect),
-    mode: emptyBandedRgb(rect),
-    mean: emptyBandedRgb(rect),
-  };
-  const outputs = Object.values(layers);
+  const { mean, backgrounds } = stack;
+  const layers = [
+    backgrounds.median,
+    backgrounds.trimmed,
+    backgrounds.clipped,
+    backgrounds.mode,
+    mean,
+  ];
   const red = new Uint8Array(frameCount);
   const green = new Uint8Array(frameCount);
   const blue = new Uint8Array(frameCount);
   const channels = [red, green, blue];
   const scratch = new Uint8Array(frameCount);
   const estimates = new Uint8Array(ROBUST_MODE_COUNT);
-  const bandRows = layers.mean.bandRows;
+  const { bandRows } = mean;
   const columns = indices(rect.width);
+  const first = Math.max(rows.start, rect.y) - rect.y;
+  const last = Math.min(rows.end, rect.y + rect.height) - rect.y;
   let reported = 0;
-  for (let band = 0; band < layers.mean.bands.length; band += 1) {
-    outputs.forEach((layer) => allocateBand(layer, band));
-    const bandEnd = Math.min((band + 1) * bandRows, rect.height);
-    for (let y = band * bandRows; y < bandEnd; y += 1) {
+  for (let chunkStart = first; chunkStart < last;) {
+    const band = Math.floor(chunkStart / bandRows);
+    const chunkEnd = Math.min((band + 1) * bandRows, last);
+    // A band that straddles two strips already holds the first strip's rows.
+    layers.forEach((layer) => {
+      if (layer.bands[band].length === 0) allocateBand(layer, band);
+    });
+    for (let y = chunkStart; y < chunkEnd; y += 1) {
       const sourceRows = frames.map((frame) => rowOf(frame.image, rect.y + y));
-      const medianRow = rowOf(layers.median, y);
-      const trimmedRow = rowOf(layers.trimmed, y);
-      const clippedRow = rowOf(layers.clipped, y);
-      const modeRow = rowOf(layers.mode, y);
-      const meanRow = rowOf(layers.mean, y);
+      const [medianRow, trimmedRow, clippedRow, modeRow, meanRow] = layers.map(
+        (layer) => rowOf(layer, y),
+      );
       for (const x of columns) {
         const source = (rect.x + x) * RGB;
         const target = x * RGB;
@@ -80,21 +110,16 @@ export function stackFrames(
         }
       }
     }
-    frames.forEach((frame) => releaseBandsAbove(frame.image, rect.y + bandEnd));
-    const fraction = bandEnd / rect.height;
+    frames.forEach((frame) =>
+      releaseBandsAbove(frame.image, rect.y + chunkEnd),
+    );
+    const fraction = (chunkEnd - first) / (last - first);
     if (fraction === 1 || fraction - reported >= PROGRESS_STEP) {
       reported = fraction;
       onProgress(fraction);
     }
+    chunkStart = chunkEnd;
   }
-  const { mean, ...backgrounds } = layers;
-  return {
-    width: rect.width,
-    height: rect.height,
-    backgrounds,
-    mean,
-    frameCount,
-  };
 }
 
 function noProgress(): void {}

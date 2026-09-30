@@ -1,13 +1,20 @@
-import { bandedFromRgba, cropBanded, toRgba } from '../image/banded';
+import {
+  adoptBands,
+  bandedFromRgba,
+  cropBanded,
+  releaseBandsFrom,
+  toRgba,
+} from '../image/banded';
 import { composite } from '../stack/composite';
-import { applyGain, estimateGain } from '../stack/exposure';
-import { fullCoverageRect, stackFrames } from '../stack/stack';
+import { applyGain, estimateGain, type Gain } from '../stack/exposure';
+import { emptyStack, fullCoverageRect, stackRows } from '../stack/stack';
 import type {
   AlignedFrame,
   BandedRgb,
   CompositeParams,
   Rect,
   RgbaImage,
+  RowRange,
   RowSpans,
   Size,
   StackResult,
@@ -15,22 +22,36 @@ import type {
 import type { StackSummary } from './protocol';
 import { NO_OVERLAP_MESSAGE } from './protocol';
 
+/**
+ * One burst in the stack worker. The frames arrive whole and keep their first `stripRows` rows; the crop follows from what they
+ * cover; then the rows are stacked strip by strip, every strip after the first arriving again through `addRows`.
+ */
 export interface StackSession {
-  /** The frame every other frame was aligned to; must come first. */
-  addReference: (image: RgbaImage) => void;
-  /** Normalises the frame's exposure to the reference and keeps it. */
-  addFrame: (frame: AlignedFrame) => void;
+  /** The frame every other frame was aligned to, and how many rows of each frame to keep until its rows are stacked; must come first. */
+  addReference: (image: RgbaImage, stripRows: number) => void;
+  /** Normalises the frame's exposure to the reference and keeps its first strip, under the burst `index` addRows refers to. */
+  addFrame: (index: number, frame: AlignedFrame) => void;
   readonly frameCount: number;
-  /** Computes the per-pixel statistics inside the crop every frame covers; `onProgress` runs with a fraction 0–1. */
-  stack: (onProgress?: (fraction: number) => void) => StackSummary;
-  /** The composite for `params`, crop-sized; only after `stack()`. */
+  /** Fixes the crop every frame covers and makes room for the result; after the last addFrame. */
+  crop: () => StackSummary;
+  /** Stacks `rows` (inside the crop) of every frame into the result and lets them go; `onProgress` runs with a fraction 0–1. */
+  stackRows: (rows: RowRange, onProgress?: (fraction: number) => void) => void;
+  /** Brings `rows` of frame `index` in again, warped anew, with the exposure gain its first strip got. */
+  addRows: (index: number, frame: AlignedFrame, rows: RowRange) => void;
+  /** The composite for `params`, crop-sized; only after the rows are stacked. */
   render: (params: CompositeParams) => RgbaImage;
-  /** The reference frame, cropped like the composite; only after `stack()`. */
+  /** The reference frame, cropped like the composite; only after `crop()`. */
   renderReference: () => RgbaImage;
   dispose: () => void;
 }
 
-interface Stacked {
+interface Kept {
+  readonly frame: AlignedFrame;
+  readonly gain: Gain;
+}
+
+interface Cropped {
+  readonly rect: Rect;
   readonly result: StackResult;
   readonly reference: BandedRgb;
 }
@@ -43,67 +64,91 @@ function fullSpans(size: Size): RowSpans {
 }
 
 export function createStackSession(): StackSession {
-  const frames: AlignedFrame[] = [];
-  let reference: BandedRgb | null = null;
-  let stacked: Stacked | null = null;
+  const frames = new Map<number, Kept>();
+  let reference: AlignedFrame | null = null;
+  let stripRows = 0;
+  let cropped: Cropped | null = null;
 
-  const requireReference = (): BandedRgb => {
+  const requireReference = (): AlignedFrame => {
     if (!reference) throw new Error('The reference frame must be added first.');
     return reference;
   };
-  const requireStacked = (): Stacked => {
-    if (!stacked) throw new Error('Nothing has been stacked yet.');
-    return stacked;
+  const requireCropped = (): Cropped => {
+    if (!cropped) throw new Error('Nothing has been stacked yet.');
+    return cropped;
   };
+  const allFrames = (): AlignedFrame[] => [
+    requireReference(),
+    ...[...frames.values()].map((kept) => kept.frame),
+  ];
 
   return {
-    addReference(image) {
+    addReference(image, rows) {
       if (reference) throw new Error('The reference frame was already added.');
       const banded = bandedFromRgba(image);
-      reference = banded;
-      frames.push({ image: banded, spans: fullSpans(banded) });
+      reference = { image: banded, spans: fullSpans(banded) };
+      stripRows = rows;
     },
-    addFrame(frame) {
-      const base = requireReference();
+    addFrame(index, frame) {
+      const base = requireReference().image;
       if (
         frame.image.width !== base.width ||
         frame.image.height !== base.height
       ) {
         throw new Error('Every aligned frame must have the working size.');
       }
-      applyGain(frame, estimateGain(frame, base));
-      frames.push(frame);
+      if (frames.has(index)) throw new Error(`Frame ${index} came twice.`);
+      const gain = estimateGain(frame, base);
+      const kept = { start: 0, end: Math.min(stripRows, base.height) };
+      applyGain(frame, gain, kept);
+      releaseBandsFrom(frame.image, kept.end);
+      frames.set(index, { frame, gain });
     },
     get frameCount() {
-      return frames.length;
+      return frames.size + (reference ? 1 : 0);
     },
-    stack(onProgress) {
-      const base = requireReference();
-      const rect: Rect = fullCoverageRect(
-        frames.map((frame) => frame.spans),
+    crop() {
+      const base = requireReference().image;
+      const everyFrame = allFrames();
+      const rect = fullCoverageRect(
+        everyFrame.map((frame) => frame.spans),
         base,
       );
       // No pixel covered by every frame: fullCoverageRect answers with the zero rect.
       if (rect.width === 0) throw new Error(NO_OVERLAP_MESSAGE);
-      // Copied before stacking frees the reference's bands along with every other frame's.
-      const croppedReference = cropBanded(base, rect);
-      const frameCount = frames.length;
-      const result = stackFrames(frames, { rect, onProgress });
-      frames.length = 0;
-      reference = croppedReference;
-      stacked = { result, reference: croppedReference };
-      return { width: base.width, height: base.height, rect, frameCount };
+      cropped = {
+        rect,
+        result: emptyStack(rect, everyFrame.length),
+        // Copied now: stacking frees the reference's bands along with every other frame's.
+        reference: cropBanded(base, rect),
+      };
+      return {
+        width: base.width,
+        height: base.height,
+        rect,
+        frameCount: everyFrame.length,
+      };
+    },
+    stackRows(rows, onProgress) {
+      const { rect, result } = requireCropped();
+      stackRows(allFrames(), result, { rect, rows, onProgress });
+    },
+    addRows(index, frame, rows) {
+      const kept = frames.get(index);
+      if (!kept) throw new Error(`Frame ${index} was never added.`);
+      applyGain(frame, kept.gain, rows);
+      adoptBands(kept.frame.image, frame.image);
     },
     render(params) {
-      return composite(requireStacked().result, params);
+      return composite(requireCropped().result, params);
     },
     renderReference() {
-      return toRgba(requireStacked().reference);
+      return toRgba(requireCropped().reference);
     },
     dispose() {
-      frames.length = 0;
+      frames.clear();
       reference = null;
-      stacked = null;
+      cropped = null;
     },
   };
 }

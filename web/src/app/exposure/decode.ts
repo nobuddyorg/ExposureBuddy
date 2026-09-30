@@ -57,6 +57,8 @@ export async function decodeReference(
       image: drawScaled(bitmap, plan),
       source,
       alignWorkers: plan.alignWorkers,
+      stripRows: plan.stripRows,
+      passes: plan.passes,
     };
   } finally {
     bitmap.close();

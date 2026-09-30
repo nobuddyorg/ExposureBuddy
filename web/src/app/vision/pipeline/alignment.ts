@@ -7,6 +7,7 @@ import { matchDescriptors } from '../matching/hamming';
 import type {
   AlignedFrame,
   FeatureSet,
+  Homography,
   Point,
   RansacResult,
   RgbaImage,
@@ -32,6 +33,8 @@ export type AlignOutcome =
   | {
       readonly kind: 'aligned';
       readonly frame: AlignedFrame;
+      /** Frame → reference at the working size. */
+      readonly homography: Homography;
       readonly matches: number;
       readonly inliers: number;
     }
@@ -99,6 +102,7 @@ export function alignToReference(
   return {
     kind: 'aligned',
     frame: warpRgba(image, toWorking, image),
+    homography: toWorking,
     matches: matches.length,
     inliers: fit.inlierCount,
   };

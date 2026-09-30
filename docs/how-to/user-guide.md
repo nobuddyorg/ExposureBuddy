@@ -30,8 +30,12 @@ read, with a count. **Add more** appends to the selection, **Clear** starts
 again. A file that is not an image is left out and named in a notice.
 
 **Output size** sets how large the result is: **Small, fast** (1024 px on the
-long side), **Standard** (1600 px) or **Large, slow** (2400 px). The line
-under the choice says what your burst will come out at. A large burst may
+long side), **Standard** (1600 px), **Large, slow** (2400 px) or **Original
+size, slowest** (the photos' own size, up to about 16 megapixels). The line
+under the choice says what your burst will come out at. When a burst is too
+large to combine in one go, the app combines it in strips instead of making
+it smaller: the result is exactly the same, it just reads every photo again
+for each strip, and the line says how many passes that takes. A large burst may
 come out smaller than you chose: the app works within a memory budget that
 depends on the device, so a phone does not run out of memory, and a bigger
 burst means a smaller working size; the line says so when that happens, and

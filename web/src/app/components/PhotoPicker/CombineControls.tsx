@@ -52,13 +52,20 @@ export function CombineControls({
       width: estimate.width,
       height: estimate.height,
     });
-    return estimate.limited ? `${size}. ${t('picker.result_limited')}` : size;
+    const notes = [
+      ...(estimate.limited ? [t('picker.result_limited')] : []),
+      ...(estimate.passes > 1
+        ? [t('picker.result_passes', { count: estimate.passes })]
+        : []),
+    ];
+    return notes.length === 0 ? size : `${size}. ${notes.join(' ')}`;
   };
   // Spelled out per option: the i18n parity test only sees literal t('…') keys.
   const options: readonly { value: OutputQuality; label: string }[] = [
     { value: 'low', label: t('picker.quality_low') },
     { value: 'standard', label: t('picker.quality_standard') },
     { value: 'high', label: t('picker.quality_high') },
+    { value: 'original', label: t('picker.quality_original') },
   ];
 
   return (

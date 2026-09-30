@@ -23,6 +23,7 @@ import {
 } from './runPipeline';
 
 const WORKING = { width: 8, height: 6 };
+const HOMOGRAPHY = Float64Array.from([1, 0, 0.5, 0, 1, 0, 0, 0, 1]);
 const FEATURES = {
   width: 8,
   height: 6,
@@ -45,8 +46,10 @@ function alignHandler(): FakeHandler {
           id,
           image,
           source: { width: 80, height: 60 },
-          // The fake has memory to spare: every worker the device could run fits.
+          // The fake has memory to spare: every worker the device could run fits, in one pass.
           alignWorkers: (request.sizing as WorkingSizing).requestedWorkers,
+          stripRows: WORKING.height,
+          passes: 1,
           features: FEATURES,
         },
         transfer: [image.data.buffer],
@@ -63,17 +66,38 @@ function alignHandler(): FakeHandler {
         transfer: [],
       };
     if (verdict === 'crash') throw new Error('kernel exploded');
+    if (request.type === 'warp-rows') {
+      if (verdict === 'gone')
+        return { response: { type: 'unreadable', id }, transfer: [] };
+      const strip = rgba(WORKING.width, WORKING.height, 2);
+      return {
+        response: { type: 'warped-rows', id, frame: { image: strip } },
+        transfer: [strip.data.buffer],
+      };
+    }
     const image = rgba(WORKING.width, WORKING.height, 1);
     return {
       response: {
         type: 'aligned',
         id,
         frame: { image, coverage: new Uint8Array(48).fill(1) },
+        homography: HOMOGRAPHY,
         matches: 120,
         inliers: 90,
       },
       transfer: [image.data.buffer],
     };
+  };
+}
+
+/** An align worker whose reference decode plans strips of `stripRows` rows. */
+function stripAlignHandler(stripRows: number): FakeHandler {
+  const align = alignHandler();
+  return async (request, post) => {
+    const served = (await align(request, post)) as Served<WorkerMessage>;
+    if (request.type !== 'decode-reference') return served;
+    const response = { ...served.response, stripRows, passes: 3 };
+    return { response, transfer: served.transfer };
   };
 }
 
@@ -88,11 +112,10 @@ function stackHandler(): FakeHandler {
   return (request, post) => {
     const { id } = request;
     switch (request.type) {
-      case 'stack':
-        post({ type: 'stack-progress', id, fraction: 0.5 } as WorkerMessage);
+      case 'crop':
         return {
           response: {
-            type: 'stacked',
+            type: 'cropped',
             id,
             ...WORKING,
             rect: { x: 1, y: 1, width: 6, height: 4 },
@@ -100,6 +123,9 @@ function stackHandler(): FakeHandler {
           },
           transfer: [],
         };
+      case 'stack-rows':
+        post({ type: 'stack-progress', id, fraction: 0.5 } as WorkerMessage);
+        return { response: { type: 'stacked', id }, transfer: [] };
       case 'render':
       case 'render-reference':
         return {
@@ -208,11 +234,18 @@ describe('runPipeline', () => {
 
     const [stack] = factory.stacks;
     const types = stack.sent.map((message) => message.type);
-    expect(types).toEqual(['add-reference', 'add-frame', 'add-frame', 'stack']);
+    expect(types).toEqual([
+      'add-reference',
+      'add-frame',
+      'add-frame',
+      'crop',
+      'stack-rows',
+    ]);
     // Pixel buffers travel as transferables, never as copies.
     expect(stack.transfers[0]).toHaveLength(1);
     expect(stack.transfers[1]).toHaveLength(2);
     expect(stack.transfers[3]).toHaveLength(0);
+    expect(stack.sent[4]).toMatchObject({ rows: { start: 0, end: 5 } });
     // Two aligners for four frames; the reference goes to the first, features to both.
     expect(factory.aligners).toHaveLength(2);
     expect(factory.aligners[0].sent[0].type).toBe('decode-reference');
@@ -351,6 +384,80 @@ describe('runPipeline', () => {
     expect(factory.aligners).toHaveLength(1);
   });
 
+  it('stacks in strips, warping every aligned frame again for each strip after the first', async () => {
+    const { factory, result, progress } = run(['ok', 'ok', 'ok', 'skip'], {
+      workers: createFakeFactory(stripAlignHandler(2), stackHandler()),
+    });
+    await result;
+    const [stack] = factory.stacks;
+    // The crop ends at row 5: strips [0, 2), [2, 4) and [4, 5); the reference is index 1, 'skip' is index 3.
+    const afterCrop = stack.sent
+      .slice(stack.sent.findIndex((message) => message.type === 'crop') + 1)
+      .map((message) =>
+        message.type === 'add-rows'
+          ? `rows ${String(message.index)}`
+          : `${message.type} ${JSON.stringify(message.rows)}`,
+      );
+    expect(afterCrop).toEqual([
+      'stack-rows {"start":0,"end":2}',
+      'rows 0',
+      'rows 2',
+      'stack-rows {"start":2,"end":4}',
+      'rows 0',
+      'rows 2',
+      'stack-rows {"start":4,"end":5}',
+    ]);
+    const warps = everyRequest(factory).filter(
+      (message) => message.type === 'warp-rows',
+    );
+    expect(warps).toHaveLength(4);
+    expect(warps[0]).toMatchObject({
+      target: WORKING,
+      homography: HOMOGRAPHY,
+      rows: { start: 2, end: 4 },
+    });
+    expect(
+      stack.transfers.filter(
+        (_, position) => stack.sent[position].type === 'add-rows',
+      ),
+    ).toEqual(Array(4).fill([expect.any(ArrayBuffer)]));
+    expect(factory.aligners.every((port) => port.terminations === 1)).toBe(
+      true,
+    );
+    const stacking = progress
+      .filter((update) => update.stage === 'stacking')
+      .map((update) => update.done);
+    // 7 units: three strips stacked and two frames warped for each of the two later strips; each stack reports half way once.
+    expect(stacking).toEqual([0, 7, 29, 43, 50, 71, 86, 93]);
+  });
+
+  it('names a photo that cannot be read again for a strip', async () => {
+    const align = stripAlignHandler(2);
+    const { result } = run(['ok', 'ok', 'gone'], {
+      workers: createFakeFactory(align, stackHandler()),
+    });
+    await expect(result).rejects.toMatchObject({
+      failure: { kind: 'decode_failed', name: 'gone.jpg' },
+    });
+  });
+
+  it('treats an unexpected answer to a strip warp as a failure naming it', async () => {
+    const align = stripAlignHandler(2);
+    const confused: FakeHandler = (request, post) =>
+      request.type === 'warp-rows'
+        ? { response: { type: 'reference-set', id: request.id }, transfer: [] }
+        : align(request, post);
+    const { result } = run(['ok', 'ok', 'ok'], {
+      workers: createFakeFactory(confused, stackHandler()),
+    });
+    await expect(result).rejects.toMatchObject({
+      failure: {
+        kind: 'unknown',
+        message: 'Unexpected reference-set while warping a strip.',
+      },
+    });
+  });
+
   it('refuses fewer than two photos before touching a worker', async () => {
     const { factory, result } = run(['ok']);
     await expect(result).rejects.toMatchObject({
@@ -450,6 +557,44 @@ describe('runPipeline', () => {
     expect(await outcomeOf(result)).toBe('cancelled');
   });
 
+  it('cancels promptly when the abort lands while the crop is being worked out', async () => {
+    const controller = new AbortController();
+    const stack = stackHandler();
+    const { factory, result } = run(['ok', 'ok'], {
+      workers: createFakeFactory(alignHandler(), (request, post) =>
+        request.type === 'crop'
+          ? new Promise<void>(() => {})
+          : stack(request, post),
+      ),
+      signal: controller.signal,
+    });
+    await vi.waitFor(() =>
+      expect(factory.stacks[0].sent.map((m) => m.type)).toContain('crop'),
+    );
+    controller.abort();
+    expect(await outcomeOf(result)).toBe('cancelled');
+  });
+
+  it('cancels promptly when the abort lands while a strip is being warped again', async () => {
+    const controller = new AbortController();
+    const strips = stripAlignHandler(2);
+    const { factory, result } = run(['ok', 'ok', 'ok'], {
+      workers: createFakeFactory(
+        (request, post) =>
+          request.type === 'warp-rows'
+            ? new Promise<void>(() => {})
+            : strips(request, post),
+        stackHandler(),
+      ),
+      signal: controller.signal,
+    });
+    await vi.waitFor(() =>
+      expect(everyRequest(factory).map((m) => m.type)).toContain('warp-rows'),
+    );
+    controller.abort();
+    expect(await outcomeOf(result)).toBe('cancelled');
+  });
+
   it('stops the stack worker when the signal aborts after the result is ready', async () => {
     const controller = new AbortController();
     const { factory, result } = run(['ok', 'ok'], {
@@ -478,7 +623,7 @@ describe('runPipeline', () => {
     const stack = stackHandler();
     const { result } = run(['ok', 'ok'], {
       workers: createFakeFactory(alignHandler(), (request, post) => {
-        if (request.type === 'stack') throw new Error(NO_OVERLAP_MESSAGE);
+        if (request.type === 'crop') throw new Error(NO_OVERLAP_MESSAGE);
         return stack(request, post);
       }),
     });

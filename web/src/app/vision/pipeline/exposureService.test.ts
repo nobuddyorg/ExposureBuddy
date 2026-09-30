@@ -24,11 +24,14 @@ const ALIGN_REQUESTS: readonly WorkerRequest['type'][] = [
   'decode-reference',
   'set-reference',
   'align',
+  'warp-rows',
 ];
 const STACK_REQUESTS: readonly WorkerRequest['type'][] = [
   'add-reference',
   'add-frame',
-  'stack',
+  'crop',
+  'stack-rows',
+  'add-rows',
   'render',
   'render-reference',
 ];

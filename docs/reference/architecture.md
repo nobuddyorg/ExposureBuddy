@@ -93,6 +93,17 @@ One burst goes through five stages. Each stage reports progress to the UI as
    and the **mean** (the long exposure). Stacking walks the crop band by
    band and frees each frame's band once its rows are done, so the frames
    shrink while the result grows.
+
+   When the burst does not fit whole, the plan splits the rows into up to
+   eight **strips** (`WorkingPlan.stripRows`, whole bands). Each frame then
+   keeps only its first strip on arrival, after its exposure gain is taken
+   from the whole frame; the crop still follows from every frame's row runs.
+   For every later strip each aligned frame is decoded and warped again,
+   only those rows, with the homography its alignment returned, gets the
+   same gain, and is stacked before the next strip is fetched. The result is
+   the same, bit for bit, as one pass (`runPipeline.strips.test.ts` runs the
+   real services both ways); the price is one more decode of every photo
+   per strip.
 5. **Composite.** From those buffers the result is rendered for the current
    background choice and slider values: `background + ghostStrength ×
    blur(mean − background) + glow × blur(max(mean − background, 0))`, where
@@ -159,11 +170,16 @@ coordinator (`exposure/runPipeline.ts`) takes a `WorkerFactory`, so its unit
 tests drive it with in-process fakes that call those same handlers.
 
 The reference frame is decoded first (its dimensions and the frame count fix
-the working size), its features are computed once, and both go out: the
-features to every align worker, the frame itself to the stack worker. Every
-other frame is decoded, aligned and warped inside one align worker and then
-forwarded, still as a transferable, to the stack worker, which applies the
-exposure gain against the reference and keeps it.
+the working size, the align workers and the strips), its features are
+computed once, and both go out: the features to every align worker, the frame
+itself to the stack worker. Every other frame is decoded, aligned and warped
+inside one align worker and then forwarded, still as a transferable, to the
+stack worker (`add-frame`), which applies the exposure gain against the
+reference and keeps its first strip. `crop` then fixes the crop, and
+`stack-rows` stacks one strip; between strips, `warp-rows` has every align
+worker decode and warp its frames' rows again and `add-rows` hands them to
+the stack worker. With one strip that is `crop` and one `stack-rows`, and the
+align workers stop before it.
 
 ## The screen
 

@@ -175,6 +175,15 @@ describe('applyGain', () => {
     expect(pixelOf(frame.image, 8, 11)).toEqual([100, 100, 100]);
   });
 
+  it('touches only the rows asked for', () => {
+    const frame = frameOf(SIZE, [100, 100, 100]);
+    applyGain(frame, [2, 2, 2], { start: 3, end: 5 });
+    expect(pixelOf(frame.image, 0, 2)).toEqual([100, 100, 100]);
+    expect(pixelOf(frame.image, 0, 3)).toEqual([200, 200, 200]);
+    expect(pixelOf(frame.image, 15, 4)).toEqual([200, 200, 200]);
+    expect(pixelOf(frame.image, 0, 5)).toEqual([100, 100, 100]);
+  });
+
   it('is the identity at unit gain', () => {
     const frame = frameOf(SIZE, [1, 128, 254]);
     applyGain(frame, [1, 1, 1]);

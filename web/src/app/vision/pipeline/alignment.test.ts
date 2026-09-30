@@ -92,6 +92,7 @@ describe('alignToReference with an injected fit', () => {
     expect(outcome.kind).toBe('aligned');
     if (outcome.kind !== 'aligned') throw new Error('unreachable');
     expect(bandedToRgba(outcome.frame.image)).toEqual(image);
+    expect(Array.from(outcome.homography)).toEqual([1, 0, 0, 0, 1, 0, 0, 0, 1]);
     expect(Array.from(outcome.frame.spans.start)).toEqual(
       Array(image.height).fill(0),
     );

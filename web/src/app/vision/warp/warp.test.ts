@@ -319,6 +319,29 @@ describe('warpRgba', () => {
     expect(coveredCount(warped.coverage)).toBe(3 * 149);
   });
 
+  it('warps only the rows asked for, the same as a whole warp there', () => {
+    const tall = makeImage(5, 150, (x, y) => [x * 40, y, (x + y) % 256, 255]);
+    const shift = translationHomography(0.5, -1.25);
+    const whole = warpToFrame(tall, shift, tall);
+    const strip = warpToFrame(tall, shift, {
+      ...tall,
+      rows: { start: 64, end: 128 },
+    });
+    expect(strip.image.bands.map((band) => band.length)).toEqual([0, 960, 0]);
+    for (let y = 64; y < 128; y += 1) {
+      expect(Array.from(rowOf(strip.image, y))).toEqual(
+        Array.from(rowOf(whole.image, y)),
+      );
+      expect([strip.spans.start[y], strip.spans.end[y]]).toEqual([
+        whole.spans.start[y],
+        whole.spans.end[y],
+      ]);
+    }
+    // Rows outside the strip are left uncovered.
+    expect(strip.spans.end[10]).toBeLessThanOrEqual(strip.spans.start[10]);
+    expect(strip.spans.end[130]).toBeLessThanOrEqual(strip.spans.start[130]);
+  });
+
   it('throws on a singular homography', () => {
     expect(() =>
       warpToFrame(patterned, new Float64Array(9), patterned),

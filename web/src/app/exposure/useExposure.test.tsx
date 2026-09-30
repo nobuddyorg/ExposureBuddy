@@ -30,6 +30,8 @@ function alignHandler(): FakeHandler {
           source: WORKING,
           alignWorkers: (request.sizing as { requestedWorkers: number })
             .requestedWorkers,
+          stripRows: WORKING.height,
+          passes: 1,
           features: {
             ...WORKING,
             keypoints: [],
@@ -65,10 +67,10 @@ function alignHandler(): FakeHandler {
 
 const stackHandler: FakeHandler = (request) => {
   const { id } = request;
-  if (request.type === 'stack') {
+  if (request.type === 'crop') {
     return {
       response: {
-        type: 'stacked',
+        type: 'cropped',
         id,
         ...WORKING,
         rect: { x: 0, y: 0, ...WORKING },
@@ -77,6 +79,8 @@ const stackHandler: FakeHandler = (request) => {
       transfer: [],
     };
   }
+  if (request.type === 'stack-rows')
+    return { response: { type: 'stacked', id }, transfer: [] };
   return { response: { type: 'added', id }, transfer: [] };
 };
 

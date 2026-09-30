@@ -1,5 +1,5 @@
 import { indices } from '../indices';
-import type { BandedRgb, Rect, RgbaImage, Size } from '../types';
+import type { BandedRgb, Rect, RgbaImage, RowRange, Size } from '../types';
 
 /** Rows per band: small enough that freeing band by band keeps the peak near one copy, large enough to keep the buffer count low. */
 export const BAND_ROWS = 64;
@@ -19,9 +19,19 @@ function rowsInBand(image: Size, bandRows: number, band: number): number {
 
 /** A `size` image with every band allocated and zeroed. */
 export function createBandedRgb(size: Size, bandRows = BAND_ROWS): BandedRgb {
+  return createBandedRows(size, { start: 0, end: size.height }, bandRows);
+}
+
+/** A `size` image with only the bands that hold rows of `rows` allocated, zeroed; the others stay empty. */
+export function createBandedRows(
+  size: Size,
+  rows: RowRange,
+  bandRows = BAND_ROWS,
+): BandedRgb {
   const image = emptyBandedRgb(size, bandRows);
-  for (let band = 0; band < image.bands.length; band += 1)
-    allocateBand(image, band);
+  const first = Math.floor(rows.start / bandRows);
+  const last = Math.ceil(rows.end / bandRows);
+  for (let band = first; band < last; band += 1) allocateBand(image, band);
   return image;
 }
 
@@ -53,10 +63,26 @@ export function rowOf(image: BandedRgb, y: number): Uint8ClampedArray {
   return image.bands[band].subarray(start, start + rowBytes);
 }
 
-/** Frees every band whose rows all lie above row `y`. */
+/** Frees every band whose rows all lie above row `y`; at the image's height, every band. */
 export function releaseBandsAbove(image: BandedRgb, y: number): void {
-  const firstKept = Math.floor(y / image.bandRows);
+  // The last band may be short, so it lies wholly above y once y reaches the height.
+  const firstKept =
+    y >= image.height ? image.bands.length : Math.floor(y / image.bandRows);
   for (let band = 0; band < firstKept; band += 1) image.bands[band] = EMPTY;
+}
+
+/** Frees every band that holds no row above `y`: what is left is rows [0, y), rounded out to whole bands. */
+export function releaseBandsFrom(image: BandedRgb, y: number): void {
+  const firstFreed = Math.ceil(y / image.bandRows);
+  for (let band = firstFreed; band < image.bands.length; band += 1)
+    image.bands[band] = EMPTY;
+}
+
+/** Moves the allocated bands of `source` into `target`, which has the same size and band height; no pixel is copied. */
+export function adoptBands(target: BandedRgb, source: BandedRgb): void {
+  source.bands.forEach((band, index) => {
+    if (band.length > 0) target.bands[index] = band;
+  });
 }
 
 /** `image` without its alpha channel, cut into bands. */

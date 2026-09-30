@@ -20,10 +20,13 @@ export function createExposureService(
       case 'decode-reference':
       case 'set-reference':
       case 'align':
+      case 'warp-rows':
         return align(request);
       case 'add-reference':
       case 'add-frame':
-      case 'stack':
+      case 'crop':
+      case 'stack-rows':
+      case 'add-rows':
       case 'render':
       case 'render-reference':
         return stack(request);

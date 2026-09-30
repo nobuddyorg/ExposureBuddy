@@ -12,8 +12,8 @@ import { bandedFromRgba, createBandedRgb, rowOf } from './image/banded';
 import { boxBlurInPlace } from './stack/boxBlur';
 import { composite } from './stack/composite';
 import { applyGain, estimateGain } from './stack/exposure';
-import { fullCoverageRect, stackFrames } from './stack/stack';
-import { fullSpans } from './stack/synthetic.test-support';
+import { fullCoverageRect } from './stack/stack';
+import { fullSpans, stackFrames } from './stack/synthetic.test-support';
 import type {
   AlignedFrame,
   BandedRgb,
@@ -80,12 +80,12 @@ describe('the rewritten kernels against the digests of the originals', () => {
   const gained = warpedFrames();
   const gains = gained.map((frame) => estimateGain(frame, reference));
   gained.forEach((frame, index) => applyGain(frame, gains[index]));
+  // Read before stacking below consumes the frames.
+  const gainedDigests = gained.map((frame) => coveredDigest(frame, false));
 
   it('estimates and applies the same exposure gains', () => {
     expect(gains).toEqual(GOLDEN.gain);
-    expect(gained.map((frame) => coveredDigest(frame, false))).toEqual(
-      GOLDEN.gained,
-    );
+    expect(gainedDigests).toEqual(GOLDEN.gained);
   });
 
   const frames = [

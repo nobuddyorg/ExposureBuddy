@@ -205,7 +205,7 @@ describe('PhotoPicker, with photos', () => {
     expect(onCombine).toHaveBeenLastCalledWith('high');
   });
 
-  it('labels the quality select with its three options', () => {
+  it('labels the quality select with its four options', () => {
     renderPicker();
     const select = screen.getByRole('combobox', { name: 'Output size' });
     expect(select).toHaveAttribute('data-testid', 'quality-select');
@@ -213,7 +213,12 @@ describe('PhotoPicker, with photos', () => {
       within(select)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Small, fast', 'Standard', 'Large, slow']);
+    ).toEqual([
+      'Small, fast',
+      'Standard',
+      'Large, slow',
+      'Original size, slowest',
+    ]);
   });
 
   it('clears through the clear button', async () => {
@@ -318,11 +323,27 @@ describe('PhotoPicker, result size', () => {
     );
   });
 
-  it('says so when this many photos make the result smaller than chosen', () => {
+  it('says when the burst needs several passes, and only then', async () => {
+    const user = userEvent.setup();
     renderPicker({
-      photos: picked(Array.from({ length: 60 }, (_, index) => `${index}.jpg`)),
+      photos: picked(Array.from({ length: 40 }, (_, index) => `${index}.jpg`)),
+      referenceSize: { kind: 'known', size: PHONE },
+      device: { poolSize: 1, budgetBytes: 512 * 1024 * 1024 },
+    });
+    expect(sizeLine()).not.toHaveTextContent('passes');
+    await user.selectOptions(screen.getByTestId('quality-select'), 'high');
+    expect(sizeLine()).toHaveTextContent(
+      'Comes out up to 2,400 × 1,800 px. Needs 2 passes over the photos, so it takes longer.',
+    );
+  });
+
+  it('says so when this many photos make the result smaller than chosen', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      photos: picked(Array.from({ length: 100 }, (_, index) => `${index}.jpg`)),
       referenceSize: { kind: 'known', size: PHONE },
     });
+    await user.selectOptions(screen.getByTestId('quality-select'), 'high');
     expect(sizeLine()).toHaveTextContent('Smaller than the size chosen');
   });
 });

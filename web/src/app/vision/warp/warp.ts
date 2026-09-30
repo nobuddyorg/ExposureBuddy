@@ -1,10 +1,20 @@
 import { invertHomography } from '../geometry/homography';
-import { createBandedRgb, rowOf } from '../image/banded';
-import type { AlignedFrame, Homography, RgbaImage, Size } from '../types';
-import { indices } from '../indices';
+import { createBandedRows, rowOf } from '../image/banded';
+import type {
+  AlignedFrame,
+  Homography,
+  RgbaImage,
+  RowRange,
+  Size,
+} from '../types';
 
 const RGBA = 4;
 const RGB = 3;
+
+/** The frame to warp into; with `rows`, only those rows are computed and only their bands allocated, the rest left empty and uncovered. */
+export interface WarpTarget extends Size {
+  readonly rows?: RowRange;
+}
 
 /**
  * Returns `source` inverse-warped through `homography` (source → target) into a `target`-sized RGB frame and the columns each row covers;
@@ -13,15 +23,15 @@ const RGB = 3;
 export function warpRgba(
   source: RgbaImage,
   homography: Homography,
-  target: Size,
+  target: WarpTarget,
 ): AlignedFrame {
   const inverse = invertHomography(homography);
   if (inverse === null) {
     throw new Error('warpRgba: the homography is singular');
   }
-  const { width, height } = target;
-  const image = createBandedRgb(target);
-  const start = new Int32Array(height);
+  const { width, height, rows = { start: 0, end: height } } = target;
+  const image = createBandedRows(target, rows);
+  const start = new Int32Array(height).fill(width);
   const end = new Int32Array(height);
   const sourceXs = new Float64Array(width);
   const sourceYs = new Float64Array(width);
@@ -30,7 +40,7 @@ export function warpRgba(
   const maxX = sourceWidth - 1;
   const maxY = source.height - 1;
   const [stepX, , , stepY, , , stepW] = inverse;
-  for (const y of indices(height)) {
+  for (let y = rows.start; y < rows.end; y += 1) {
     // Homogeneous source coordinates of (0, y), advanced by one column per step.
     let homogeneousX = inverse[1] * y + inverse[2];
     let homogeneousY = inverse[4] * y + inverse[5];

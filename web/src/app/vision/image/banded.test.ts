@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { noiseRgba } from '../golden.test-support';
 import {
   BAND_ROWS,
+  adoptBands,
   allocateBand,
+  createBandedRows,
+  releaseBandsFrom,
   bandCount,
   bandedFromRgba,
   createBandedRgb,
@@ -72,6 +75,12 @@ describe('releaseBandsAbove', () => {
     expect(rowOf(image, 1)).toHaveLength(0);
   });
 
+  it('frees the short last band too once the row reaches the height', () => {
+    const image = createBandedRgb({ width: 1, height: 9 }, 2);
+    releaseBandsAbove(image, 9);
+    expect(image.bands.map((band) => band.length)).toEqual([0, 0, 0, 0, 0]);
+  });
+
   it('frees nothing above the first band', () => {
     const image = createBandedRgb({ width: 1, height: 4 }, 2);
     releaseBandsAbove(image, 1);
@@ -120,5 +129,48 @@ describe('cropBanded', () => {
         Array.from(rowOf(source, rect.y + y).subarray(2 * 3, 5 * 3)),
       );
     }
+  });
+});
+
+describe('createBandedRows', () => {
+  it('allocates only the bands that hold the rows', () => {
+    const image = createBandedRows(
+      { width: 1, height: 9 },
+      { start: 2, end: 6 },
+      2,
+    );
+    expect(image.bands.map((band) => band.length)).toEqual([0, 6, 6, 0, 0]);
+  });
+
+  it('uses the default band height', () => {
+    expect(
+      createBandedRows({ width: 1, height: 1 }, { start: 0, end: 1 }).bandRows,
+    ).toBe(BAND_ROWS);
+  });
+});
+
+describe('releaseBandsFrom', () => {
+  it('keeps the bands holding rows above y, the partly used one included', () => {
+    const image = createBandedRgb({ width: 1, height: 9 }, 2);
+    releaseBandsFrom(image, 3);
+    expect(image.bands.map((band) => band.length)).toEqual([6, 6, 0, 0, 0]);
+    releaseBandsFrom(image, 0);
+    expect(image.bands.map((band) => band.length)).toEqual([0, 0, 0, 0, 0]);
+  });
+});
+
+describe('adoptBands', () => {
+  it('moves the allocated bands across and leaves the others alone', () => {
+    const target = createBandedRgb({ width: 1, height: 6 }, 2);
+    const kept = target.bands[0];
+    const source = createBandedRows(
+      { width: 1, height: 6 },
+      { start: 2, end: 6 },
+      2,
+    );
+    adoptBands(target, source);
+    expect(target.bands[0]).toBe(kept);
+    expect(target.bands[1]).toBe(source.bands[1]);
+    expect(target.bands[2]).toBe(source.bands[2]);
   });
 });

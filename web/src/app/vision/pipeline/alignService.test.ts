@@ -17,7 +17,7 @@ const decoders: Decoders = {
   decodeReference: async (file) => {
     if ((await file.text()) === 'bad') throw new Unreadable('nope');
     const image = toRgba(texturedScene(SCENE.width, SCENE.height, 1));
-    return { image, source: SCENE, alignWorkers: 2 };
+    return { image, source: SCENE, alignWorkers: 2, stripRows: 64, passes: 3 };
   },
   decodeAt: async (file) => {
     const verdict = await file.text();
@@ -81,6 +81,8 @@ describe('createAlignService', () => {
       id: 1,
       source: SCENE,
       alignWorkers: 2,
+      stripRows: 64,
+      passes: 3,
     });
     const decoded = response as Extract<
       AlignWorkerResponse,
@@ -186,6 +188,65 @@ describe('createAlignService', () => {
     });
     await expect(
       serve({ type: 'align', id: 6, file: blob('crash'), target: SCENE }),
+    ).rejects.toThrow('disk on fire');
+  });
+
+  it('warps just the rows of a strip again with the transform the frame aligned with', async () => {
+    const { serve } = await primed();
+    const aligned = (
+      await serve({
+        type: 'align',
+        id: 7,
+        file: blob('shifted'),
+        target: SCENE,
+      })
+    ).response as Extract<AlignWorkerResponse, { type: 'aligned' }>;
+    const rows = { start: 64, end: 128 };
+    const { response, transfer } = await serve({
+      type: 'warp-rows',
+      id: 8,
+      file: blob('shifted'),
+      target: SCENE,
+      homography: aligned.homography,
+      rows,
+    });
+    expect(response).toMatchObject({ type: 'warped-rows', id: 8 });
+    const { frame } = response as Extract<
+      AlignWorkerResponse,
+      { type: 'warped-rows' }
+    >;
+    expect(frame.image.bands.map((band) => band.length > 0)).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    for (let y = rows.start; y < rows.end; y += 1)
+      expect(Array.from(rowOf(frame.image, y))).toEqual(
+        Array.from(rowOf(aligned.frame.image, y)),
+      );
+    expect(transfer).toEqual([
+      frame.image.bands[1].buffer,
+      frame.spans.start.buffer,
+      frame.spans.end.buffer,
+    ]);
+  });
+
+  it('reports a strip whose photo became unreadable and lets any other decode error through', async () => {
+    const { serve } = await primed();
+    const request = {
+      type: 'warp-rows' as const,
+      target: SCENE,
+      homography: Float64Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+      rows: { start: 0, end: 64 },
+    };
+    await expect(
+      serve({ ...request, id: 9, file: blob('bad') }),
+    ).resolves.toEqual({
+      response: { type: 'unreadable', id: 9 },
+      transfer: [],
+    });
+    await expect(
+      serve({ ...request, id: 10, file: blob('crash') }),
     ).rejects.toThrow('disk on fire');
   });
 });
