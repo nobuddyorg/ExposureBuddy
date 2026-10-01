@@ -1,4 +1,4 @@
-import { BAND_ROWS } from '../image/banded';
+import { BAND_ROWS } from '../image/bandRows';
 import { indices } from '../indices';
 import type { Rect, RowRange, Size } from '../types';
 

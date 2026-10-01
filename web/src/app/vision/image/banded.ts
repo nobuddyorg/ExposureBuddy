@@ -1,8 +1,7 @@
 import { indices } from '../indices';
+import { BAND_ROWS } from './bandRows';
 import type { BandedRgb, Rect, RgbaImage, RowRange, Size } from '../types';
 
-/** Rows per band: small enough that freeing band by band keeps the peak near one copy, large enough to keep the buffer count low. */
-export const BAND_ROWS = 64;
 const RGB = 3;
 const RGBA = 4;
 const OPAQUE = 255;

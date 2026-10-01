@@ -2,8 +2,8 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import { noiseRgba } from '../golden.test-support';
+import { BAND_ROWS } from './bandRows';
 import {
-  BAND_ROWS,
   adoptBands,
   allocateBand,
   createBandedRows,

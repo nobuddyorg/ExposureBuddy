@@ -121,8 +121,9 @@ nothing posts a PR comment, and Codecov's comment is off in
 
 [`web/playwright.config.ts`](../../web/playwright.config.ts), specs in
 `web/e2e/`: `public/` (shell, PWA, service worker, theme, i18n, help,
-accessibility) and `journey/` (a whole burst through the pipeline, and the
-error screen). Projects: `chromium` (Desktop Chrome), `mobile` (Pixel 7),
+accessibility) and `journey/` (a whole burst through the pipeline, choosing
+the photos and the reference, a blurred photo, the shooting date in the saved
+JPEG, the output sizes, keeping the screen on, and the error screen). Projects: `chromium` (Desktop Chrome), `mobile` (Pixel 7),
 `firefox` (Desktop Firefox), `webkit-mobile` (iPhone 14). The last two join a
 run only when `CI` or `E2E_ALL_ENGINES` is set, and locally they need
 `npx playwright install firefox webkit` first; a plain local run is the
@@ -132,7 +133,10 @@ fails for a tenth of visitors.
 Fixtures come from `npm run fixtures` (`web/scripts/make-fixtures.mjs`), which
 writes synthetic bursts into `web/e2e/fixtures/generated/` (gitignored): a
 textured street seen through small camera shakes with a walker, a tiny
-three-frame burst, two unrelated scenes, and a file that is not an image. Each
+three-frame burst, a street frame smeared by 3 px (`shaken/`), two unrelated
+scenes, and a file that is not an image. JPEGs with EXIF are made by the
+shooting-date spec itself (`e2e/jpeg.ts`): the browser encodes a street frame
+and the spec adds the date. Each
 burst carries a `meta.json` with the transform and gain of every frame, which
 the journey spec uses to check the result against the known scene.
 
