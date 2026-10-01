@@ -27,6 +27,23 @@ test.describe('when the burst is not a burst', () => {
     });
     await expect(app.pipelineError()).toContainText('lined up');
 
+    // The report for a bug: what failed and where, never a file name.
+    await app.pipelineError.do.openDiagnostics();
+    await expect(app.pipelineError.locators.diagnosticsText).toContainText(
+      'Failure: too_few_aligned (1)',
+    );
+    await expect(app.pipelineError.locators.diagnosticsText).toContainText(
+      'Run: 2 photos',
+    );
+    await expect(app.pipelineError.locators.diagnosticsText).not.toContainText(
+      'scene-a',
+    );
+    // Whether the clipboard may be written depends on the engine and its permissions; either way the visitor is told.
+    await app.pipelineError.do.copyDiagnostics();
+    await expect(app.pipelineError.locators.copyStatus).toHaveText(
+      /^(Copied\. Paste it into a bug report\.|Could not copy\. Open Diagnostic info and copy the text by hand\.)$/,
+    );
+
     await app.pipelineError.do.retry();
     await expect(app.picker()).toBeVisible();
   });

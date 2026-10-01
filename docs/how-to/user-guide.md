@@ -67,6 +67,14 @@ left out rather than blended in blurry; a few skips in a hand-held burst are
 normal. If too few line up, the result screen is replaced by an error saying
 so; **Try again** goes back to the picker.
 
+When something keeps failing, **Copy diagnostic info** on the error screen
+copies a short report for a bug report: the app version, the browser, the
+device's memory budget, how many photos, the output size, where the run
+stopped and how each photo fared, and the error. It holds no photo and no
+file name, and nothing is sent anywhere: you paste it where you choose.
+Where the browser does not allow copying, **Diagnostic info** shows the same
+text to copy by hand.
+
 A **blurred** photo lined up, but is much softer than the rest of the burst,
 usually because the phone moved while it was taken. It is left out so it
 does not soften the result, and the result screen says how many were. The
@@ -165,7 +173,8 @@ Two buttons in the header, both remembered on this device:
 
 The **Help** button in the header opens a short guide: what the app does,
 how to shoot, the sliders, privacy. **Ctrl+/** (**Cmd+/** on a Mac) opens it
-from anywhere; **Escape** or **Close** closes it.
+from anywhere; **Escape** or **Close** closes it. Its last line names the
+app's version, which a bug report should mention.
 
 ## Privacy
 

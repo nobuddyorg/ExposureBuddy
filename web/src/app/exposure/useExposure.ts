@@ -10,7 +10,8 @@ import {
 
 import type { OutputQuality } from '../vision/pipeline/budget';
 import type { DeviceProfile } from './deviceProfile';
-import { toPipelineFailure, type PipelineFailure } from './failure';
+import type { FailedRun } from './diagnostics';
+import { toPipelineFailure } from './failure';
 import {
   runPipeline,
   type ExposureResult,
@@ -22,7 +23,7 @@ type ExposureState =
   | { readonly status: 'idle' }
   | { readonly status: 'running'; readonly progress: PipelineProgress }
   | { readonly status: 'ready'; readonly result: ExposureResult }
-  | { readonly status: 'failed'; readonly failure: PipelineFailure };
+  | ({ readonly status: 'failed' } & FailedRun);
 
 /** The photos to combine and the index of the one the others align to. */
 export interface Burst {
@@ -73,6 +74,7 @@ export function useExposure(
       disposeRun(activeRun);
       const run: Run = { controller: new AbortController(), result: null };
       activeRun.current = run;
+      let lastProgress = INITIAL_PROGRESS;
       setState({ status: 'running', progress: INITIAL_PROGRESS });
       runPipeline({
         files,
@@ -86,7 +88,10 @@ export function useExposure(
         workers,
         signal: run.controller.signal,
         // Progress only reaches a live run: abandoning one terminates its workers first.
-        onProgress: (progress) => setState({ status: 'running', progress }),
+        onProgress: (progress) => {
+          lastProgress = progress;
+          setState({ status: 'running', progress });
+        },
       }).then(
         // Only an active run can resolve: abandoning one aborts it, and an aborted run rejects.
         (result) => {
@@ -96,7 +101,13 @@ export function useExposure(
         (error: unknown) => {
           if (activeRun.current !== run) return;
           activeRun.current = null;
-          setState({ status: 'failed', failure: toPipelineFailure(error) });
+          setState({
+            status: 'failed',
+            failure: toPipelineFailure(error),
+            photoCount: files.length,
+            quality,
+            progress: lastProgress,
+          });
         },
       );
     },

@@ -40,6 +40,7 @@ export const MUTATE_TARGETS = [
   'src/app/exposure/workerPort.ts',
   'src/app/exposure/workerServe.ts',
   'src/app/exposure/pickedPhotos.ts',
+  'src/app/exposure/diagnostics.ts',
   'src/app/exposure/deviceProfile.ts',
   'src/app/exposure/useReferenceSize.ts',
   'src/app/exposure/exifDate.ts',

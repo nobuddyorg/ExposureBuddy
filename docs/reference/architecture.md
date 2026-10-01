@@ -201,10 +201,10 @@ One route. Three states of one page, driven by `useExposure`:
 | Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-tile` (with `data-reference`), `photo-thumb`, `choose-reference`, `remove-photo`, `reference-badge`, `reference-hint`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
 | Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
 | Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `result-blurred`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
-| Failed | `PipelineError` | `pipeline-error`, `retry` |
+| Failed | `PipelineError` | `pipeline-error`, `retry`, `copy-diagnostics`, `copy-status`, `diagnostics`, `diagnostics-toggle`, `diagnostics-text` |
 
 Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),
-`Help` dialog (`help-dialog`, `help-close`), the footer privacy line.
+`Help` dialog (`help-dialog`, `help-close`, `app-version`), the footer privacy line.
 
 ## Static hosting
 

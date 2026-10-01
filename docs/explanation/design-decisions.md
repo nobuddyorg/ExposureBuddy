@@ -8,6 +8,10 @@ A burst is thirty or fifty full-size phone photos, often of a place the photogra
 
 That claim is enforced, not hoped for. The document's CSP (`connect-src 'self'`, `img-src 'self' blob:`) leaves no origin to send pixels to; the workers, which a static host cannot hand a CSP of their own, are held to the same rule by the architecture check that lets `vision/` and `workers/` import nothing that reaches the network, and by review; there is no analytics, no third-party script and no font fetched at runtime; and CLAUDE.md rules out any feature that needs a server. The cost is that everything the app does has to fit in a browser tab on a phone, which is what most of the decisions below are about.
 
+## Why diagnostics are copied, not reported
+
+A failure on someone's phone is the one case where a developer would want data from the device, and the no-telemetry rule rules out the usual answer. The error screen therefore builds a plain-text report (`exposure/diagnostics.ts`: version, browser, memory budget, photo count, output size, the stage reached, how many frames ended in each status, the failure's kind) and offers to copy it. The visitor sees every line before it goes anywhere and decides where it goes. It leaves out what could identify the photos: no pixel, no file name, not even the name of a file that failed to decode. The version comes from the build (`next.config.ts`: the package version and, on CI, the commit), so a report can be matched to the code that produced it. The report is in English whatever the interface language, since its reader is whoever fixes the bug.
+
 ## Why the kernels are plain TypeScript, not OpenCV.js, WASM or WebGPU
 
 OpenCV.js would have given ORB, `findHomography` and `warpPerspective` for free, at the price of an eight-megabyte WASM binary in a PWA that promises to work offline, a black box nobody here can step through, and a dependency whose build is its own project. WebGPU would make the warp and the stack fast, but Safari and Firefox support arrived late and unevenly, and a second code path for the browsers without it would double what has to be tested.

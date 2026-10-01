@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 import type { NextConfig } from 'next';
 
@@ -14,6 +15,17 @@ export const EXPORT_BASE_PATH =
     ? `/${repository}`
     : new URL(pagesUrl).pathname.replace(/\/$/, '');
 
+/** The package version and, on a CI build, the commit it was built from: what Help and the diagnostic report show. */
+function appVersion(): string {
+  const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as {
+    version: string;
+  };
+  const commit = process.env.GITHUB_SHA;
+  return commit === undefined
+    ? `${version} (local)`
+    : `${version} (${commit.slice(0, 7)})`;
+}
+
 const nextConfig: NextConfig = {
   output: 'export',
   images: { unoptimized: true },
@@ -24,6 +36,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BASE_PATH: isProduction ? EXPORT_BASE_PATH : '',
     // Versions the service worker's cache: a new build, a new cache, and the old builds' caches deleted.
     NEXT_PUBLIC_BUILD_ID: randomUUID(),
+    NEXT_PUBLIC_APP_VERSION: appVersion(),
   },
   // Set only by the builds that feed e2e/coverage.ts; the deployed build must not ship source maps.
   productionBrowserSourceMaps: process.env.E2E_COVERAGE_SOURCEMAPS === 'true',

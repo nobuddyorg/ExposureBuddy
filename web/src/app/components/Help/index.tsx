@@ -1,5 +1,6 @@
 'use client';
 
+import { APP_VERSION } from '../../appVersion';
 import { useI18n } from '../../i18n/useI18n';
 import Dialog from '../ui/Dialog';
 
@@ -49,9 +50,12 @@ export default function HelpDialog({
             </p>
           </section>
         ))}
-        <p className="border-t border-border pt-4 text-xs text-muted-foreground">
-          {t('help.shortcut_hint', { shortcut: 'Ctrl+/ · ⌘+/' })}
-        </p>
+        <div className="space-y-1 border-t border-border pt-4 text-xs text-muted-foreground">
+          <p>{t('help.shortcut_hint', { shortcut: 'Ctrl+/ · ⌘+/' })}</p>
+          <p data-testid="app-version">
+            {t('help.version', { version: APP_VERSION })}
+          </p>
+        </div>
       </div>
     </Dialog>
   );

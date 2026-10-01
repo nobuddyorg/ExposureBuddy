@@ -168,8 +168,19 @@ describe('useExposure', () => {
       ),
     );
     await vi.waitFor(() => expect(result.current.state.status).toBe('failed'));
+    // The run's size and the last progress stay with the failure, for the diagnostic report.
     expect(result.current.state).toMatchObject({
       failure: { kind: 'too_few_aligned', count: 1 },
+      photoCount: 3,
+      quality: 'low',
+      progress: {
+        stage: 'aligning',
+        frames: [
+          { status: 'skipped' },
+          { status: 'reference' },
+          { status: 'skipped' },
+        ],
+      },
     });
   });
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
+import { APP_VERSION } from './appVersion';
 import AppShell from './components/AppShell';
 import PhotoPicker from './components/PhotoPicker';
 import PipelineError from './components/PipelineError';
@@ -11,6 +12,7 @@ import {
   readDeviceProfile,
   type DeviceNavigator,
 } from './exposure/deviceProfile';
+import { diagnosticReport } from './exposure/diagnostics';
 import { isPipelineSupported } from './exposure/support';
 import { useExposure } from './exposure/useExposure';
 import { usePickedPhotos } from './exposure/usePickedPhotos';
@@ -96,7 +98,16 @@ export default function Home() {
         />
       )}
       {state.status === 'failed' && (
-        <PipelineError failure={state.failure} onRetry={backToPicker} />
+        <PipelineError
+          failure={state.failure}
+          onRetry={backToPicker}
+          diagnostics={diagnosticReport({
+            version: APP_VERSION,
+            userAgent: navigator.userAgent,
+            device,
+            run: state,
+          })}
+        />
       )}
     </AppShell>
   );

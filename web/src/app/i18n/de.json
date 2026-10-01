@@ -111,7 +111,12 @@
     "cancelled": "Abgebrochen.",
     "out_of_memory": "Dem Gerät ist der Speicher ausgegangen. Wähle eine kleinere Ausgabegröße oder weniger Fotos und versuche es noch einmal.",
     "unknown": "Etwas ist schiefgelaufen: {message}",
-    "retry": "Noch einmal"
+    "retry": "Noch einmal",
+    "diagnostics_title": "Diagnoseinfo",
+    "diagnostics_hint": "Wenn das öfter passiert, helfen diese Angaben bei der Fehlersuche. Sie enthalten kein Foto und keinen Dateinamen.",
+    "copy_diagnostics": "Diagnoseinfo kopieren",
+    "copied": "Kopiert. Zum Einfügen in eine Fehlermeldung.",
+    "copy_failed": "Kopieren hat nicht geklappt. Diagnoseinfo öffnen und den Text von Hand kopieren."
   },
   "help": {
     "title": "So funktioniert ExposureBuddy",
@@ -124,7 +129,8 @@
     "sliders_body": "Geister bestimmt, wie sichtbar Bewegtes bleibt; bei null verschwindet es. Unschärfe verwischt die Geister. Leuchten legt einen Schimmer auf helle bewegte Dinge wie Scheinwerfer. Lichtspuren behält statt des Durchschnitts den hellsten Wert jeder Stelle, für Scheinwerfer und Sterne.",
     "privacy_title": "Datenschutz",
     "privacy_body": "Alles läuft im Browser. Fotos verlassen das Gerät nie; es gibt kein Konto und keinen Upload.",
-    "shortcut_hint": "Diese Hilfe lässt sich jederzeit mit {shortcut} öffnen."
+    "shortcut_hint": "Diese Hilfe lässt sich jederzeit mit {shortcut} öffnen.",
+    "version": "Version {version}"
   },
   "footer": {
     "privacy": "Deine Fotos verlassen dieses Gerät nicht.",
