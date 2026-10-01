@@ -181,7 +181,9 @@ app's version, which a bug report should mention.
 Everything runs in your browser. The photos are read into memory, combined,
 and shown; nothing is uploaded, there is no account, and the only network
 traffic is the app itself. The device keeps your language and theme choice
-and a cached copy of the app for offline use, nothing else.
+and a cached copy of the app for offline use, nothing else. The **Privacy**
+link in the footer opens a page that says this in full, including what the
+saved image carries and what GitHub Pages, the host, sees when the app loads.
 
 ## Keyboard and screen reader
 

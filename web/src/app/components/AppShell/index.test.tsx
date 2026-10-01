@@ -49,6 +49,10 @@ describe('AppShell', () => {
       'href',
       'https://github.com/nobuddyorg/ExposureBuddy',
     );
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute(
+      'href',
+      '/privacy',
+    );
   });
 
   it('opens the help dialog from the header and closes it again', async () => {

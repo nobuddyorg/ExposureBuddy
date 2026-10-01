@@ -134,7 +134,8 @@
   },
   "footer": {
     "privacy": "Your photos never leave this device.",
-    "source": "Source code"
+    "source": "Source code",
+    "privacy_link": "Privacy"
   },
   "not_found": {
     "title": "404",
@@ -143,5 +144,21 @@
   },
   "page": {
     "skip_to_content": "Skip to content"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "intro": "ExposureBuddy runs entirely in your browser. Here is what that means in practice.",
+    "photos_title": "Your photos",
+    "photos_body": "Photos are read into this browser tab's memory, combined there and shown. They are not uploaded, not stored and not shared; reloading or closing the page forgets them. The app could not send them anywhere even by mistake: its security policy only lets it connect to its own address.",
+    "stored_title": "What stays on your device",
+    "stored_body": "Your choice of language and theme, in the browser's local storage, and a copy of the app itself, in the browser's cache, so it opens offline. There are no cookies and nothing else. Clearing this site's data in your browser removes all of it.",
+    "saved_title": "The image you save",
+    "saved_body": "The JPEG you save or share carries the date and time the reference photo was taken, so your gallery sorts it next to the burst. Nothing else from your photos goes into it: no location, no camera model, no serial number.",
+    "reports_title": "Bug reports",
+    "reports_body": "After an error you can copy a diagnostic report. It holds no photo and no file name, and it goes only where you paste it.",
+    "hosting_title": "Hosting",
+    "hosting_body": "The app is served by GitHub Pages. Like any web server, GitHub receives the usual data of each request when the app loads, such as your IP address and browser, and handles it under its own privacy statement. The app itself has no account, no analytics, no tracking and no third-party scripts.",
+    "hosting_link": "GitHub's privacy statement",
+    "back": "Back to the app"
   }
 }

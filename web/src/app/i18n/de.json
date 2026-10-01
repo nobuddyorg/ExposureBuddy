@@ -134,7 +134,8 @@
   },
   "footer": {
     "privacy": "Deine Fotos verlassen dieses Gerät nicht.",
-    "source": "Quellcode"
+    "source": "Quellcode",
+    "privacy_link": "Datenschutz"
   },
   "not_found": {
     "title": "404",
@@ -143,5 +144,21 @@
   },
   "page": {
     "skip_to_content": "Zum Inhalt springen"
+  },
+  "privacy": {
+    "title": "Datenschutz",
+    "intro": "ExposureBuddy läuft komplett in deinem Browser. Das heißt im Einzelnen:",
+    "photos_title": "Deine Fotos",
+    "photos_body": "Die Fotos werden in den Speicher dieses Browser-Tabs gelesen, dort kombiniert und angezeigt. Sie werden nicht hochgeladen, nicht gespeichert und nicht weitergegeben; Neuladen oder Schließen der Seite vergisst sie. Die App könnte sie nicht einmal versehentlich verschicken: Ihre Sicherheitsrichtlinie erlaubt Verbindungen nur zur eigenen Adresse.",
+    "stored_title": "Was auf deinem Gerät bleibt",
+    "stored_body": "Deine Wahl von Sprache und Farbschema, im lokalen Speicher des Browsers, und eine Kopie der App selbst, im Cache des Browsers, damit sie auch offline startet. Es gibt keine Cookies und sonst nichts. Löschst du die Website-Daten im Browser, ist alles weg.",
+    "saved_title": "Das gespeicherte Bild",
+    "saved_body": "Das JPEG, das du speicherst oder teilst, enthält Datum und Uhrzeit der Aufnahme des Referenzfotos, damit deine Galerie es neben die Serie sortiert. Sonst kommt nichts aus deinen Fotos hinein: kein Ort, kein Kameramodell, keine Seriennummer.",
+    "reports_title": "Fehlerberichte",
+    "reports_body": "Nach einem Fehler kannst du eine Diagnoseinfo kopieren. Sie enthält kein Foto und keinen Dateinamen und landet nur dort, wo du sie einfügst.",
+    "hosting_title": "Hosting",
+    "hosting_body": "Die App wird von GitHub Pages ausgeliefert. Wie jeder Webserver erhält GitHub beim Laden der App die üblichen Daten jeder Anfrage, etwa deine IP-Adresse und deinen Browser, und verarbeitet sie nach seiner eigenen Datenschutzerklärung. Die App selbst hat kein Konto, keine Statistik, kein Tracking und keine Skripte von Dritten.",
+    "hosting_link": "Datenschutzerklärung von GitHub",
+    "back": "Zurück zur App"
   }
 }

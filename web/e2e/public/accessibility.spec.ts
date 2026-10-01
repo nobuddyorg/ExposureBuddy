@@ -53,6 +53,17 @@ test.describe('accessibility', () => {
     await expectNoSeriousA11yViolations(page, testInfo);
   });
 
+  test('the privacy page has no serious or critical violations', async ({
+    on,
+    page,
+  }, testInfo) => {
+    const app = on(page);
+    await app.picker.do.open();
+    await app.privacy.do.openFromFooter();
+    await expect(app.privacy()).toBeVisible();
+    await expectNoSeriousA11yViolations(page, testInfo);
+  });
+
   // Opened directly: the local harness answers an unmatched path with an error template of its own.
   test('the not-found page has no serious or critical violations', async ({
     on,

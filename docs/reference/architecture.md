@@ -15,6 +15,7 @@ bundle on that first visit, so the app opens and combines offline.
 ```text
 web/src/app/
   layout.tsx, page.tsx, not-found.tsx, globals.css   app shell and the one screen
+  privacy/page.tsx the privacy page, linked from the footer
   i18n/            dictionaries (de.json, en.json), I18nProvider, useI18n   -- leaf, no app deps
   useTheme.ts      light / dark / system, applied before first paint by an inline script
   useServiceWorker.ts, ServiceWorkerRegistration.tsx    registers public/sw.js
@@ -194,7 +195,11 @@ align workers stop before it.
 
 ## The screen
 
-One route. Three states of one page, driven by `useExposure`:
+The app is one route: three states of one page, driven by `useExposure`. A
+second, static route, `/privacy/` (`privacy/page.tsx`, test ids `privacy`,
+`privacy-photos`, `privacy-stored`, `privacy-saved`, `privacy-reports`,
+`privacy-hosting`, `privacy-back`), says in both languages what stays on the
+device and what the host sees.
 
 | State | Component | Test ids |
 | --- | --- | --- |
@@ -204,7 +209,8 @@ One route. Three states of one page, driven by `useExposure`:
 | Failed | `PipelineError` | `pipeline-error`, `retry`, `copy-diagnostics`, `copy-status`, `diagnostics`, `diagnostics-toggle`, `diagnostics-text` |
 
 Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),
-`Help` dialog (`help-dialog`, `help-close`, `app-version`), the footer privacy line.
+`Help` dialog (`help-dialog`, `help-close`, `app-version`), the footer privacy
+line (`footer-privacy`) and its link to the privacy page (`privacy-link`).
 
 ## Static hosting
 
