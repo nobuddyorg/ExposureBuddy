@@ -7,20 +7,38 @@ import {
 } from './protocol';
 
 describe('transferablesOf', () => {
-  it('collects the buffers of images, coverage masks and nested frames, nothing else', () => {
-    const image = { width: 1, height: 1, data: new Uint8ClampedArray(4) };
-    const coverage = new Uint8Array(1);
+  it('collects every typed array buffer in nested objects and arrays', () => {
+    const bands = [new Uint8ClampedArray(6), new Uint8ClampedArray(3)];
+    const spans = { start: new Int32Array(2), end: new Int32Array(2) };
     const buffers = transferablesOf({
       type: 'aligned',
       id: 1,
-      frame: { image, coverage },
+      frame: { image: { width: 1, height: 2, bandRows: 1, bands }, spans },
       matches: 3,
-      features: {
-        keypoints: [{ x: 1, y: 2 }],
-        descriptors: new Uint32Array(8),
-      },
     });
-    expect(buffers).toEqual([image.data.buffer, coverage.buffer]);
+    expect(buffers).toEqual([
+      bands[0].buffer,
+      bands[1].buffer,
+      spans.start.buffer,
+      spans.end.buffer,
+    ]);
+  });
+
+  it('lists a buffer shared by several views once', () => {
+    const buffer = new ArrayBuffer(8);
+    const message = {
+      low: new Uint8Array(buffer, 0, 4),
+      high: new Uint8Array(buffer, 4, 4),
+    };
+    expect(transferablesOf(message)).toEqual([buffer]);
+  });
+
+  it('leaves out empty buffers, such as the one every freed band shares', () => {
+    const empty = new Uint8ClampedArray(0);
+    const full = new Uint8ClampedArray(3);
+    expect(transferablesOf({ bands: [empty, full, empty] })).toEqual([
+      full.buffer,
+    ]);
   });
 
   it('returns nothing for a message without pixel buffers', () => {

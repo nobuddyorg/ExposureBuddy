@@ -78,6 +78,12 @@ describe('HelpDialog', () => {
     expect(screen.getByText(/Ctrl\+\//)).toBeVisible();
   });
 
+  it('names the version this build is', () => {
+    renderHelp();
+    // Outside a build nothing bakes a version in.
+    expect(screen.getByTestId('app-version')).toHaveTextContent('Version dev');
+  });
+
   it('asks to close from its close button', async () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderHelp();

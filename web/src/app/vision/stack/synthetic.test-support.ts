@@ -1,52 +1,70 @@
-import type { AlignedFrame, Rect, RgbaImage, Size } from '../types';
+import { createBandedRgb, rowOf } from '../image/banded';
+import { emptyStack, stackRows } from './stack';
+import type {
+  AlignedFrame,
+  BandedRgb,
+  Rect,
+  RowSpans,
+  Size,
+  StackResult,
+} from '../types';
 
 export type Rgb = readonly [number, number, number];
 
-/** Returns an opaque `size` image filled with `color`. */
-export function flatRgba(size: Size, color: Rgb): RgbaImage {
-  const data = new Uint8ClampedArray(size.width * size.height * 4);
-  for (let offset = 0; offset < data.length; offset += 4) {
-    data[offset] = color[0];
-    data[offset + 1] = color[1];
-    data[offset + 2] = color[2];
-    data[offset + 3] = 255;
-  }
-  return { width: size.width, height: size.height, data };
+/** Returns a banded `size` image filled with `color`. */
+export function flatBanded(
+  size: Size,
+  color: Rgb,
+  bandRows?: number,
+): BandedRgb {
+  const image = createBandedRgb(size, bandRows);
+  paintRect(image, { x: 0, y: 0, ...size }, color);
+  return image;
 }
 
-/** Paints `rect` of `image` with `color`, alpha untouched. */
-export function paintRect(image: RgbaImage, rect: Rect, color: Rgb): void {
+/** Paints `rect` of `image` with `color`. */
+export function paintRect(image: BandedRgb, rect: Rect, color: Rgb): void {
   for (let y = rect.y; y < rect.y + rect.height; y += 1) {
-    for (let x = rect.x; x < rect.x + rect.width; x += 1) {
-      const offset = (y * image.width + x) * 4;
-      image.data[offset] = color[0];
-      image.data[offset + 1] = color[1];
-      image.data[offset + 2] = color[2];
-    }
+    const row = rowOf(image, y);
+    for (let x = rect.x; x < rect.x + rect.width; x += 1) row.set(color, x * 3);
   }
 }
 
-/** Returns a coverage mask of `size` that is 1 everywhere. */
-export function fullCoverage(size: Size): Uint8Array {
-  return new Uint8Array(size.width * size.height).fill(1);
+/** The RGB of pixel (x, y). */
+export function pixelOf(image: BandedRgb, x: number, y: number): number[] {
+  return Array.from(rowOf(image, y).subarray(x * 3, x * 3 + 3));
 }
 
-/** Returns a coverage mask of `size` that is 1 inside `rect` and 0 outside. */
-export function rectCoverage(size: Size, rect: Rect): Uint8Array {
-  const coverage = new Uint8Array(size.width * size.height);
+/** Every row of `image` concatenated: the pixels in order, 3 bytes each. */
+export function allPixels(image: BandedRgb): number[] {
+  return Array.from({ length: image.height }, (_, y) =>
+    Array.from(rowOf(image, y)),
+  ).flat();
+}
+
+/** Spans that cover every column of every row. */
+export function fullSpans(size: Size): RowSpans {
+  return rectSpans(size, { x: 0, y: 0, ...size });
+}
+
+/** Spans that cover `rect` and nothing else. */
+export function rectSpans(size: Size, rect: Rect): RowSpans {
+  const start = new Int32Array(size.height).fill(size.width);
+  const end = new Int32Array(size.height);
   for (let y = rect.y; y < rect.y + rect.height; y += 1) {
-    coverage.fill(
-      1,
-      y * size.width + rect.x,
-      y * size.width + rect.x + rect.width,
-    );
+    start[y] = rect.x;
+    end[y] = rect.x + rect.width;
   }
-  return coverage;
+  return { start, end };
 }
 
 /** Returns a fully covered aligned frame of `size` filled with `color`. */
-export function flatFrame(size: Size, color: Rgb): AlignedFrame {
-  return { image: flatRgba(size, color), coverage: fullCoverage(size) };
+export function flatFrame(
+  size: Size,
+  color: Rgb,
+  bandRows?: number,
+): AlignedFrame {
+  return { image: flatBanded(size, color, bandRows), spans: fullSpans(size) };
 }
 
 /** Returns true when `rect` lies inside `size` and is non-empty. */
@@ -61,17 +79,29 @@ export function isInside(rect: Rect, size: Size): boolean {
   );
 }
 
-/** Returns true when every cell of `rect` in `coverage` is at least `required`. */
-export function isRectCovered(
-  coverage: Uint8Array,
-  size: Size,
-  rect: Rect,
-  required: number,
-): boolean {
+/** Returns true when every one of `spans` covers every cell of `rect`. */
+export function isRectCovered(spans: readonly RowSpans[], rect: Rect): boolean {
   for (let y = rect.y; y < rect.y + rect.height; y += 1) {
-    for (let x = rect.x; x < rect.x + rect.width; x += 1) {
-      if (coverage[y * size.width + x] < required) return false;
+    for (const row of spans) {
+      if (row.start[y] > rect.x || row.end[y] < rect.x + rect.width)
+        return false;
     }
   }
   return true;
+}
+
+/** Every row of `rect` stacked in one go, as a single-pass run does. */
+export function stackFrames(
+  frames: readonly AlignedFrame[],
+  options: {
+    readonly rect: Rect;
+    readonly onProgress?: (fraction: number) => void;
+  },
+): StackResult {
+  const stack = emptyStack(options.rect, frames.length);
+  stackRows(frames, stack, {
+    ...options,
+    rows: { start: 0, end: options.rect.y + options.rect.height },
+  });
+  return stack;
 }

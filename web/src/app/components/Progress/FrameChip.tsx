@@ -9,6 +9,8 @@ const STATUS_CLASSES: Record<AlignmentStatus, string> = {
   pending: 'bg-muted text-muted-foreground',
   reference: 'bg-card text-accent ring-1 ring-inset ring-accent',
   aligned: 'bg-accent text-accent-foreground',
+  blurred:
+    'bg-card text-muted-foreground ring-1 ring-inset ring-control-border line-through',
   skipped:
     'bg-card text-muted-foreground ring-1 ring-inset ring-control-border line-through',
   unreadable:

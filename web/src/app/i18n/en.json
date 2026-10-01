@@ -29,6 +29,11 @@
     "quality_low": "Small, fast",
     "quality_standard": "Standard",
     "quality_high": "Large, slow",
+    "quality_original": "Original size, slowest",
+    "result_size": "Comes out up to {width} × {height} px",
+    "result_limited": "Smaller than the size chosen: this many photos need more memory than this device allows at full size. Fewer photos give a larger result.",
+    "result_passes": "Needs {count} passes over the photos, so it takes longer.",
+    "result_reading": "Working out the result size…",
     "combine_one": "Combine {count} photo",
     "combine": "Combine {count} photos",
     "need_more": "Add at least {count} photos",
@@ -39,7 +44,11 @@
     "unsupported": "This browser cannot run the pipeline: it needs Web Workers and OffscreenCanvas. Try a current Chrome, Firefox, Safari or Edge.",
     "too_many": "That is more than {count} photos, so only the first {count} are used.",
     "not_image": "{name} is not an image and was left out.",
-    "thumbnail_alt": "Photo {index}"
+    "thumbnail_alt": "Photo {index}",
+    "reference": "Reference",
+    "use_as_reference": "Align the others to photo {index}",
+    "remove": "Remove photo {index}",
+    "reference_hint": "The others are aligned to the photo marked Reference, so the result keeps its framing. Tap another photo to use that one instead, or × to leave a photo out."
   },
   "progress": {
     "title": "Combining",
@@ -52,6 +61,7 @@
     "frame_pending": "waiting",
     "frame_reference": "reference",
     "frame_aligned": "aligned",
+    "frame_blurred": "blurred",
     "frame_skipped": "skipped",
     "frame_unreadable": "could not be read",
     "frame_detail": "{inliers} of {matches} matches"
@@ -74,6 +84,8 @@
     "background_clipped_help": "Averages everything close to the median and discards outliers.",
     "background_mode": "Most common value",
     "background_mode_help": "The value most photos agree on: copes better with someone standing still.",
+    "trails": "Light trails",
+    "trails_help": "Keeps the brightest value every spot saw, as a long exposure of headlights at night does, instead of the average.",
     "compare": "Compare with one photo",
     "compare_hint": "Press and hold the image to compare it with one photo",
     "adjust": "Adjust the look",
@@ -86,6 +98,8 @@
     "saved": "Saved as {name}",
     "skipped_one": "{count} photo did not line up with the others and was left out. Keep the phone as still as you can between shots.",
     "skipped": "{count} photos did not line up with the others and were left out. Keep the phone as still as you can between shots.",
+    "blurred_one": "{count} photo was blurred, so it was left out rather than soften the result.",
+    "blurred": "{count} photos were blurred, so they were left out rather than soften the result.",
     "share_failed": "Sharing did not work, so the image was saved instead."
   },
   "errors": {
@@ -95,8 +109,14 @@
     "no_overlap": "The photos do not overlap enough to share any area. Shoot the burst from one spot, then try again.",
     "decode_failed": "{name} could not be read.",
     "cancelled": "Cancelled.",
+    "out_of_memory": "The device ran out of memory. Choose a smaller output size or fewer photos, then try again.",
     "unknown": "Something went wrong: {message}",
-    "retry": "Try again"
+    "retry": "Try again",
+    "diagnostics_title": "Diagnostic info",
+    "diagnostics_hint": "If this keeps happening, these details help to fix it. They hold no photo and no file name.",
+    "copy_diagnostics": "Copy diagnostic info",
+    "copied": "Copied. Paste it into a bug report.",
+    "copy_failed": "Could not copy. Open Diagnostic info and copy the text by hand."
   },
   "help": {
     "title": "How ExposureBuddy works",
@@ -106,14 +126,16 @@
     "shoot_title": "Shooting",
     "shoot_body": "Brace the phone or use a tripod. Same framing, same exposure, 10 to 50 photos. Burst mode is ideal.",
     "sliders_title": "The sliders",
-    "sliders_body": "Ghosts sets how visible moving things stay; at zero they vanish. Blur smears the ghosts. Glow adds a bloom to bright moving things such as headlights.",
+    "sliders_body": "Ghosts sets how visible moving things stay; at zero they vanish. Blur smears the ghosts. Glow adds a bloom to bright moving things such as headlights. Light trails keeps the brightest value every spot saw instead of the average, for headlights and stars.",
     "privacy_title": "Privacy",
     "privacy_body": "Everything runs in your browser. Photos never leave your device; there is no account and no upload.",
-    "shortcut_hint": "Open this help any time with {shortcut}."
+    "shortcut_hint": "Open this help any time with {shortcut}.",
+    "version": "Version {version}"
   },
   "footer": {
     "privacy": "Your photos never leave this device.",
-    "source": "Source code"
+    "source": "Source code",
+    "privacy_link": "Privacy"
   },
   "not_found": {
     "title": "404",
@@ -122,5 +144,21 @@
   },
   "page": {
     "skip_to_content": "Skip to content"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "intro": "ExposureBuddy runs entirely in your browser. Here is what that means in practice.",
+    "photos_title": "Your photos",
+    "photos_body": "Photos are read into this browser tab's memory, combined there and shown. They are not uploaded, not stored and not shared; reloading or closing the page forgets them. The app could not send them anywhere even by mistake: its security policy only lets it connect to its own address.",
+    "stored_title": "What stays on your device",
+    "stored_body": "Your choice of language and theme, in the browser's local storage, and a copy of the app itself, in the browser's cache, so it opens offline. There are no cookies and nothing else. Clearing this site's data in your browser removes all of it.",
+    "saved_title": "The image you save",
+    "saved_body": "The JPEG you save or share carries the date and time the reference photo was taken, so your gallery sorts it next to the burst. Nothing else from your photos goes into it: no location, no camera model, no serial number.",
+    "reports_title": "Bug reports",
+    "reports_body": "After an error you can copy a diagnostic report. It holds no photo and no file name, and it goes only where you paste it.",
+    "hosting_title": "Hosting",
+    "hosting_body": "The app is served by GitHub Pages. Like any web server, GitHub receives the usual data of each request when the app loads, such as your IP address and browser, and handles it under its own privacy statement. The app itself has no account, no analytics, no tracking and no third-party scripts.",
+    "hosting_link": "GitHub's privacy statement",
+    "back": "Back to the app"
   }
 }

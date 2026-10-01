@@ -1,34 +1,37 @@
-import type { RgbaImage } from '../types';
+import { rowOf } from '../image/banded';
+import type { AlignedFrame, BandedRgb, RowRange } from '../types';
 import { indices } from '../indices';
 
-const UNIT_GAIN: readonly [number, number, number] = [1, 1, 1];
+/** A factor per colour channel. */
+export type Gain = readonly [number, number, number];
+
+const UNIT_GAIN: Gain = [1, 1, 1];
 const MIN_GAIN = 0.5;
 const MAX_GAIN = 2;
 const SAMPLE_STRIDE = 4;
-const CHANNELS = 4;
+const RGB = 3;
+
+/** The first multiple of the sample stride at or after `x`. */
+function firstSample(x: number): number {
+  return Math.ceil(x / SAMPLE_STRIDE) * SAMPLE_STRIDE;
+}
 
 /** Returns the per-channel factor (referenceMean / frameMean over the covered pixels, sampled every 4th in x and y) clamped to [0.5, 2]; [1, 1, 1] without overlap or when a channel mean is 0. */
-export function estimateGain(
-  frame: RgbaImage,
-  reference: RgbaImage,
-  coverage: Uint8Array,
-): readonly [number, number, number] {
-  const { width, height } = frame;
-  const frameData = frame.data;
-  const referenceData = reference.data;
+export function estimateGain(frame: AlignedFrame, reference: BandedRgb): Gain {
+  const { start, end } = frame.spans;
   const frameSums = [0, 0, 0];
   const referenceSums = [0, 0, 0];
-  for (const y of indices(height, SAMPLE_STRIDE)) {
-    for (let x = 0; x < width; x += SAMPLE_STRIDE) {
-      const pixel = y * width + x;
-      if (coverage[pixel] !== 1) continue;
-      const offset = pixel * CHANNELS;
-      frameSums[0] += frameData[offset];
-      frameSums[1] += frameData[offset + 1];
-      frameSums[2] += frameData[offset + 2];
-      referenceSums[0] += referenceData[offset];
-      referenceSums[1] += referenceData[offset + 1];
-      referenceSums[2] += referenceData[offset + 2];
+  for (const y of indices(frame.image.height, SAMPLE_STRIDE)) {
+    const frameRow = rowOf(frame.image, y);
+    const referenceRow = rowOf(reference, y);
+    for (let x = firstSample(start[y]); x < end[y]; x += SAMPLE_STRIDE) {
+      const offset = x * RGB;
+      frameSums[0] += frameRow[offset];
+      frameSums[1] += frameRow[offset + 1];
+      frameSums[2] += frameRow[offset + 2];
+      referenceSums[0] += referenceRow[offset];
+      referenceSums[1] += referenceRow[offset + 1];
+      referenceSums[2] += referenceRow[offset + 2];
     }
   }
   // No overlap leaves every sum at 0, so it is one case of the empty channel.
@@ -47,23 +50,20 @@ function clampGain(ratio: number): number {
   return Math.min(MAX_GAIN, Math.max(MIN_GAIN, ratio));
 }
 
-/** Multiplies the RGB of every pixel with coverage 1 by `gain` in place, rounded and clamped to 255; alpha untouched. */
+/** Multiplies the RGB of every covered pixel of `frame` in `rows` (all by default) by `gain` in place, rounded and clamped to 255. */
 export function applyGain(
-  frame: RgbaImage,
-  gain: readonly [number, number, number],
-  coverage: Uint8Array,
+  frame: AlignedFrame,
+  gain: Gain,
+  rows: RowRange = { start: 0, end: frame.image.height },
 ): void {
-  const redTable = gainTable(gain[0]);
-  const greenTable = gainTable(gain[1]);
-  const blueTable = gainTable(gain[2]);
-  const { data } = frame;
-  coverage.forEach((covered, pixel) => {
-    if (covered !== 1) return;
-    const offset = pixel * CHANNELS;
-    data[offset] = redTable[data[offset]];
-    data[offset + 1] = greenTable[data[offset + 1]];
-    data[offset + 2] = blueTable[data[offset + 2]];
-  });
+  const tables = [gainTable(gain[0]), gainTable(gain[1]), gainTable(gain[2])];
+  const { start, end } = frame.spans;
+  for (let y = rows.start; y < rows.end; y += 1) {
+    const row = rowOf(frame.image, y);
+    for (let offset = start[y] * RGB; offset < end[y] * RGB; offset += 1) {
+      row[offset] = tables[offset % RGB][row[offset]];
+    }
+  }
 }
 
 // Uint8ClampedArray rounds and clamps on assignment, so the table holds the whole transfer curve.

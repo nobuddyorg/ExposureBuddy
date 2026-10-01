@@ -16,12 +16,14 @@ const PARAMS_A = {
   ghostStrength: 0.1,
   ghostBlur: 1,
   glow: 0.1,
+  trails: false,
 };
 const PARAMS_B = {
   background: 'median' as const,
   ghostStrength: 0.9,
   ghostBlur: 9,
   glow: 0.9,
+  trails: false,
 };
 
 // fakeResult: 5 aligned frames, 4 × 3 px.

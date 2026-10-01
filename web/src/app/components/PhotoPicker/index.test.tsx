@@ -27,6 +27,9 @@ function image(name: string) {
   return new File(['x'], name, { type: 'image/jpeg', lastModified: 1 });
 }
 
+const DEVICE = { poolSize: 1, budgetBytes: 256 * 1024 * 1024 };
+const PHONE = { width: 4032, height: 3024 };
+
 function picked(names: string[]): PickedPhoto[] {
   return names.map((name) => ({ id: name, file: image(name) }));
 }
@@ -34,9 +37,14 @@ function picked(names: string[]): PickedPhoto[] {
 function renderPicker(overrides: Partial<PhotoPickerProps> = {}) {
   const props: PhotoPickerProps = {
     photos: [],
+    reference: -1,
     notice: null,
     unsupported: false,
+    referenceSize: { kind: 'none' },
+    device: DEVICE,
     onAdd: vi.fn(),
+    onRemove: vi.fn(),
+    onChooseReference: vi.fn(),
     onClear: vi.fn(),
     onCombine: vi.fn(),
     ...overrides,
@@ -59,9 +67,14 @@ function WiredPicker({
   return (
     <PhotoPicker
       photos={photos.photos}
+      reference={photos.reference}
       notice={photos.notice}
       unsupported={false}
+      referenceSize={{ kind: 'none' }}
+      device={DEVICE}
       onAdd={photos.add}
+      onRemove={photos.remove}
+      onChooseReference={photos.chooseReference}
       onClear={photos.clear}
       onCombine={onCombine}
     />
@@ -198,7 +211,7 @@ describe('PhotoPicker, with photos', () => {
     expect(onCombine).toHaveBeenLastCalledWith('high');
   });
 
-  it('labels the quality select with its three options', () => {
+  it('labels the quality select with its four options', () => {
     renderPicker();
     const select = screen.getByRole('combobox', { name: 'Output size' });
     expect(select).toHaveAttribute('data-testid', 'quality-select');
@@ -206,7 +219,50 @@ describe('PhotoPicker, with photos', () => {
       within(select)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Small, fast', 'Standard', 'Large, slow']);
+    ).toEqual([
+      'Small, fast',
+      'Standard',
+      'Large, slow',
+      'Original size, slowest',
+    ]);
+  });
+
+  it('marks the reference photo, and names what each tile button does', () => {
+    renderPicker({ photos: picked(['a.jpg', 'b.jpg', 'c.jpg']), reference: 1 });
+    const tiles = screen.getAllByTestId('photo-tile');
+    expect(tiles.map((tile) => tile.dataset.reference)).toEqual([
+      'false',
+      'true',
+      'false',
+    ]);
+    expect(within(tiles[1]).getByTestId('reference-badge')).toHaveTextContent(
+      'Reference',
+    );
+    expect(screen.getAllByTestId('reference-badge')).toHaveLength(1);
+    expect(
+      screen.getByRole('button', { name: 'Align the others to photo 2' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByRole('button', { name: 'Align the others to photo 3' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.getByRole('button', { name: 'Remove photo 3' }),
+    ).toBeVisible();
+    expect(screen.getByTestId('reference-hint')).toHaveTextContent(
+      'Tap another photo to use that one instead',
+    );
+  });
+
+  it('hands a tapped photo and a removed one to the page by id', async () => {
+    const user = userEvent.setup();
+    const { onChooseReference, onRemove } = renderPicker({
+      photos: picked(['a.jpg', 'b.jpg', 'c.jpg']),
+      reference: 1,
+    });
+    await user.click(screen.getByRole('button', { name: /to photo 3/ }));
+    expect(onChooseReference).toHaveBeenCalledExactlyOnceWith('c.jpg');
+    await user.click(screen.getByRole('button', { name: 'Remove photo 1' }));
+    expect(onRemove).toHaveBeenCalledExactlyOnceWith('a.jpg');
   });
 
   it('clears through the clear button', async () => {
@@ -236,6 +292,50 @@ describe('PhotoPicker, wired to the hook', () => {
     expect(screen.queryByTestId('photo-thumb')).toBeNull();
     await user.upload(input, files);
     expect(screen.getAllByTestId('photo-thumb')).toHaveLength(2);
+  });
+
+  it('removes a photo and moves the reference with a tap', async () => {
+    const user = userEvent.setup();
+    const { input } = renderWired();
+    await user.upload(input, ['a', 'b', 'c', 'd'].map(image));
+    const referenceTile = () =>
+      screen
+        .getAllByTestId('photo-tile')
+        .findIndex((tile) => tile.dataset.reference === 'true');
+    expect(referenceTile()).toBe(1);
+    await user.click(screen.getByRole('button', { name: /to photo 4/ }));
+    expect(referenceTile()).toBe(3);
+    await user.click(screen.getByRole('button', { name: 'Remove photo 1' }));
+    expect(screen.getByTestId('photo-count')).toHaveTextContent('3 photos');
+    expect(referenceTile()).toBe(2);
+  });
+
+  it('keeps the keyboard on the grid when a photo is removed', async () => {
+    const user = userEvent.setup();
+    const { input } = renderWired();
+    await user.upload(input, ['a', 'b', 'c'].map(image));
+    await user.click(screen.getByRole('button', { name: 'Remove photo 2' }));
+    // Photo 3 moved into the second place; its remove button takes the focus.
+    expect(
+      screen.getByRole('button', { name: 'Remove photo 2' }),
+    ).toHaveFocus();
+    await user.keyboard('{Enter}');
+    // The last one went, so the one before it takes over.
+    expect(
+      screen.getByRole('button', { name: 'Remove photo 1' }),
+    ).toHaveFocus();
+    expect(screen.getAllByTestId('photo-thumb')).toHaveLength(1);
+  });
+
+  it('keeps the focus where it is when the grid changes without a removal', async () => {
+    const user = userEvent.setup();
+    const { input } = renderWired();
+    await user.upload(input, ['a', 'b'].map(image));
+    await user.click(screen.getByRole('button', { name: /to photo 2/ }));
+    // Straight through the change event: user-event would focus the input first.
+    fireEvent.change(input, { target: { files: [image('c')] } });
+    expect(screen.getAllByTestId('photo-thumb')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: /to photo 2/ })).toHaveFocus();
   });
 
   it('takes a drop on the dropzone', () => {
@@ -272,4 +372,66 @@ describe('PhotoPicker, wired to the hook', () => {
       expect(screen.getByTestId('picker-notice')).toBeEmptyDOMElement();
     },
   );
+});
+
+describe('PhotoPicker, result size', () => {
+  const sizeLine = () => screen.getByTestId('result-size');
+
+  it('says nothing before any photo is picked', () => {
+    renderPicker();
+    expect(sizeLine()).toHaveTextContent('');
+  });
+
+  it('says it is working the size out while the reference photo is read', () => {
+    renderPicker({ photos: picked(['a.jpg', 'b.jpg']) });
+    expect(sizeLine()).toHaveTextContent('Working out the result size');
+  });
+
+  it('says nothing for a reference photo the browser cannot read', () => {
+    renderPicker({
+      photos: picked(['a.jpg', 'b.jpg']),
+      referenceSize: { kind: 'unreadable' },
+    });
+    expect(sizeLine()).toHaveTextContent('');
+  });
+
+  it('shows the size the chosen quality comes out at, and follows the choice', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      photos: picked(['a.jpg', 'b.jpg', 'c.jpg']),
+      referenceSize: { kind: 'known', size: PHONE },
+    });
+    expect(sizeLine()).toHaveTextContent('Comes out up to 1,600 × 1,200 px');
+    expect(sizeLine()).not.toHaveTextContent('Smaller than the size chosen');
+    await user.selectOptions(screen.getByTestId('quality-select'), 'low');
+    expect(sizeLine()).toHaveTextContent('Comes out up to 1,024 × 768 px');
+    expect(screen.getByTestId('quality-select')).toHaveAttribute(
+      'aria-describedby',
+      sizeLine().id,
+    );
+  });
+
+  it('says when the burst needs several passes, and only then', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      photos: picked(Array.from({ length: 40 }, (_, index) => `${index}.jpg`)),
+      referenceSize: { kind: 'known', size: PHONE },
+      device: { poolSize: 1, budgetBytes: 512 * 1024 * 1024 },
+    });
+    expect(sizeLine()).not.toHaveTextContent('passes');
+    await user.selectOptions(screen.getByTestId('quality-select'), 'high');
+    expect(sizeLine()).toHaveTextContent(
+      'Comes out up to 2,400 × 1,800 px. Needs 2 passes over the photos, so it takes longer.',
+    );
+  });
+
+  it('says so when this many photos make the result smaller than chosen', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      photos: picked(Array.from({ length: 100 }, (_, index) => `${index}.jpg`)),
+      referenceSize: { kind: 'known', size: PHONE },
+    });
+    await user.selectOptions(screen.getByTestId('quality-select'), 'high');
+    expect(sizeLine()).toHaveTextContent('Smaller than the size chosen');
+  });
 });

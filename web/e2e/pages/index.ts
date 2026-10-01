@@ -5,6 +5,7 @@ import { initHelp } from './help';
 import { initNotFound } from './not-found';
 import { initPicker } from './picker';
 import { initPipelineError } from './pipeline-error';
+import { initPrivacy } from './privacy';
 import { initProgress } from './progress';
 import { initResult } from './result';
 
@@ -25,6 +26,9 @@ export function createPageTree(page: Page) {
     },
     get pipelineError() {
       return initPipelineError(page);
+    },
+    get privacy() {
+      return initPrivacy(page);
     },
     get progress() {
       return initProgress(page);

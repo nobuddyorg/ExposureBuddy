@@ -1,4 +1,4 @@
-import { alignToReference, referenceFeatures } from './alignment';
+import { alignToReference, analyseReference } from './alignment';
 import type {
   AlignWorkerRequest,
   AlignWorkerResponse,
@@ -6,6 +6,7 @@ import type {
   Served,
 } from './protocol';
 import { transferablesOf, unexpectedRequest } from './protocol';
+import { warpRgba } from '../warp/warp';
 import type { FeatureSet } from '../types';
 
 export type AlignService = (
@@ -34,14 +35,19 @@ export function createAlignService(
       }
       throw error;
     }
-    const { image, source } = decoded;
+    const { image, source, alignWorkers, stripRows, passes } = decoded;
+    const { features, sharpness } = analyseReference(image);
     return {
       response: {
         type: 'reference-decoded',
         id: request.id,
         image,
         source,
-        features: referenceFeatures(image),
+        alignWorkers,
+        stripRows,
+        passes,
+        features,
+        sharpness,
       },
       transfer: transferablesOf({ image }),
     };
@@ -76,10 +82,37 @@ export function createAlignService(
         type: 'aligned',
         id: request.id,
         frame: outcome.frame,
+        homography: outcome.homography,
         matches,
         inliers,
+        sharpness: outcome.sharpness,
       },
       transfer: transferablesOf(outcome.frame),
+    };
+  };
+
+  const warpRows = async (
+    request: Extract<AlignWorkerRequest, { type: 'warp-rows' }>,
+  ): Promise<Served<AlignWorkerResponse>> => {
+    let image;
+    try {
+      image = await decoders.decodeAt(request.file, request.target);
+    } catch (error) {
+      if (isUnreadable(error)) {
+        return {
+          response: { type: 'unreadable', id: request.id },
+          transfer: [],
+        };
+      }
+      throw error;
+    }
+    const frame = warpRgba(image, request.homography, {
+      ...request.target,
+      rows: request.rows,
+    });
+    return {
+      response: { type: 'warped-rows', id: request.id, frame },
+      transfer: transferablesOf(frame),
     };
   };
 
@@ -95,6 +128,8 @@ export function createAlignService(
         });
       case 'align':
         return align(request);
+      case 'warp-rows':
+        return warpRows(request);
       default:
         return Promise.reject(unexpectedRequest('align service', request));
     }

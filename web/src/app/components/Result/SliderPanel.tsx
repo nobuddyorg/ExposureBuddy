@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n/useI18n';
 import { cardClasses } from '../ui/cardClasses';
 import { BackgroundSelect } from './BackgroundSelect';
 import { ParamSlider } from './ParamSlider';
+import { TrailsSwitch } from './TrailsSwitch';
 import type { BackgroundMode } from '../../vision/types';
 import { type SliderName, type SliderValues } from './sliderValues';
 
@@ -16,9 +17,12 @@ export interface SliderPanelProps {
   disabled: boolean;
   onChange: (name: SliderName, value: number) => void;
   onBackgroundChange: (mode: BackgroundMode) => void;
+  /** Light trails: the brightest value each pixel saw instead of the mean. */
+  trails: boolean;
+  onTrailsChange: (trails: boolean) => void;
 }
 
-/** The card with the background choice and the three composite sliders: ghosts, blur and glow. */
+/** The card with the background choice, the light-trails switch and the three composite sliders: ghosts, blur and glow. */
 export function SliderPanel({
   values,
   background,
@@ -26,6 +30,8 @@ export function SliderPanel({
   disabled,
   onChange,
   onBackgroundChange,
+  trails,
+  onTrailsChange,
 }: SliderPanelProps) {
   const { t } = useI18n();
   // Spelled out per slider: the i18n parity test only credits literal t('…') keys.
@@ -59,6 +65,11 @@ export function SliderPanel({
         value={background}
         disabled={disabled}
         onChange={onBackgroundChange}
+      />
+      <TrailsSwitch
+        checked={trails}
+        disabled={disabled}
+        onChange={onTrailsChange}
       />
       {sliders.map((slider) => (
         <ParamSlider

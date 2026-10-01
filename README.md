@@ -40,13 +40,15 @@ It runs entirely in the browser. There is no account, no upload and no server: t
 
 ## Features
 
-- **Aligns on the static scene**: ORB-style feature matching and RANSAC homographies register every photo onto the middle one, so a hand-held burst still stacks sharp.
-- **Median and mean stacking**: the per-pixel median is the still scene, the mean is the long exposure; a photo that does not line up is skipped and reported, never blended in.
-- **Ghosts, blur and glow**: three sliders set how visible moving things stay, how much they smear, and how much bright moving things bloom; the result re-renders live.
-- **Compare, save, share**: flip between the result and one original, save the JPEG, or hand it to the phone's share sheet.
-- **Runs entirely in the browser**, in Web Workers; a bigger burst comes out smaller rather than crashing the tab.
+- **Aligns on the static scene**: ORB-style feature matching and RANSAC homographies register every photo onto the middle one (or the one you mark), so a hand-held burst still stacks sharp.
+- **Median and mean stacking**: the per-pixel median is the still scene, the mean is the long exposure; a photo that does not line up, or is blurred, is left out and reported, never blended in.
+- **Ghosts, blur and glow, or light trails**: three sliders set how visible moving things stay, how much they smear, and how much bright moving things bloom; a switch keeps headlights at full strength instead; the result re-renders live.
+- **Your choice of photos**: leave single photos out, or pick the one the others line up on.
+- **Compare, save, share**: flip between the result and one original, save the JPEG with the burst's shooting date (and nothing else from the photos), or hand it to the phone's share sheet.
+- **Runs entirely in the browser**, in Web Workers, within a memory budget that fits the device; a burst too large to combine in one go is combined in strips, and only comes out smaller when that does not fit either.
 - **Installable and offline**: a PWA whose service worker stores the shell and the whole bundle (about 1 MB) on the first visit, so from then on it opens and combines without a network.
 - **Bilingual, themeable**: German/English and light/dark/system, both remembered per visitor.
+- **Private by construction**: no upload, no account, no analytics; a privacy page says what stays on the device, and the error screen offers a diagnostic report to copy, without photos or file names.
 - Built to work with a keyboard and a screen reader, not just a touch screen.
 
 ## How it works

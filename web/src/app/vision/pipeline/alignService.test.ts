@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { rowOf } from '../image/banded';
 import { shiftGray, texturedScene } from '../features/synthetic.test-support';
 import type { AlignWorkerResponse, Decoders } from './protocol';
 import { createAlignService } from './alignService';
@@ -16,7 +17,7 @@ const decoders: Decoders = {
   decodeReference: async (file) => {
     if ((await file.text()) === 'bad') throw new Unreadable('nope');
     const image = toRgba(texturedScene(SCENE.width, SCENE.height, 1));
-    return { image, source: SCENE };
+    return { image, source: SCENE, alignWorkers: 2, stripRows: 64, passes: 3 };
   },
   decodeAt: async (file) => {
     const verdict = await file.text();
@@ -39,6 +40,7 @@ const sizing = {
   frameCount: 3,
   budgetBytes: 256 * 1024 * 1024,
   maxLongEdge: 1024,
+  requestedWorkers: 3,
 };
 
 async function primed() {
@@ -78,12 +80,16 @@ describe('createAlignService', () => {
       type: 'reference-decoded',
       id: 1,
       source: SCENE,
+      alignWorkers: 2,
+      stripRows: 64,
+      passes: 3,
     });
     const decoded = response as Extract<
       AlignWorkerResponse,
       { type: 'reference-decoded' }
     >;
     expect(decoded.features.keypoints.length).toBeGreaterThan(50);
+    expect(decoded.sharpness).toBeGreaterThan(0);
     expect(transfer).toEqual([decoded.image.data.buffer]);
   });
 
@@ -138,23 +144,29 @@ describe('createAlignService', () => {
       { type: 'aligned' }
     >;
     expect(aligned.inliers).toBeGreaterThan(20);
+    // A shifted copy is about as crisp as the reference it came from.
+    expect(aligned.sharpness).toBeGreaterThan(reference.sharpness * 0.8);
+    expect(aligned.sharpness).toBeLessThan(reference.sharpness * 1.25);
+    const { image, spans } = aligned.frame;
     expect(transfer).toEqual([
-      aligned.frame.image.data.buffer,
-      aligned.frame.coverage.buffer,
+      ...image.bands.map((band) => band.buffer),
+      spans.start.buffer,
+      spans.end.buffer,
     ]);
 
     // Where the warped frame has data it must show the reference's pixels again.
-    const { image, coverage } = aligned.frame;
     let difference = 0;
     let count = 0;
-    for (let index = 0; index < coverage.length; index += 1) {
-      if (!coverage[index]) continue;
-      difference += Math.abs(
-        image.data[index * 4] - reference.image.data[index * 4],
-      );
-      count += 1;
+    for (let y = 0; y < image.height; y += 1) {
+      const row = rowOf(image, y);
+      for (let x = spans.start[y]; x < spans.end[y]; x += 1) {
+        difference += Math.abs(
+          row[x * 3] - reference.image.data[(y * image.width + x) * 4],
+        );
+        count += 1;
+      }
     }
-    expect(count).toBeGreaterThan(coverage.length * 0.8);
+    expect(count).toBeGreaterThan(image.width * image.height * 0.8);
     expect(difference / count).toBeLessThan(6);
   });
 
@@ -180,6 +192,65 @@ describe('createAlignService', () => {
     });
     await expect(
       serve({ type: 'align', id: 6, file: blob('crash'), target: SCENE }),
+    ).rejects.toThrow('disk on fire');
+  });
+
+  it('warps just the rows of a strip again with the transform the frame aligned with', async () => {
+    const { serve } = await primed();
+    const aligned = (
+      await serve({
+        type: 'align',
+        id: 7,
+        file: blob('shifted'),
+        target: SCENE,
+      })
+    ).response as Extract<AlignWorkerResponse, { type: 'aligned' }>;
+    const rows = { start: 64, end: 128 };
+    const { response, transfer } = await serve({
+      type: 'warp-rows',
+      id: 8,
+      file: blob('shifted'),
+      target: SCENE,
+      homography: aligned.homography,
+      rows,
+    });
+    expect(response).toMatchObject({ type: 'warped-rows', id: 8 });
+    const { frame } = response as Extract<
+      AlignWorkerResponse,
+      { type: 'warped-rows' }
+    >;
+    expect(frame.image.bands.map((band) => band.length > 0)).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    for (let y = rows.start; y < rows.end; y += 1)
+      expect(Array.from(rowOf(frame.image, y))).toEqual(
+        Array.from(rowOf(aligned.frame.image, y)),
+      );
+    expect(transfer).toEqual([
+      frame.image.bands[1].buffer,
+      frame.spans.start.buffer,
+      frame.spans.end.buffer,
+    ]);
+  });
+
+  it('reports a strip whose photo became unreadable and lets any other decode error through', async () => {
+    const { serve } = await primed();
+    const request = {
+      type: 'warp-rows' as const,
+      target: SCENE,
+      homography: Float64Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+      rows: { start: 0, end: 64 },
+    };
+    await expect(
+      serve({ ...request, id: 9, file: blob('bad') }),
+    ).resolves.toEqual({
+      response: { type: 'unreadable', id: 9 },
+      transfer: [],
+    });
+    await expect(
+      serve({ ...request, id: 10, file: blob('crash') }),
     ).rejects.toThrow('disk on fire');
   });
 });

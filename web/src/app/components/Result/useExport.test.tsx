@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { readShotDate } from '../../exposure/exifDate';
 import { installCanvasStubs, type CanvasStubs } from './canvas.test-support';
 import { useExport, type ExportOptions } from './useExport';
 
@@ -46,6 +47,12 @@ describe('useExport: download', () => {
       kind: 'saved',
       name: EXPECTED_NAME,
     });
+    expect(result.current.exported).toBe(true);
+  });
+
+  it('counts as exported only once something was saved', () => {
+    const { result } = setup();
+    expect(result.current.exported).toBe(false);
   });
 
   it('reports nothing when the save dialog is cancelled', async () => {
@@ -55,6 +62,7 @@ describe('useExport: download', () => {
     const { result } = setup({ save });
     await act(() => result.current.download());
     expect(result.current.status).toEqual({ kind: 'idle' });
+    expect(result.current.exported).toBe(false);
   });
 
   it('reports a canvas that cannot be encoded', async () => {
@@ -75,6 +83,35 @@ describe('useExport: download', () => {
     );
     await act(() => result.current.download());
     expect(result.current.status).toMatchObject({ kind: 'failed' });
+  });
+});
+
+describe('useExport: shooting date', () => {
+  const WHEN = { kind: 'dated', timestamp: '2026:09:28 14:32:05' } as const;
+  const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]);
+
+  it('stamps the saved JPEG with the date the reference photo was taken', async () => {
+    stubs.toBlob.mockImplementation((callback: BlobCallback) =>
+      callback(new Blob([jpeg], { type: 'image/jpeg' })),
+    );
+    const { result, save } = setup({ shotDate: WHEN });
+    await act(() => result.current.download());
+    const [file] = save.mock.calls[0] as [File, string];
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    expect(readShotDate(bytes)).toEqual(WHEN);
+    expect(file.type).toBe('image/jpeg');
+  });
+
+  it('saves the JPEG exactly as encoded when the photo was undated', async () => {
+    stubs.toBlob.mockImplementation((callback: BlobCallback) =>
+      callback(new Blob([jpeg], { type: 'image/jpeg' })),
+    );
+    const { result, save } = setup();
+    await act(() => result.current.download());
+    const [file] = save.mock.calls[0] as [File, string];
+    expect(Array.from(new Uint8Array(await file.arrayBuffer()))).toEqual(
+      Array.from(jpeg),
+    );
   });
 });
 
@@ -116,6 +153,7 @@ describe('useExport: share', () => {
     expect(data.files?.[0].name).toBe(EXPECTED_NAME);
     expect(save).not.toHaveBeenCalled();
     expect(result.current.status).toEqual({ kind: 'idle' });
+    expect(result.current.exported).toBe(true);
   });
 
   it('falls back to a save when sharing fails for any other reason', async () => {
@@ -127,6 +165,7 @@ describe('useExport: share', () => {
       kind: 'share_failed',
       name: EXPECTED_NAME,
     });
+    expect(result.current.exported).toBe(true);
   });
 
   it('stays silent when the visitor dismissed the share sheet', async () => {
@@ -137,6 +176,7 @@ describe('useExport: share', () => {
     await act(() => result.current.share('x'));
     expect(save).not.toHaveBeenCalled();
     expect(result.current.status).toEqual({ kind: 'idle' });
+    expect(result.current.exported).toBe(false);
   });
 
   it('reports an encoding failure before any sharing', async () => {
@@ -152,6 +192,8 @@ describe('useExport: share', () => {
     const { result, save } = setup({ sharer: { canShare: () => true } });
     await act(() => result.current.share('x'));
     expect(save).not.toHaveBeenCalled();
+    expect(stubs.toBlob).not.toHaveBeenCalled();
     expect(result.current.status).toEqual({ kind: 'idle' });
+    expect(result.current.exported).toBe(false);
   });
 });

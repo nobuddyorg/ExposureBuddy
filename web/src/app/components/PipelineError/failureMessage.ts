@@ -21,6 +21,8 @@ export function failureMessage(
       return t('errors.decode_failed', { name: failure.name });
     case 'cancelled':
       return t('errors.cancelled');
+    case 'out_of_memory':
+      return t('errors.out_of_memory');
     case 'unknown':
       return t('errors.unknown', { message: failure.message });
   }

@@ -27,6 +27,7 @@ describe('frameLabel', () => {
     ['pending', 'progress.frame_pending'],
     ['reference', 'progress.frame_reference'],
     ['aligned', 'progress.frame_aligned'],
+    ['blurred', 'progress.frame_blurred'],
     ['skipped', 'progress.frame_skipped'],
     ['unreadable', 'progress.frame_unreadable'],
   ] as const)('names a %s frame', (status, key) => {
@@ -47,7 +48,7 @@ describe('frameDetail', () => {
     ).toBe('progress.frame_detail{"inliers":3,"matches":30}');
   });
 
-  it.each(['pending', 'reference', 'unreadable'] as const)(
+  it.each(['pending', 'reference', 'blurred', 'unreadable'] as const)(
     'has nothing to say about a %s frame',
     (status) => {
       expect(frameDetail(t, frame({ status, matches: 5, inliers: 5 }))).toBe(

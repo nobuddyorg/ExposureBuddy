@@ -29,6 +29,11 @@
     "quality_low": "Klein, schnell",
     "quality_standard": "Standard",
     "quality_high": "Groß, langsam",
+    "quality_original": "Originalgröße, am langsamsten",
+    "result_size": "Ergebnis bis {width} × {height} px",
+    "result_limited": "Kleiner als gewählt: So viele Fotos brauchen in voller Größe mehr Speicher, als dieses Gerät erlaubt. Weniger Fotos ergeben ein größeres Bild.",
+    "result_passes": "Braucht {count} Durchgänge über die Fotos und dauert daher länger.",
+    "result_reading": "Ergebnisgröße wird ermittelt …",
     "combine_one": "{count} Foto kombinieren",
     "combine": "{count} Fotos kombinieren",
     "need_more": "Mindestens {count} Fotos hinzufügen",
@@ -39,7 +44,11 @@
     "unsupported": "Dieser Browser kann die Verarbeitung nicht ausführen: Er braucht Web Worker und OffscreenCanvas. Bitte ein aktuelles Chrome, Firefox, Safari oder Edge verwenden.",
     "too_many": "Das sind mehr als {count} Fotos, deshalb werden nur die ersten {count} verwendet.",
     "not_image": "{name} ist kein Bild und wurde ausgelassen.",
-    "thumbnail_alt": "Foto {index}"
+    "thumbnail_alt": "Foto {index}",
+    "reference": "Referenz",
+    "use_as_reference": "Die anderen auf Foto {index} ausrichten",
+    "remove": "Foto {index} entfernen",
+    "reference_hint": "Die anderen Fotos werden auf das mit Referenz markierte ausgerichtet, das Ergebnis behält dessen Bildausschnitt. Ein anderes Foto antippen, um es stattdessen zu nehmen, oder ×, um ein Foto wegzulassen."
   },
   "progress": {
     "title": "Kombinieren",
@@ -52,6 +61,7 @@
     "frame_pending": "wartet",
     "frame_reference": "Referenz",
     "frame_aligned": "ausgerichtet",
+    "frame_blurred": "verwackelt",
     "frame_skipped": "übersprungen",
     "frame_unreadable": "nicht lesbar",
     "frame_detail": "{inliers} von {matches} Treffern"
@@ -74,6 +84,8 @@
     "background_clipped_help": "Mittelt alles nahe am Median und verwirft Ausreißer.",
     "background_mode": "Häufigster Wert",
     "background_mode_help": "Der Wert, auf den sich die meisten Fotos einigen: kommt besser mit Stehenden klar.",
+    "trails": "Lichtspuren",
+    "trails_help": "Behält den hellsten Wert, den jede Stelle gesehen hat, wie eine Langzeitbelichtung von Scheinwerfern bei Nacht, statt des Durchschnitts.",
     "compare": "Mit einem Einzelfoto vergleichen",
     "compare_hint": "Bild gedrückt halten, um es mit einem Einzelfoto zu vergleichen",
     "adjust": "Darstellung anpassen",
@@ -86,6 +98,8 @@
     "saved": "Gespeichert als {name}",
     "skipped_one": "{count} Foto ließ sich nicht auf die anderen ausrichten und blieb draußen. Das Handy zwischen den Aufnahmen möglichst ruhig halten.",
     "skipped": "{count} Fotos ließen sich nicht auf die anderen ausrichten und blieben draußen. Das Handy zwischen den Aufnahmen möglichst ruhig halten.",
+    "blurred_one": "{count} Foto war verwackelt und blieb draußen, damit es das Ergebnis nicht weichzeichnet.",
+    "blurred": "{count} Fotos waren verwackelt und blieben draußen, damit sie das Ergebnis nicht weichzeichnen.",
     "share_failed": "Teilen hat nicht geklappt, das Bild wurde stattdessen gespeichert."
   },
   "errors": {
@@ -95,8 +109,14 @@
     "no_overlap": "Die Fotos überlappen sich zu wenig, um eine gemeinsame Fläche zu haben. Die Serie von einer Stelle aus aufnehmen und noch einmal versuchen.",
     "decode_failed": "{name} konnte nicht gelesen werden.",
     "cancelled": "Abgebrochen.",
+    "out_of_memory": "Dem Gerät ist der Speicher ausgegangen. Wähle eine kleinere Ausgabegröße oder weniger Fotos und versuche es noch einmal.",
     "unknown": "Etwas ist schiefgelaufen: {message}",
-    "retry": "Noch einmal"
+    "retry": "Noch einmal",
+    "diagnostics_title": "Diagnoseinfo",
+    "diagnostics_hint": "Wenn das öfter passiert, helfen diese Angaben bei der Fehlersuche. Sie enthalten kein Foto und keinen Dateinamen.",
+    "copy_diagnostics": "Diagnoseinfo kopieren",
+    "copied": "Kopiert. Zum Einfügen in eine Fehlermeldung.",
+    "copy_failed": "Kopieren hat nicht geklappt. Diagnoseinfo öffnen und den Text von Hand kopieren."
   },
   "help": {
     "title": "So funktioniert ExposureBuddy",
@@ -106,14 +126,16 @@
     "shoot_title": "Aufnehmen",
     "shoot_body": "Das Handy abstützen oder ein Stativ nehmen. Gleicher Ausschnitt, gleiche Belichtung, 10 bis 50 Fotos. Serienbild ist ideal.",
     "sliders_title": "Die Regler",
-    "sliders_body": "Geister bestimmt, wie sichtbar Bewegtes bleibt; bei null verschwindet es. Unschärfe verwischt die Geister. Leuchten legt einen Schimmer auf helle bewegte Dinge wie Scheinwerfer.",
+    "sliders_body": "Geister bestimmt, wie sichtbar Bewegtes bleibt; bei null verschwindet es. Unschärfe verwischt die Geister. Leuchten legt einen Schimmer auf helle bewegte Dinge wie Scheinwerfer. Lichtspuren behält statt des Durchschnitts den hellsten Wert jeder Stelle, für Scheinwerfer und Sterne.",
     "privacy_title": "Datenschutz",
     "privacy_body": "Alles läuft im Browser. Fotos verlassen das Gerät nie; es gibt kein Konto und keinen Upload.",
-    "shortcut_hint": "Diese Hilfe lässt sich jederzeit mit {shortcut} öffnen."
+    "shortcut_hint": "Diese Hilfe lässt sich jederzeit mit {shortcut} öffnen.",
+    "version": "Version {version}"
   },
   "footer": {
     "privacy": "Deine Fotos verlassen dieses Gerät nicht.",
-    "source": "Quellcode"
+    "source": "Quellcode",
+    "privacy_link": "Datenschutz"
   },
   "not_found": {
     "title": "404",
@@ -122,5 +144,21 @@
   },
   "page": {
     "skip_to_content": "Zum Inhalt springen"
+  },
+  "privacy": {
+    "title": "Datenschutz",
+    "intro": "ExposureBuddy läuft komplett in deinem Browser. Das heißt im Einzelnen:",
+    "photos_title": "Deine Fotos",
+    "photos_body": "Die Fotos werden in den Speicher dieses Browser-Tabs gelesen, dort kombiniert und angezeigt. Sie werden nicht hochgeladen, nicht gespeichert und nicht weitergegeben; Neuladen oder Schließen der Seite vergisst sie. Die App könnte sie nicht einmal versehentlich verschicken: Ihre Sicherheitsrichtlinie erlaubt Verbindungen nur zur eigenen Adresse.",
+    "stored_title": "Was auf deinem Gerät bleibt",
+    "stored_body": "Deine Wahl von Sprache und Farbschema, im lokalen Speicher des Browsers, und eine Kopie der App selbst, im Cache des Browsers, damit sie auch offline startet. Es gibt keine Cookies und sonst nichts. Löschst du die Website-Daten im Browser, ist alles weg.",
+    "saved_title": "Das gespeicherte Bild",
+    "saved_body": "Das JPEG, das du speicherst oder teilst, enthält Datum und Uhrzeit der Aufnahme des Referenzfotos, damit deine Galerie es neben die Serie sortiert. Sonst kommt nichts aus deinen Fotos hinein: kein Ort, kein Kameramodell, keine Seriennummer.",
+    "reports_title": "Fehlerberichte",
+    "reports_body": "Nach einem Fehler kannst du eine Diagnoseinfo kopieren. Sie enthält kein Foto und keinen Dateinamen und landet nur dort, wo du sie einfügst.",
+    "hosting_title": "Hosting",
+    "hosting_body": "Die App wird von GitHub Pages ausgeliefert. Wie jeder Webserver erhält GitHub beim Laden der App die üblichen Daten jeder Anfrage, etwa deine IP-Adresse und deinen Browser, und verarbeitet sie nach seiner eigenen Datenschutzerklärung. Die App selbst hat kein Konto, keine Statistik, kein Tracking und keine Skripte von Dritten.",
+    "hosting_link": "Datenschutzerklärung von GitHub",
+    "back": "Zurück zur App"
   }
 }

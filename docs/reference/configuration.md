@@ -77,11 +77,14 @@ The numbers the pipeline is sized by, each in the module that owns it.
 | --- | --- | --- |
 | Photos per burst | the picker | 100; extra files are dropped with a notice (`picker.too_many`) |
 | Minimum photos | `web/src/app/exposure/runPipeline.ts` | 2; the picker's Combine button says how many it still needs |
-| Memory budget | `web/src/app/vision/pipeline/budget.ts` `DEFAULT_BUDGET_BYTES` | 256 MiB for the peak, `max(frameCount × 5 + 22, 80) × width × height` bytes at the working size (`peakBytesPerPixel`) |
-| Output long edge | same file, `qualityLongEdge` | Small 1024, Standard 1600, Large 2400 px; never upscaled |
+| Memory budget | `web/src/app/vision/pipeline/deviceBudget.ts` `deviceBudgetBytes` | A quarter of the memory Chromium reports (`navigator.deviceMemory`), within 256 MiB…2 GiB; where none is reported, 768 MiB on a touch device and 1.5 GiB on a desktop. `DEFAULT_BUDGET_BYTES` (256 MiB) where no device budget is given. Provisional until measured on real phones |
+| Peak memory | `web/src/app/vision/pipeline/budget.ts` `peakBytes` | One pass: the larger of aligning, `(frameCount × 3 + 5 + workers × 8) × working pixels + workers × 6 × photo pixels`, and rendering, `37 × working pixels`. In strips: `(24 + workers × 8) × working pixels + (frameCount + workers) × 3 × strip rows × width + workers × 6 × photo pixels`, or rendering |
+| Output long edge | same file, `qualityLongEdge` | Small 1024, Standard 1600, Large 2400 px, Original the photo's own; never upscaled |
+| Largest working size | same file, `MAX_WORKING_PIXELS` | 4096 × 4096 pixels, the largest canvas Safari draws; the Original size stops there |
+| Strips | same file, `MAX_PASSES`, `stripRowsFor` | A burst that does not fit whole is stacked in at most 8 strips of whole 64-row bands; each strip after the first decodes every photo again |
 | Smallest working long edge | same file, `MIN_LONG_EDGE` | 640 px: the budget never pushes below it; a burst that still does not fit is refused, not crashed |
 | Alignment long edge | same file, `ALIGNMENT_LONG_EDGE` | 960 px: the grayscale copy features are detected on |
-| Align workers | same file, `workerPoolSize` | `hardwareConcurrency − 1`, clamped to 1…4; 2 when unknown; the stack worker is always one more |
+| Align workers | same file, `workerPoolSize` and `alignWorkersFor` | `hardwareConcurrency − 1`, clamped to 1…4; 2 when unknown; fewer when their full-size decodes would take more than a quarter of the budget; the stack worker is always one more |
 | RANSAC inlier threshold | `web/src/app/vision/geometry/ransac.ts` `DEFAULT_RANSAC_OPTIONS` | 3 px in alignment coordinates ([Architecture](architecture.md#the-pipeline)) |
 | Frame accepted as aligned | `web/src/app/vision/pipeline/alignment.ts` `MIN_INLIERS`, `MIN_INLIER_RATIO` | At least 20 inliers and at least 25% of the matches; otherwise the frame is skipped and reported |
 
@@ -118,8 +121,9 @@ nothing posts a PR comment, and Codecov's comment is off in
 
 [`web/playwright.config.ts`](../../web/playwright.config.ts), specs in
 `web/e2e/`: `public/` (shell, PWA, service worker, theme, i18n, help,
-accessibility) and `journey/` (a whole burst through the pipeline, and the
-error screen). Projects: `chromium` (Desktop Chrome), `mobile` (Pixel 7),
+accessibility) and `journey/` (a whole burst through the pipeline, choosing
+the photos and the reference, a blurred photo, the shooting date in the saved
+JPEG, the output sizes, keeping the screen on, and the error screen). Projects: `chromium` (Desktop Chrome), `mobile` (Pixel 7),
 `firefox` (Desktop Firefox), `webkit-mobile` (iPhone 14). The last two join a
 run only when `CI` or `E2E_ALL_ENGINES` is set, and locally they need
 `npx playwright install firefox webkit` first; a plain local run is the
@@ -129,7 +133,10 @@ fails for a tenth of visitors.
 Fixtures come from `npm run fixtures` (`web/scripts/make-fixtures.mjs`), which
 writes synthetic bursts into `web/e2e/fixtures/generated/` (gitignored): a
 textured street seen through small camera shakes with a walker, a tiny
-three-frame burst, two unrelated scenes, and a file that is not an image. Each
+three-frame burst, a street frame smeared by 3 px (`shaken/`), two unrelated
+scenes, and a file that is not an image. JPEGs with EXIF are made by the
+shooting-date spec itself (`e2e/jpeg.ts`): the browser encodes a street frame
+and the spec adds the date. Each
 burst carries a `meta.json` with the transform and gain of every frame, which
 the journey spec uses to check the result against the known scene.
 

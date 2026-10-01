@@ -52,3 +52,48 @@ export function listBurst(name: string): string[] {
     .sort()
     .map((file) => fixturePath(`${name}/${file}`));
 }
+
+interface WakeLockRecord {
+  requested: number;
+  held: number;
+}
+
+/** Call before the first navigation: swaps navigator.wakeLock for a recorder, since a headless screen never sleeps. */
+export async function recordWakeLocks(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const record = { requested: 0, held: 0 };
+    Object.defineProperty(window, '__wakeLocks', { value: record });
+    Object.defineProperty(navigator, 'wakeLock', {
+      configurable: true,
+      value: {
+        request: () => {
+          record.requested += 1;
+          record.held += 1;
+          let released = false;
+          const release = () => {
+            if (!released) record.held -= 1;
+            released = true;
+            return Promise.resolve();
+          };
+          return Promise.resolve({ release });
+        },
+      },
+    });
+  });
+}
+
+/** How many screen locks the app asked for so far, and how many it still holds. */
+export function wakeLocks(page: Page): Promise<WakeLockRecord> {
+  return page.evaluate(
+    () => (window as unknown as { __wakeLocks: WakeLockRecord }).__wakeLocks,
+  );
+}
+
+/** True when leaving now would ask to confirm: a synthetic beforeunload reaches the app's listener without opening a real dialog. */
+export function leaveIsGuarded(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+}

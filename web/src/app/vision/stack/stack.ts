@@ -1,126 +1,138 @@
+import {
+  allocateBand,
+  emptyBandedRgb,
+  releaseBandsAbove,
+  rowOf,
+} from '../image/banded';
+import type {
+  AlignedFrame,
+  Rect,
+  RowRange,
+  RowSpans,
+  Size,
+  StackResult,
+} from '../types';
+import { indices } from '../indices';
 import { ROBUST_MODE_COUNT, robustBackgrounds } from './backgrounds';
-import type { AlignedFrame, Rect, Size, StackResult } from '../types';
 
-const CHANNELS = 4;
+const RGB = 3;
 const OPAQUE = 255;
 const PROGRESS_STEP = 0.02;
 
-/** Returns per-pixel median, mean, deviation and coverage count over the frames covering each pixel; throws when the frames differ in size. */
-export function stackFrames(
-  frames: readonly AlignedFrame[],
-  options: { readonly onProgress?: (fraction: number) => void } = {},
-): StackResult {
-  const { width, height } = requireOneSize(frames);
-  const frameCount = frames.length;
-  const frameData = frames.map((frame) => frame.image.data);
-  const frameCoverage = frames.map((frame) => frame.coverage);
-  const pixelCount = width * height;
-  const median = new Uint8ClampedArray(pixelCount * CHANNELS);
-  const trimmed = new Uint8ClampedArray(pixelCount * CHANNELS);
-  const clipped = new Uint8ClampedArray(pixelCount * CHANNELS);
-  const densest = new Uint8ClampedArray(pixelCount * CHANNELS);
-  const mean = new Uint8ClampedArray(pixelCount * CHANNELS);
-  const deviation = new Uint8Array(pixelCount);
-  const coverage = new Uint8Array(pixelCount);
-  const red = new Uint8Array(frameCount);
-  const green = new Uint8Array(frameCount);
-  const blue = new Uint8Array(frameCount);
-  const scratch = new Uint8Array(frameCount);
-  const estimates = new Uint8Array(ROBUST_MODE_COUNT);
-  const storeRobust = (
-    values: Uint8Array,
-    count: number,
-    median: number,
-    target: number,
-  ): void => {
-    robustBackgrounds({ values, count, median }, scratch, estimates);
-    trimmed[target] = estimates[0];
-    clipped[target] = estimates[1];
-    densest[target] = estimates[2];
-  };
-  const report = options.onProgress ?? noProgress;
-  let reported = 0;
-  let pixel = 0;
-  while (pixel < pixelCount) {
-    const rowEnd = pixel + width;
-    for (; pixel < rowEnd; pixel += 1) {
-      const offset = pixel * CHANNELS;
-      let count = 0;
-      let redSum = 0;
-      let greenSum = 0;
-      let blueSum = 0;
-      for (let frame = 0; frame < frameCount; frame += 1) {
-        if (frameCoverage[frame][pixel] !== 1) continue;
-        const data = frameData[frame];
-        red[count] = data[offset];
-        green[count] = data[offset + 1];
-        blue[count] = data[offset + 2];
-        redSum += red[count];
-        greenSum += green[count];
-        blueSum += blue[count];
-        count += 1;
-      }
-      coverage[pixel] = count;
-      if (count === 0) continue;
-      const redMedian = selectMedian(red, count);
-      const greenMedian = selectMedian(green, count);
-      const blueMedian = selectMedian(blue, count);
-      median[offset] = redMedian;
-      median[offset + 1] = greenMedian;
-      median[offset + 2] = blueMedian;
-      median[offset + 3] = OPAQUE;
-      trimmed[offset + 3] = OPAQUE;
-      clipped[offset + 3] = OPAQUE;
-      densest[offset + 3] = OPAQUE;
-      mean[offset] = Math.round(redSum / count);
-      mean[offset + 1] = Math.round(greenSum / count);
-      mean[offset + 2] = Math.round(blueSum / count);
-      mean[offset + 3] = OPAQUE;
-      storeRobust(red, count, redMedian, offset);
-      storeRobust(green, count, greenMedian, offset + 1);
-      storeRobust(blue, count, blueMedian, offset + 2);
-      const spread = Math.max(
-        meanAbsoluteDeviation(red, count, redMedian),
-        meanAbsoluteDeviation(green, count, greenMedian),
-        meanAbsoluteDeviation(blue, count, blueMedian),
-      );
-      deviation[pixel] = Math.min(OPAQUE, Math.round(spread));
-    }
-    const fraction = pixel / pixelCount;
-    if (fraction === 1 || fraction - reported >= PROGRESS_STEP) {
-      reported = fraction;
-      report(fraction);
-    }
-  }
-  const backgrounds = { median, trimmed, clipped, mode: densest };
+/** An empty result the size of `rect`: every layer's bands unallocated until stackRows reaches them. */
+export function emptyStack(rect: Rect, frameCount: number): StackResult {
   return {
-    width,
-    height,
-    median,
-    backgrounds,
-    mean,
-    deviation,
-    coverage,
+    width: rect.width,
+    height: rect.height,
+    backgrounds: {
+      median: emptyBandedRgb(rect),
+      trimmed: emptyBandedRgb(rect),
+      clipped: emptyBandedRgb(rect),
+      mode: emptyBandedRgb(rect),
+    },
+    mean: emptyBandedRgb(rect),
+    brightest: emptyBandedRgb(rect),
     frameCount,
   };
 }
 
-function noProgress(): void {}
-
-function requireOneSize(frames: readonly AlignedFrame[]): Size {
-  if (frames.length === 0)
-    throw new Error('stackFrames needs at least one frame.');
-  const { width, height } = frames[0].image;
-  const mismatched = frames.some(
-    (frame) =>
-      frame.image.width !== width ||
-      frame.image.height !== height ||
-      frame.coverage.length !== width * height,
-  );
-  if (mismatched)
-    throw new Error('stackFrames: every frame must share one size.');
-  return { width, height };
+interface StackRowsOptions {
+  /** The crop every frame covers entirely (see fullCoverageRect); `stack` is its size. */
+  readonly rect: Rect;
+  /** Which rows of the frames to stack; the part inside `rect` is. */
+  readonly rows: RowRange;
+  readonly onProgress?: (fraction: number) => void;
 }
+
+/**
+ * Writes, for every pixel of `rows` inside `rect`, the four background estimates and the mean over all frames into `stack`.
+ * Consumes the frames: each band is freed once its rows are stacked, so the peak stays near one copy of the burst.
+ */
+export function stackRows(
+  frames: readonly AlignedFrame[],
+  stack: StackResult,
+  { rect, rows, onProgress = noProgress }: StackRowsOptions,
+): void {
+  if (frames.length === 0)
+    throw new Error('stackRows needs at least one frame.');
+  const frameCount = frames.length;
+  const { mean, brightest, backgrounds } = stack;
+  const layers = [
+    backgrounds.median,
+    backgrounds.trimmed,
+    backgrounds.clipped,
+    backgrounds.mode,
+    mean,
+    brightest,
+  ];
+  const red = new Uint8Array(frameCount);
+  const green = new Uint8Array(frameCount);
+  const blue = new Uint8Array(frameCount);
+  const channels = [red, green, blue];
+  const scratch = new Uint8Array(frameCount);
+  const estimates = new Uint8Array(ROBUST_MODE_COUNT);
+  const { bandRows } = mean;
+  const columns = indices(rect.width);
+  const first = Math.max(rows.start, rect.y) - rect.y;
+  const last = Math.min(rows.end, rect.y + rect.height) - rect.y;
+  let reported = 0;
+  for (let chunkStart = first; chunkStart < last;) {
+    const band = Math.floor(chunkStart / bandRows);
+    const chunkEnd = Math.min((band + 1) * bandRows, last);
+    // A band that straddles two strips already holds the first strip's rows.
+    layers.forEach((layer) => {
+      if (layer.bands[band].length === 0) allocateBand(layer, band);
+    });
+    for (let y = chunkStart; y < chunkEnd; y += 1) {
+      const sourceRows = frames.map((frame) => rowOf(frame.image, rect.y + y));
+      const [
+        medianRow,
+        trimmedRow,
+        clippedRow,
+        modeRow,
+        meanRow,
+        brightestRow,
+      ] = layers.map((layer) => rowOf(layer, y));
+      for (const x of columns) {
+        const source = (rect.x + x) * RGB;
+        const target = x * RGB;
+        for (let channel = 0; channel < RGB; channel += 1) {
+          const values = channels[channel];
+          let sum = 0;
+          let highest = 0;
+          for (let frame = 0; frame < frameCount; frame += 1) {
+            values[frame] = sourceRows[frame][source + channel];
+            sum += values[frame];
+            highest = Math.max(highest, values[frame]);
+          }
+          brightestRow[target + channel] = highest;
+          const median = selectMedian(values, frameCount);
+          medianRow[target + channel] = median;
+          meanRow[target + channel] = Math.round(sum / frameCount);
+          robustBackgrounds(
+            { values, count: frameCount, median },
+            scratch,
+            estimates,
+          );
+          trimmedRow[target + channel] = estimates[0];
+          clippedRow[target + channel] = estimates[1];
+          modeRow[target + channel] = estimates[2];
+        }
+      }
+    }
+    frames.forEach((frame) =>
+      releaseBandsAbove(frame.image, rect.y + chunkEnd),
+    );
+    const fraction = (chunkEnd - first) / (last - first);
+    if (fraction === 1 || fraction - reported >= PROGRESS_STEP) {
+      reported = fraction;
+      onProgress(fraction);
+    }
+    chunkStart = chunkEnd;
+  }
+}
+
+function noProgress(): void {}
 
 /** Returns the rounded median of `values[0, count)`, permuting them; an even count averages the two middle values. */
 export function selectMedian(values: Uint8Array, count: number): number {
@@ -160,41 +172,23 @@ function quickselect(values: Uint8Array, count: number, k: number): void {
   }
 }
 
-function meanAbsoluteDeviation(
-  values: Uint8Array,
-  count: number,
-  center: number,
-): number {
-  let sum = 0;
-  for (let index = 0; index < count; index += 1) {
-    sum += Math.abs(values[index] - center);
-  }
-  return sum / count;
-}
-
 const EMPTY_RECT: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
-/** Returns the largest-area axis-aligned rectangle whose cells all have `coverage` ≥ `required` (exclusive far edges); a zero rect when none. */
-export function fullCoverageRect(
-  coverage: Uint8Array,
-  size: Size,
-  required: number,
-): Rect {
+/** Returns the largest-area axis-aligned rectangle every one of `spans` covers (exclusive far edges); a zero rect when none. */
+export function fullCoverageRect(spans: readonly RowSpans[], size: Size): Rect {
   const { width } = size;
   // One closing bar of height 0 after the last column, so every run of bars ends inside the histogram.
   const heights = new Int32Array(width + 1);
   const stack = new Int32Array(width + 2);
   let best = EMPTY_RECT;
-  let x = 0;
-  let y = 0;
-  for (const count of coverage) {
-    heights[x] = count >= required ? heights[x] + 1 : 0;
-    x += 1;
-    if (x === width) {
-      best = largerRect(best, widestRectOnRow(heights, stack, y));
-      x = 0;
-      y += 1;
+  const columns = indices(width);
+  for (const y of indices(size.height)) {
+    const first = Math.max(...spans.map((row) => row.start[y]));
+    const last = Math.min(...spans.map((row) => row.end[y]));
+    for (const x of columns) {
+      heights[x] = x >= first && x < last ? heights[x] + 1 : 0;
     }
+    best = largerRect(best, widestRectOnRow(heights, stack, y));
   }
   return best;
 }

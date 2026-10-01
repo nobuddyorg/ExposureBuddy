@@ -7,6 +7,7 @@ import {
   type RefObject,
 } from 'react';
 
+import { withShotDate, type ShotDate } from '../../exposure/exifDate';
 import { canShareFiles, type FileSharer } from './canShareFiles';
 import { canvasToJpeg, saveBlob } from './canvasExport';
 import { errorMessage } from './errorMessage';
@@ -22,17 +23,22 @@ export interface ExportController {
   /** Known only after mount: the prerender never sees a navigator. */
   readonly shareSupported: boolean;
   readonly status: ExportStatus;
+  /** Whether the image has been saved or handed to the share sheet at least once. */
+  readonly exported: boolean;
   download: () => Promise<void>;
   share: (title: string) => Promise<void>;
 }
 
 export interface ExportOptions {
+  /** When the reference photo was taken; the saved JPEG carries it, and nothing else about the photos. */
+  readonly shotDate?: ShotDate;
   readonly sharer?: FileSharer;
   readonly save?: (blob: Blob, name: string) => void | Promise<void>;
   readonly now?: () => Date;
 }
 
 const JPEG_TYPE = 'image/jpeg';
+const UNDATED: ShotDate = { kind: 'undated' };
 
 // Share support never changes while the page lives, so there is nothing to subscribe to.
 const subscribeToNothing = () => () => {};
@@ -46,9 +52,15 @@ function isAbort(error: unknown): boolean {
 /** Save and share for the canvas in `canvasRef`; the sharer, the save flow and the clock are injectable. */
 export function useExport(
   canvasRef: RefObject<HTMLCanvasElement | null>,
-  { sharer, save = saveBlob, now = () => new Date() }: ExportOptions = {},
+  {
+    shotDate = UNDATED,
+    sharer,
+    save = saveBlob,
+    now = () => new Date(),
+  }: ExportOptions = {},
 ): ExportController {
   const [status, setStatus] = useState<ExportStatus>({ kind: 'idle' });
+  const [exported, setExported] = useState(false);
   // Read as an external store: the prerender answers false, the client re-renders with its navigator's answer.
   const shareSupported = useSyncExternalStore(
     subscribeToNothing,
@@ -59,14 +71,19 @@ export function useExport(
   const encode = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) throw new Error('There is no canvas to export yet.');
-    const blob = await canvasToJpeg(canvas);
-    return new File([blob], exportFileName(now()), { type: JPEG_TYPE });
-  }, [canvasRef, now]);
+    const jpeg = new Uint8Array(
+      await (await canvasToJpeg(canvas)).arrayBuffer(),
+    );
+    return new File([withShotDate(jpeg, shotDate)], exportFileName(now()), {
+      type: JPEG_TYPE,
+    });
+  }, [canvasRef, now, shotDate]);
 
   const download = useCallback(async () => {
     try {
       const file = await encode();
       await save(file, file.name);
+      setExported(true);
       setStatus({ kind: 'saved', name: file.name });
     } catch (error) {
       // A dismissed save dialog saved nothing, so there is nothing to report.
@@ -77,6 +94,9 @@ export function useExport(
 
   const share = useCallback(
     async (title: string) => {
+      const target = sharer ?? navigator;
+      // The share button is hidden then; nothing was handed anywhere, so nothing counts as exported.
+      if (!target.share) return;
       let file: File;
       try {
         file = await encode();
@@ -85,16 +105,18 @@ export function useExport(
         return;
       }
       try {
-        await (sharer ?? navigator).share?.({ files: [file], title });
+        await target.share({ files: [file], title });
+        setExported(true);
       } catch (error) {
         // A dismissed share sheet is not a failure; anything else falls back to a plain save.
         if (isAbort(error)) return;
         await save(file, file.name);
+        setExported(true);
         setStatus({ kind: 'share_failed', name: file.name });
       }
     },
     [encode, save, sharer],
   );
 
-  return { shareSupported, status, download, share };
+  return { shareSupported, status, exported, download, share };
 }

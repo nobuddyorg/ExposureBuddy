@@ -3,10 +3,12 @@ import { isSaneHomography, scaleHomography } from '../geometry/homography';
 import { ransacHomography } from '../geometry/ransac';
 import { rgbaToGray } from '../image/gray';
 import { fitWithin, resizeGray } from '../image/resize';
+import { sharpness } from '../image/sharpness';
 import { matchDescriptors } from '../matching/hamming';
 import type {
   AlignedFrame,
   FeatureSet,
+  Homography,
   Point,
   RansacResult,
   RgbaImage,
@@ -32,8 +34,12 @@ export type AlignOutcome =
   | {
       readonly kind: 'aligned';
       readonly frame: AlignedFrame;
+      /** Frame → reference at the working size. */
+      readonly homography: Homography;
       readonly matches: number;
       readonly inliers: number;
+      /** How crisp the frame is at the alignment size (image/sharpness.ts). */
+      readonly sharpness: number;
     }
   | {
       readonly kind: 'skipped';
@@ -41,10 +47,18 @@ export type AlignOutcome =
       readonly inliers: number;
     };
 
-/** ORB features of the reference at the alignment size; the set's width/height are that size. */
-export function referenceFeatures(image: RgbaImage): FeatureSet {
+export interface ReferenceAnalysis {
+  /** ORB features at the alignment size; the set's width/height are that size. */
+  readonly features: FeatureSet;
+  /** How crisp the reference is at that size, to judge the other frames against. */
+  readonly sharpness: number;
+}
+
+/** The reference's features and sharpness, from one grayscale copy at the alignment size. */
+export function analyseReference(image: RgbaImage): ReferenceAnalysis {
   const alignmentSize = fitWithin(image, ALIGNMENT_LONG_EDGE);
-  return detectAndDescribe(resizeGray(rgbaToGray(image), alignmentSize));
+  const gray = resizeGray(rgbaToGray(image), alignmentSize);
+  return { features: detectAndDescribe(gray), sharpness: sharpness(gray) };
 }
 
 type HomographyEstimator = (
@@ -99,7 +113,9 @@ export function alignToReference(
   return {
     kind: 'aligned',
     frame: warpRgba(image, toWorking, image),
+    homography: toWorking,
     matches: matches.length,
     inliers: fit.inlierCount,
+    sharpness: sharpness(gray),
   };
 }

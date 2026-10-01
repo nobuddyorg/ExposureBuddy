@@ -1,5 +1,6 @@
-import type { CompositeParams, Rect, RgbaImage, StackResult } from '../types';
-import { boxBlurFloat } from './boxBlur';
+import { rowOf } from '../image/banded';
+import type { CompositeParams, RgbaImage, StackResult } from '../types';
+import { boxBlurInPlace } from './boxBlur';
 
 const GLOW_SCALE = 1.5;
 const GLOW_BLUR_MARGIN = 6;
@@ -8,75 +9,57 @@ const RGB = 3;
 const RGBA = 4;
 const OPAQUE = 255;
 
-/** Returns the `rect`-sized composite `background + ghostStrength × blur(mean − background) + glow × 1.5 × blur(max(mean − background, 0))`, opaque; reads only pixels inside `rect`. */
+/**
+ * Returns the composite `background + ghostStrength × blur(moved − background) + glow × 1.5 × blur(max(moved − background, 0))`, opaque,
+ * where `moved` is the mean, or the brightest value with `trails`.
+ * One colour channel at a time, so only two single-channel float layers exist at once.
+ */
 export function composite(
   stack: StackResult,
   params: CompositeParams,
-  rect: Rect,
 ): RgbaImage {
-  const { width, height } = rect;
-  const pixelCount = width * height;
-  const rowStarts = rectRowStarts(stack.width, rect);
+  const { width, height } = stack;
   const background = stack.backgrounds[params.background];
-  const ghost = new Float32Array(pixelCount * RGB);
-  const glowSource = new Float32Array(pixelCount * RGB);
-  let target = 0;
-  for (const rowStart of rowStarts) {
-    let source = rowStart;
-    for (let x = 0; x < width; x += 1) {
-      for (let channel = 0; channel < RGB; channel += 1) {
-        const difference =
-          stack.mean[source + channel] - background[source + channel];
-        ghost[target] = difference;
-        glowSource[target] = Math.max(difference, 0);
-        target += 1;
-      }
-      source += RGBA;
-    }
-  }
+  const moved = params.trails ? stack.brightest : stack.mean;
+  const ghost = new Float32Array(width * height);
+  const glowSource = new Float32Array(width * height);
   const glowWeight = params.glow * GLOW_SCALE;
-  // A blur whose weight is 0 cannot show, so it is not computed.
-  const blurredGhost =
-    params.ghostStrength === 0
-      ? ghost
-      : boxBlurFloat(ghost, rect, RGB, params.ghostBlur, BLUR_PASSES);
-  const blurredGlow =
-    glowWeight === 0
-      ? glowSource
-      : boxBlurFloat(
-          glowSource,
-          rect,
-          RGB,
-          2 * params.ghostBlur + GLOW_BLUR_MARGIN,
-          BLUR_PASSES,
-        );
-  const output = new Uint8ClampedArray(pixelCount * RGBA);
-  const rowBytes = width * RGBA;
-  let rgb = 0;
-  let rgba = 0;
-  for (const rowStart of rowStarts) {
-    // Each row starts as the chosen background; the ghost and the glow are added in place.
-    output.set(background.subarray(rowStart, rowStart + rowBytes), rgba);
-    for (let x = 0; x < width; x += 1) {
-      output[rgba + 3] = OPAQUE;
-      for (let channel = 0; channel < RGB; channel += 1) {
-        output[rgba + channel] = Math.round(
-          output[rgba + channel] +
-            params.ghostStrength * blurredGhost[rgb] +
-            glowWeight * blurredGlow[rgb],
-        );
-        rgb += 1;
+  // Opaque from the start; the channel passes below write red, green and blue only.
+  const output = new Uint8ClampedArray(width * height * RGBA).fill(OPAQUE);
+  for (let channel = 0; channel < RGB; channel += 1) {
+    let pixel = 0;
+    for (let y = 0; y < height; y += 1) {
+      const movedRow = rowOf(moved, y);
+      const backgroundRow = rowOf(background, y);
+      for (let offset = channel; offset < movedRow.length; offset += RGB) {
+        const difference = movedRow[offset] - backgroundRow[offset];
+        ghost[pixel] = difference;
+        glowSource[pixel] = Math.max(difference, 0);
+        pixel += 1;
       }
-      rgba += RGBA;
+    }
+    // A blur whose weight is 0 cannot show, so it is not computed.
+    if (params.ghostStrength !== 0)
+      boxBlurInPlace(ghost, stack, params.ghostBlur, BLUR_PASSES);
+    if (glowWeight !== 0)
+      boxBlurInPlace(
+        glowSource,
+        stack,
+        2 * params.ghostBlur + GLOW_BLUR_MARGIN,
+        BLUR_PASSES,
+      );
+    pixel = 0;
+    for (let y = 0; y < height; y += 1) {
+      const backgroundRow = rowOf(background, y);
+      for (let offset = channel; offset < backgroundRow.length; offset += RGB) {
+        output[pixel * RGBA + channel] = Math.round(
+          backgroundRow[offset] +
+            params.ghostStrength * ghost[pixel] +
+            glowWeight * glowSource[pixel],
+        );
+        pixel += 1;
+      }
     }
   }
   return { width, height, data: output };
-}
-
-// The RGBA offset at which each row of `rect` starts in a buffer `sourceWidth` pixels wide.
-function rectRowStarts(sourceWidth: number, rect: Rect): number[] {
-  return Array.from(
-    { length: rect.height },
-    (_, row) => ((rect.y + row) * sourceWidth + rect.x) * RGBA,
-  );
 }

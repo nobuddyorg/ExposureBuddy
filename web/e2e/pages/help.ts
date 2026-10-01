@@ -10,6 +10,7 @@ interface Help {
     buttons: {
       close: Locator;
     };
+    version: Locator;
   };
 }
 
@@ -20,6 +21,7 @@ export function initHelp(page: Page): Help {
     buttons: {
       close: page.getByTestId('help-close'),
     },
+    version: page.getByTestId('app-version'),
   };
   const interactions = {
     close: async () => {

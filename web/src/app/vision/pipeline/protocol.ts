@@ -2,8 +2,10 @@ import type {
   AlignedFrame,
   CompositeParams,
   FeatureSet,
+  Homography,
   Rect,
   RgbaImage,
+  RowRange,
   Size,
 } from '../types';
 
@@ -12,6 +14,8 @@ export interface WorkingSizing {
   readonly frameCount: number;
   readonly budgetBytes: number;
   readonly maxLongEdge: number;
+  /** How many align workers the device could run; the budget may allow fewer. */
+  readonly requestedWorkers: number;
 }
 
 export type AlignWorkerRequest =
@@ -31,6 +35,15 @@ export type AlignWorkerRequest =
       readonly id: number;
       readonly file: Blob;
       readonly target: Size;
+    }
+  | {
+      readonly type: 'warp-rows';
+      readonly id: number;
+      readonly file: Blob;
+      readonly target: Size;
+      /** The transform the frame's `aligned` answer carried. */
+      readonly homography: Homography;
+      readonly rows: RowRange;
     };
 
 export type AlignWorkerResponse =
@@ -39,15 +52,28 @@ export type AlignWorkerResponse =
       readonly id: number;
       readonly image: RgbaImage;
       readonly source: Size;
+      readonly alignWorkers: number;
+      readonly stripRows: number;
+      readonly passes: number;
       readonly features: FeatureSet;
+      /** How crisp the reference is at the alignment size; the other frames are judged against the burst's median. */
+      readonly sharpness: number;
     }
   | { readonly type: 'reference-set'; readonly id: number }
   | {
       readonly type: 'aligned';
       readonly id: number;
       readonly frame: AlignedFrame;
+      /** Frame → reference at the working size; a strip warps with it again. */
+      readonly homography: Homography;
       readonly matches: number;
       readonly inliers: number;
+      readonly sharpness: number;
+    }
+  | {
+      readonly type: 'warped-rows';
+      readonly id: number;
+      readonly frame: AlignedFrame;
     }
   | {
       readonly type: 'skipped';
@@ -58,10 +84,13 @@ export type AlignWorkerResponse =
   | { readonly type: 'unreadable'; readonly id: number }
   | WorkerFailure;
 
-/** What decoding the reference yields: its pixels at the working size and the file's own dimensions. */
+/** What decoding the reference yields: its pixels at the working size, the file's own dimensions, and the plan's workers and strips. */
 export interface DecodedReference {
   readonly image: RgbaImage;
   readonly source: Size;
+  readonly alignWorkers: number;
+  readonly stripRows: number;
+  readonly passes: number;
 }
 
 /** The two browser-only steps the align service needs, injected so it runs in Node under test. */
@@ -81,13 +110,34 @@ export type StackWorkerRequest =
       readonly type: 'add-reference';
       readonly id: number;
       readonly image: RgbaImage;
+      readonly stripRows: number;
     }
   | {
       readonly type: 'add-frame';
       readonly id: number;
+      /** The frame's place in the burst; its later strips name it again. */
+      readonly index: number;
       readonly frame: AlignedFrame;
     }
-  | { readonly type: 'stack'; readonly id: number }
+  | {
+      readonly type: 'drop-frame';
+      readonly id: number;
+      /** A frame added earlier that must not go into the stack after all; only before the crop. */
+      readonly index: number;
+    }
+  | { readonly type: 'crop'; readonly id: number }
+  | {
+      readonly type: 'stack-rows';
+      readonly id: number;
+      readonly rows: RowRange;
+    }
+  | {
+      readonly type: 'add-rows';
+      readonly id: number;
+      readonly index: number;
+      readonly frame: AlignedFrame;
+      readonly rows: RowRange;
+    }
   | {
       readonly type: 'render';
       readonly id: number;
@@ -104,12 +154,14 @@ export interface StackSummary {
 
 export type StackWorkerResponse =
   | { readonly type: 'added'; readonly id: number }
+  | { readonly type: 'dropped'; readonly id: number }
   | {
       readonly type: 'stack-progress';
       readonly id: number;
       readonly fraction: number;
     }
-  | ({ readonly type: 'stacked'; readonly id: number } & StackSummary)
+  | ({ readonly type: 'cropped'; readonly id: number } & StackSummary)
+  | { readonly type: 'stacked'; readonly id: number }
   | {
       readonly type: 'rendered';
       readonly id: number;
@@ -145,27 +197,18 @@ export type StackProgress = Extract<
   { type: 'stack-progress' }
 >;
 
-function isRgbaImage(value: unknown): value is RgbaImage {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    (value as RgbaImage).data instanceof Uint8ClampedArray
-  );
-}
-
-/** The pixel buffers inside a message, so postMessage can move them instead of copying. */
+/** The pixel buffers inside a message, each once, so postMessage can move them instead of copying. */
 export function transferablesOf(message: object): ArrayBuffer[] {
-  const buffers: ArrayBuffer[] = [];
-  for (const value of Object.values(message)) {
-    if (isRgbaImage(value)) buffers.push(value.data.buffer as ArrayBuffer);
-    else if (value instanceof Uint8Array)
-      buffers.push(value.buffer as ArrayBuffer);
-    else if (
-      typeof value === 'object' &&
-      value !== null &&
-      !ArrayBuffer.isView(value)
-    )
-      buffers.push(...transferablesOf(value as object));
-  }
-  return buffers;
+  const buffers = new Set<ArrayBuffer>();
+  const collect = (value: unknown): void => {
+    if (ArrayBuffer.isView(value)) {
+      buffers.add(value.buffer as ArrayBuffer);
+      return;
+    }
+    if (typeof value === 'object' && value !== null)
+      Object.values(value).forEach(collect);
+  };
+  collect(message);
+  // A zero-length view shares one empty buffer across bands; moving it would detach it for every later message.
+  return [...buffers].filter((buffer) => buffer.byteLength > 0);
 }

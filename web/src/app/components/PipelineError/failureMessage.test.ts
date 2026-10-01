@@ -42,6 +42,12 @@ describe('failureMessage', () => {
     );
   });
 
+  it('suggests a smaller size when the device ran out of memory', () => {
+    expect(failureMessage(t, tCount, { kind: 'out_of_memory' })).toBe(
+      'errors.out_of_memory',
+    );
+  });
+
   it('passes an unknown error message through', () => {
     expect(
       failureMessage(t, tCount, { kind: 'unknown', message: 'boom' }),

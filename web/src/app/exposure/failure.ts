@@ -7,6 +7,7 @@ export type PipelineFailure =
   | { readonly kind: 'no_overlap' }
   | { readonly kind: 'decode_failed'; readonly name: string }
   | { readonly kind: 'cancelled' }
+  | { readonly kind: 'out_of_memory' }
   | { readonly kind: 'unknown'; readonly message: string };
 
 function describe(failure: PipelineFailure): string {
@@ -21,6 +22,8 @@ function describe(failure: PipelineFailure): string {
       return `${failure.name} could not be decoded.`;
     case 'cancelled':
       return 'The pipeline was cancelled.';
+    case 'out_of_memory':
+      return 'The device ran out of memory.';
     case 'unknown':
       return failure.message;
   }
@@ -37,12 +40,18 @@ export class PipelineError extends Error {
   }
 }
 
+// What Chromium ("Array buffer allocation failed"), Firefox ("out of memory") and WebKit ("Out of memory") say when an allocation fails.
+const OUT_OF_MEMORY = /allocation failed|out of memory/i;
+
 /** Classifies any thrown value: pipeline errors keep their failure, an abort is a cancellation, the rest is unknown. */
 export function toPipelineFailure(error: unknown): PipelineFailure {
   if (error instanceof PipelineError) return error.failure;
   if (isAbortError(error)) return { kind: 'cancelled' };
   if (error instanceof Error && error.message === NO_OVERLAP_MESSAGE) {
     return { kind: 'no_overlap' };
+  }
+  if (error instanceof Error && OUT_OF_MEMORY.test(error.message)) {
+    return { kind: 'out_of_memory' };
   }
   return {
     kind: 'unknown',

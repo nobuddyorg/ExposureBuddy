@@ -8,8 +8,10 @@ import {
   type RefObject,
 } from 'react';
 
-import { workerPoolSize, type OutputQuality } from '../vision/pipeline/budget';
-import { toPipelineFailure, type PipelineFailure } from './failure';
+import type { OutputQuality } from '../vision/pipeline/budget';
+import type { DeviceProfile } from './deviceProfile';
+import type { FailedRun } from './diagnostics';
+import { toPipelineFailure } from './failure';
 import {
   runPipeline,
   type ExposureResult,
@@ -21,11 +23,17 @@ type ExposureState =
   | { readonly status: 'idle' }
   | { readonly status: 'running'; readonly progress: PipelineProgress }
   | { readonly status: 'ready'; readonly result: ExposureResult }
-  | { readonly status: 'failed'; readonly failure: PipelineFailure };
+  | ({ readonly status: 'failed' } & FailedRun);
+
+/** The photos to combine and the index of the one the others align to. */
+export interface Burst {
+  readonly files: readonly File[];
+  readonly reference: number;
+}
 
 export interface ExposureController {
   readonly state: ExposureState;
-  start(files: readonly File[], quality: OutputQuality): void;
+  start(burst: Burst, quality: OutputQuality): void;
   /** Aborts a run in flight or discards a result; either way back to idle. */
   reset(): void;
 }
@@ -51,10 +59,10 @@ function disposeRun(activeRun: RefObject<Run | null>): void {
   run.result?.dispose();
 }
 
-/** Drives one burst through the pipeline; `hardwareConcurrency` sizes the worker pool. */
+/** Drives one burst through the pipeline, with as many workers and as much memory as `device` allows. */
 export function useExposure(
   workers: WorkerFactory,
-  hardwareConcurrency: number | undefined,
+  device: DeviceProfile,
 ): ExposureController {
   const [state, setState] = useState<ExposureState>({ status: 'idle' });
   const activeRun = useRef<Run | null>(null);
@@ -62,19 +70,28 @@ export function useExposure(
   useEffect(() => () => disposeRun(activeRun), []);
 
   const start = useCallback(
-    (files: readonly File[], quality: OutputQuality) => {
+    ({ files, reference }: Burst, quality: OutputQuality) => {
       disposeRun(activeRun);
       const run: Run = { controller: new AbortController(), result: null };
       activeRun.current = run;
+      let lastProgress = INITIAL_PROGRESS;
       setState({ status: 'running', progress: INITIAL_PROGRESS });
       runPipeline({
         files,
+        reference,
         names: files.map((file) => file.name),
-        options: { quality, poolSize: workerPoolSize(hardwareConcurrency) },
+        options: {
+          quality,
+          poolSize: device.poolSize,
+          budgetBytes: device.budgetBytes,
+        },
         workers,
         signal: run.controller.signal,
         // Progress only reaches a live run: abandoning one terminates its workers first.
-        onProgress: (progress) => setState({ status: 'running', progress }),
+        onProgress: (progress) => {
+          lastProgress = progress;
+          setState({ status: 'running', progress });
+        },
       }).then(
         // Only an active run can resolve: abandoning one aborts it, and an aborted run rejects.
         (result) => {
@@ -84,11 +101,17 @@ export function useExposure(
         (error: unknown) => {
           if (activeRun.current !== run) return;
           activeRun.current = null;
-          setState({ status: 'failed', failure: toPipelineFailure(error) });
+          setState({
+            status: 'failed',
+            failure: toPipelineFailure(error),
+            photoCount: files.length,
+            quality,
+            progress: lastProgress,
+          });
         },
       );
     },
-    [hardwareConcurrency, workers],
+    [device, workers],
   );
 
   const reset = useCallback(() => {

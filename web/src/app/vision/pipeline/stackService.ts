@@ -26,17 +26,24 @@ export function createStackService(
     const { id } = request;
     switch (request.type) {
       case 'add-reference':
-        session.addReference(request.image);
+        session.addReference(request.image, request.stripRows);
         return served({ type: 'added', id });
       case 'add-frame':
-        session.addFrame(request.frame);
+        session.addFrame(request.index, request.frame);
         return served({ type: 'added', id });
-      case 'stack': {
-        const summary = session.stack((fraction) =>
+      case 'drop-frame':
+        session.dropFrame(request.index);
+        return served({ type: 'dropped', id });
+      case 'crop':
+        return served({ type: 'cropped', id, ...session.crop() });
+      case 'stack-rows':
+        session.stackRows(request.rows, (fraction) =>
           postProgress({ type: 'stack-progress', id, fraction }),
         );
-        return served({ type: 'stacked', id, ...summary });
-      }
+        return served({ type: 'stacked', id });
+      case 'add-rows':
+        session.addRows(request.index, request.frame, request.rows);
+        return served({ type: 'added', id });
       case 'render': {
         const image = session.render(request.params);
         return served(
@@ -52,7 +59,7 @@ export function createStackService(
         );
       }
       default:
-        throw unexpectedRequest('stack service', request);
+        throw unexpectedRequest('stack service', request satisfies never);
     }
   };
 

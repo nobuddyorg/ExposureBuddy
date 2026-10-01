@@ -9,6 +9,14 @@ import {
   type SliderValues,
 } from './sliderValues';
 
+const CURRENT = {
+  background: 'median' as const,
+  ghostStrength: 0,
+  ghostBlur: 0,
+  glow: 0,
+  trails: false,
+};
+
 describe('slider values', () => {
   it('shows the defaults as 60 %, 4 px and 25 %', () => {
     expect(toSliderValues(DEFAULT_COMPOSITE_PARAMS)).toEqual({
@@ -20,23 +28,34 @@ describe('slider values', () => {
 
   it('maps percent to a 0–1 strength and keeps the blur in pixels', () => {
     expect(
-      toCompositeParams({ ghost: 50, blur: 12, glow: 100 }, 'median'),
+      toCompositeParams({ ghost: 50, blur: 12, glow: 100 }, CURRENT),
     ).toEqual({
       background: 'median',
       ghostStrength: 0.5,
       ghostBlur: 12,
       glow: 1,
+      trails: false,
     });
+  });
+
+  it('keeps the background and the trails switch of the current look', () => {
+    expect(
+      toCompositeParams(
+        { ghost: 50, blur: 12, glow: 100 },
+        { ...CURRENT, background: 'mode', trails: true },
+      ),
+    ).toMatchObject({ background: 'mode', trails: true, ghostStrength: 0.5 });
   });
 
   it('clamps a value past the slider range instead of passing it on', () => {
     expect(
-      toCompositeParams({ ghost: 150, blur: -3, glow: 200 }, 'median'),
+      toCompositeParams({ ghost: 150, blur: -3, glow: 200 }, CURRENT),
     ).toEqual({
       background: 'median',
       ghostStrength: 1,
       ghostBlur: 0,
       glow: 1,
+      trails: false,
     });
   });
 
@@ -48,7 +67,7 @@ describe('slider values', () => {
     });
     fc.assert(
       fc.property(values, (sliders) => {
-        expect(toSliderValues(toCompositeParams(sliders, 'median'))).toEqual(
+        expect(toSliderValues(toCompositeParams(sliders, CURRENT))).toEqual(
           sliders,
         );
       }),

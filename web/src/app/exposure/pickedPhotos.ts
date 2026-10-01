@@ -69,3 +69,17 @@ export function toPickerNotice(accepted: AcceptedPhotos): PickerNotice | null {
   if (accepted.truncated) return { kind: 'truncated', limit: MAX_PHOTOS };
   return null;
 }
+
+/** The middle of the burst: it minimises the largest camera drift to any other frame. */
+export function middleIndex(count: number): number {
+  return Math.floor((count - 1) / 2);
+}
+
+/** Where the reference sits in `photos`: the photo with `chosenId` while it is there, else the middle; −1 when empty. */
+export function referencePosition(
+  photos: readonly PickedPhoto[],
+  chosenId: string,
+): number {
+  const chosen = photos.findIndex((photo) => photo.id === chosenId);
+  return chosen === -1 ? middleIndex(photos.length) : chosen;
+}

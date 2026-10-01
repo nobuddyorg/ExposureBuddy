@@ -10,8 +10,9 @@ import {
   identityHomography,
   invertHomography,
 } from '../geometry/homography';
-import type { RgbaImage } from '../types';
-import { warpRgba } from './warp';
+import { rowOf } from '../image/banded';
+import type { AlignedFrame, Homography, RgbaImage, Size } from '../types';
+import { warpRgba as warpToFrame } from './warp';
 
 type Pixel = readonly [number, number, number, number];
 
@@ -55,6 +56,30 @@ function sampleBilinear(image: RgbaImage, x: number, y: number): number[] {
       (1 - fx) * fy * at(x0, y1)[channel] +
       fx * fy * at(x1, y1)[channel],
   );
+}
+
+/** The warped frame as RGBA with alpha 255 where covered, and its per-pixel coverage: what the checks below read. */
+function unpack(frame: AlignedFrame): {
+  image: RgbaImage;
+  coverage: Uint8Array;
+} {
+  const { width, height } = frame.image;
+  const data = new Uint8ClampedArray(width * height * 4);
+  const coverage = new Uint8Array(width * height);
+  for (let y = 0; y < height; y += 1) {
+    const row = rowOf(frame.image, y);
+    for (let x = 0; x < width; x += 1) {
+      const covered = x >= frame.spans.start[y] && x < frame.spans.end[y];
+      coverage[y * width + x] = covered ? 1 : 0;
+      data.set(row.subarray(x * 3, x * 3 + 3), (y * width + x) * 4);
+      data[(y * width + x) * 4 + 3] = covered ? 255 : 0;
+    }
+  }
+  return { image: { width, height, data }, coverage };
+}
+
+function warpRgba(source: RgbaImage, homography: Homography, target: Size) {
+  return unpack(warpToFrame(source, homography, target));
 }
 
 function coveredCount(coverage: Uint8Array): number {
@@ -221,6 +246,7 @@ describe('warpRgba', () => {
       patterned,
     );
     expect(coverage[11 * 16 + 15]).toBe(0);
+    expect(coverage[11 * 16 + 14]).toBe(0);
     expect(coverage[10 * 16 + 14]).toBe(1);
     const [r] = pixelAt(image, 14, 10);
     expect(Math.abs(r - 14.25 * 15)).toBeLessThanOrEqual(1);
@@ -238,9 +264,87 @@ describe('warpRgba', () => {
     for (let x = 2; x < 16; x += 1) expect(coverage[x]).toBe(0);
   });
 
-  it('throws on a singular homography', () => {
-    expect(() => warpRgba(patterned, new Float64Array(9), patterned)).toThrow(
-      /singular/,
+  it('covers one run per row and writes nothing outside it', () => {
+    const { spans, image } = warpToFrame(
+      patterned,
+      translationHomography(-4, 0),
+      { width: 20, height: 12 },
     );
+    expect(Array.from(spans.start)).toEqual(Array(12).fill(0));
+    expect(Array.from(spans.end)).toEqual(Array(12).fill(12));
+    expect(Array.from(rowOf(image, 5).subarray(12 * 3))).toEqual(
+      Array(8 * 3).fill(0),
+    );
+  });
+
+  it('marks a row the source never reaches as empty', () => {
+    const { spans } = warpToFrame(
+      patterned,
+      translationHomography(0, 5),
+      patterned,
+    );
+    expect(spans.end[4]).toBeLessThanOrEqual(spans.start[4]);
+    expect([spans.start[5], spans.end[5]]).toEqual([0, 16]);
+  });
+
+  it('marks the rows below the source empty for a shift up', () => {
+    const { spans } = warpToFrame(
+      patterned,
+      translationHomography(0, -5),
+      patterned,
+    );
+    expect([spans.start[6], spans.end[6]]).toEqual([0, 16]);
+    expect(spans.end[7]).toBeLessThanOrEqual(spans.start[7]);
+  });
+
+  it('ends a row at the target edge when the source reaches past it', () => {
+    const { spans } = warpToFrame(patterned, identityHomography(), {
+      width: 10,
+      height: 12,
+    });
+    expect(Array.from(spans.end)).toEqual(Array(12).fill(10));
+  });
+
+  it('leaves an uncovered row empty even one pixel wide', () => {
+    const column = makeImage(1, 4, () => [9, 9, 9, 255]);
+    const { spans } = warpToFrame(column, translationHomography(0, 2), column);
+    expect(spans.end[0]).toBeLessThanOrEqual(spans.start[0]);
+    expect([spans.start[2], spans.end[2]]).toEqual([0, 1]);
+  });
+
+  it('writes rows past the first band of a tall target', () => {
+    const tall = makeImage(3, 150, (x, y) => [x, y, 7, 255]);
+    const warped = warpRgba(tall, translationHomography(0, 1), tall);
+    expect(pixelAt(warped.image, 2, 140)).toEqual([2, 139, 7, 255]);
+    expect(coveredCount(warped.coverage)).toBe(3 * 149);
+  });
+
+  it('warps only the rows asked for, the same as a whole warp there', () => {
+    const tall = makeImage(5, 150, (x, y) => [x * 40, y, (x + y) % 256, 255]);
+    const shift = translationHomography(0.5, -1.25);
+    const whole = warpToFrame(tall, shift, tall);
+    const strip = warpToFrame(tall, shift, {
+      ...tall,
+      rows: { start: 64, end: 128 },
+    });
+    expect(strip.image.bands.map((band) => band.length)).toEqual([0, 960, 0]);
+    for (let y = 64; y < 128; y += 1) {
+      expect(Array.from(rowOf(strip.image, y))).toEqual(
+        Array.from(rowOf(whole.image, y)),
+      );
+      expect([strip.spans.start[y], strip.spans.end[y]]).toEqual([
+        whole.spans.start[y],
+        whole.spans.end[y],
+      ]);
+    }
+    // Rows outside the strip are left uncovered.
+    expect(strip.spans.end[10]).toBeLessThanOrEqual(strip.spans.start[10]);
+    expect(strip.spans.end[130]).toBeLessThanOrEqual(strip.spans.start[130]);
+  });
+
+  it('throws on a singular homography', () => {
+    expect(() =>
+      warpToFrame(patterned, new Float64Array(9), patterned),
+    ).toThrow(/singular/);
   });
 });

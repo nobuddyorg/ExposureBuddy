@@ -15,6 +15,10 @@ test.describe('help', () => {
     await app.header.do.openHelp();
     await expect(app.help()).toBeVisible();
     await expect(app.help()).toContainText('How ExposureBuddy works');
+    // A build names its package version and, on CI, the commit it came from.
+    await expect(app.help.locators.version).toHaveText(
+      /^Version \d+\.\d+\.\d+ \((local|[0-9a-f]{7})\)$/,
+    );
 
     await page.keyboard.press('Escape');
     await expect(app.help()).toBeHidden();

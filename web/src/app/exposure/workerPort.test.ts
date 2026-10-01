@@ -33,7 +33,7 @@ describe('request', () => {
       return { response: { type: 'stacked', id: message.id }, transfer: [] };
     });
     const onProgress = vi.fn();
-    await request(port, { type: 'stack', id: 1 }, { onProgress });
+    await request(port, { type: 'crop', id: 1 }, { onProgress });
     expect(onProgress).toHaveBeenCalledWith({
       type: 'stack-progress',
       id: 1,
@@ -46,7 +46,7 @@ describe('request', () => {
       post({ type: 'stack-progress', id: message.id, fraction: 0.5 } as never);
       return { response: { type: 'stacked', id: message.id }, transfer: [] };
     });
-    await expect(request(port, { type: 'stack', id: 1 })).resolves.toEqual({
+    await expect(request(port, { type: 'crop', id: 1 })).resolves.toEqual({
       type: 'stacked',
       id: 1,
     });
@@ -56,14 +56,14 @@ describe('request', () => {
     const port = createFakePort(() => {
       throw new Error('kernel panic');
     });
-    await expect(request(port, { type: 'stack', id: 1 })).rejects.toThrow(
+    await expect(request(port, { type: 'crop', id: 1 })).rejects.toThrow(
       'kernel panic',
     );
   });
 
   it('rejects when the worker fails outright, and stops listening', async () => {
     const port = createFakePort(() => undefined);
-    const pending = request(port, { type: 'stack', id: 1 });
+    const pending = request(port, { type: 'crop', id: 1 });
     port.emitError('Failed to load worker script');
     await expect(pending).rejects.toThrow('Failed to load worker script');
     port.emit({ type: 'stacked', id: 1 });
@@ -72,7 +72,7 @@ describe('request', () => {
   it('passes the transfer list through', () => {
     const port = createFakePort(() => undefined);
     const buffer = new ArrayBuffer(4);
-    void request(port, { type: 'stack', id: 1 }, { transfer: [buffer] });
+    void request(port, { type: 'crop', id: 1 }, { transfer: [buffer] });
     expect(port.transfers[0]).toEqual([buffer]);
   });
 
@@ -81,7 +81,7 @@ describe('request', () => {
     const controller = new AbortController();
     controller.abort();
     await expect(
-      request(port, { type: 'stack', id: 1 }, { signal: controller.signal }),
+      request(port, { type: 'crop', id: 1 }, { signal: controller.signal }),
     ).rejects.toSatisfy(isCancellation);
     expect(port.sent).toEqual([]);
   });
@@ -92,11 +92,7 @@ describe('request', () => {
       transfer: [],
     }));
     const controller = new AbortController();
-    await request(
-      port,
-      { type: 'stack', id: 1 },
-      { signal: controller.signal },
-    );
+    await request(port, { type: 'crop', id: 1 }, { signal: controller.signal });
     expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0);
   });
 
@@ -105,7 +101,7 @@ describe('request', () => {
     const controller = new AbortController();
     const pending = request(
       port,
-      { type: 'stack', id: 1 },
+      { type: 'crop', id: 1 },
       { signal: controller.signal },
     );
     controller.abort();
@@ -119,7 +115,7 @@ describe('request', () => {
       response: { type: 'done', id: message.id },
       transfer: [],
     }));
-    await request(port, { type: 'stack', id: 1 });
+    await request(port, { type: 'crop', id: 1 });
     const listener = vi.fn();
     port.onMessage(listener);
     port.emit({ type: 'again', id: 1 });
@@ -154,8 +150,8 @@ describe('portFromWorker', () => {
     const worker = fakeWorker();
     const port = portFromWorker(worker as unknown as Worker);
     const buffer = new ArrayBuffer(1);
-    port.postMessage({ type: 'stack', id: 1 }, [buffer]);
-    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'stack', id: 1 }, [
+    port.postMessage({ type: 'crop', id: 1 }, [buffer]);
+    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'crop', id: 1 }, [
       buffer,
     ]);
     port.postMessage({ type: 'y', id: 2 });

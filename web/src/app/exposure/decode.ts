@@ -44,7 +44,7 @@ function drawScaled(bitmap: ImageBitmap, target: Size): RgbaImage {
   return { width: target.width, height: target.height, data };
 }
 
-/** Decodes the reference and picks the working size from its dimensions and the burst's size. */
+/** Decodes the reference and plans the working size and the align workers from its dimensions and the burst's size. */
 export async function decodeReference(
   file: Blob,
   sizing: WorkingSizing,
@@ -52,8 +52,14 @@ export async function decodeReference(
   const bitmap = await toBitmap(file);
   try {
     const source = { width: bitmap.width, height: bitmap.height };
-    const working = chooseWorkingSize({ source, ...sizing });
-    return { image: drawScaled(bitmap, working), source };
+    const plan = chooseWorkingSize({ source, ...sizing });
+    return {
+      image: drawScaled(bitmap, plan),
+      source,
+      alignWorkers: plan.alignWorkers,
+      stripRows: plan.stripRows,
+      passes: plan.passes,
+    };
   } finally {
     bitmap.close();
   }

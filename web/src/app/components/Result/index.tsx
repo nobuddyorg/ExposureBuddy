@@ -1,7 +1,9 @@
 'use client';
 
+import type { ShotDate } from '../../exposure/exifDate';
 import type { ExposureResult } from '../../exposure/runPipeline';
 import { useI18n } from '../../i18n/useI18n';
+import { useLeaveWarning } from '../../useLeaveWarning';
 import { ActionRow } from './ActionRow';
 import { AdjustPanel } from './AdjustPanel';
 import { CompareButton } from './CompareButton';
@@ -23,6 +25,8 @@ export interface ResultProps {
   totalCount: number;
   /** Back to the picker; the page disposes the result. */
   onStartOver: () => void;
+  /** When the reference photo was taken, for the saved image. */
+  shotDate: ShotDate;
 }
 
 /** The result screen: the composite on a canvas, the three sliders, compare, save, share and start over. */
@@ -30,6 +34,7 @@ export default function Result({
   result,
   totalCount,
   onStartOver,
+  shotDate,
 }: ResultProps): React.JSX.Element {
   const { t, tCount } = useI18n();
   const composite = useComposite(result);
@@ -38,15 +43,14 @@ export default function Result({
   const canvasRef = useCanvasImage(
     showingReference ? compare.reference : composite.image,
   );
-  const exporter = useExport(canvasRef);
+  const exporter = useExport(canvasRef, { shotDate });
+  // Nothing is kept between visits, so an unsaved result is lost on leaving.
+  useLeaveWarning(!exporter.exported);
 
   const sliders = toSliderValues(composite.params);
   const setSlider = (name: SliderName, value: number) =>
     composite.setParams(
-      toCompositeParams(
-        { ...sliders, [name]: value },
-        composite.params.background,
-      ),
+      toCompositeParams({ ...sliders, [name]: value }, composite.params),
     );
 
   const statusText = (status: ExportStatus): string => {
@@ -62,7 +66,10 @@ export default function Result({
     }
   };
 
-  const skippedCount = totalCount - result.alignedCount;
+  const blurredCount = result.frames.filter(
+    (frame) => frame.status === 'blurred',
+  ).length;
+  const skippedCount = totalCount - result.alignedCount - blurredCount;
   const longEdge = Math.max(result.width, result.height);
 
   return (
@@ -86,6 +93,14 @@ export default function Result({
             className="pt-1 text-sm text-foreground"
           >
             {tCount('result.skipped', skippedCount)}
+          </p>
+        )}
+        {blurredCount > 0 && (
+          <p
+            data-testid="result-blurred"
+            className="pt-1 text-sm text-foreground"
+          >
+            {tCount('result.blurred', blurredCount)}
           </p>
         )}
       </div>
@@ -128,6 +143,10 @@ export default function Result({
             onChange={setSlider}
             onBackgroundChange={(background) =>
               composite.setParams({ ...composite.params, background })
+            }
+            trails={composite.params.trails}
+            onTrailsChange={(trails) =>
+              composite.setParams({ ...composite.params, trails })
             }
           />
         </AdjustPanel>

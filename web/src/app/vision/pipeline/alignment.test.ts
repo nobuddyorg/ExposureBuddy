@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { toRgba as bandedToRgba } from '../image/banded';
 import { flatGray, texturedScene } from '../features/synthetic.test-support';
 import { identityHomography } from '../geometry/homography';
 import type { RansacResult } from '../types';
@@ -7,13 +8,14 @@ import {
   MIN_INLIERS,
   MIN_INLIER_RATIO,
   alignToReference,
+  analyseReference,
   explainsEnough,
-  referenceFeatures,
 } from './alignment';
 import { toRgba } from './images.test-support';
 
 const image = toRgba(texturedScene(200, 150, 3));
-const reference = referenceFeatures(image);
+const { features: reference, sharpness: referenceSharpness } =
+  analyseReference(image);
 
 function fit(inlierCount: number, scale = 1): RansacResult {
   const homography = identityHomography();
@@ -90,7 +92,16 @@ describe('alignToReference with an injected fit', () => {
     });
     expect(outcome.kind).toBe('aligned');
     if (outcome.kind !== 'aligned') throw new Error('unreachable');
-    expect(outcome.frame.image.data).toEqual(image.data);
-    expect(outcome.frame.coverage.every((value) => value === 1)).toBe(true);
+    expect(bandedToRgba(outcome.frame.image)).toEqual(image);
+    expect(Array.from(outcome.homography)).toEqual([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+    // The frame is the reference itself, so it is exactly as crisp, measured the same way.
+    expect(referenceSharpness).toBeGreaterThan(0);
+    expect(outcome.sharpness).toBe(referenceSharpness);
+    expect(Array.from(outcome.frame.spans.start)).toEqual(
+      Array(image.height).fill(0),
+    );
+    expect(Array.from(outcome.frame.spans.end)).toEqual(
+      Array(image.height).fill(image.width),
+    );
   });
 });

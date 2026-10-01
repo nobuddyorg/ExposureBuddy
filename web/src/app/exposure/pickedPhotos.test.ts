@@ -4,6 +4,8 @@ import {
   acceptPhotos,
   isImageFile,
   MAX_PHOTOS,
+  middleIndex,
+  referencePosition,
   toPickerNotice,
   type PickedPhoto,
 } from './pickedPhotos';
@@ -156,5 +158,32 @@ describe('toPickerNotice', () => {
     expect(
       toPickerNotice({ photos: [], refused: [], truncated: true }),
     ).toEqual({ kind: 'truncated', limit: MAX_PHOTOS });
+  });
+});
+
+describe('middleIndex', () => {
+  it('picks the middle photo, the earlier one for an even count', () => {
+    expect(middleIndex(2)).toBe(0);
+    expect(middleIndex(3)).toBe(1);
+    expect(middleIndex(12)).toBe(5);
+    expect(middleIndex(0)).toBe(-1);
+  });
+});
+
+describe('referencePosition', () => {
+  const photos: PickedPhoto[] = ['a', 'b', 'c', 'd', 'e'].map((id) => ({
+    id,
+    file: image(`${id}.jpg`),
+  }));
+
+  it('is the middle photo unless one was chosen', () => {
+    expect(referencePosition(photos, '')).toBe(2);
+    expect(referencePosition(photos, 'e')).toBe(4);
+    expect(referencePosition(photos, 'a')).toBe(0);
+  });
+
+  it('falls back to the middle once the chosen photo is gone', () => {
+    expect(referencePosition(photos, 'gone')).toBe(2);
+    expect(referencePosition([], 'a')).toBe(-1);
   });
 });

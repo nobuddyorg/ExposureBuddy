@@ -1,8 +1,10 @@
 import {
   DEFAULT_BUDGET_BYTES,
   qualityLongEdge,
+  stripRanges,
   type OutputQuality,
 } from '../vision/pipeline/budget';
+import { blurredFrames } from '../vision/pipeline/blurred';
 import type {
   AlignWorkerResponse,
   StackProgress,
@@ -12,7 +14,9 @@ import { transferablesOf } from '../vision/pipeline/protocol';
 import type {
   CompositeParams,
   FrameReport,
+  Homography,
   RgbaImage,
+  RowRange,
   Size,
 } from '../vision/types';
 import { PipelineError, toPipelineFailure } from './failure';
@@ -30,13 +34,15 @@ export interface PipelineProgress {
 
 interface PipelineOptions {
   readonly quality: OutputQuality;
-  /** Align workers to run at once; the stack worker is always one more. */
+  /** Align workers the device could run at once; the budget may allow fewer. The stack worker is always one more. */
   readonly poolSize: number;
   readonly budgetBytes?: number;
 }
 
 export interface PipelineInput {
   readonly files: readonly Blob[];
+  /** The index of the file every other one is aligned to. */
+  readonly reference: number;
   /** One per file, for error messages. */
   readonly names: readonly string[];
   readonly options: PipelineOptions;
@@ -61,16 +67,28 @@ type ReferenceDecoded = Extract<
   AlignWorkerResponse,
   { type: 'reference-decoded' }
 >;
-type Stacked = Extract<StackWorkerResponse, { type: 'stacked' }>;
+type Cropped = Extract<StackWorkerResponse, { type: 'cropped' }>;
 type Rendered = Extract<StackWorkerResponse, { type: 'rendered' }>;
-
-/** The middle of the burst: it minimises the largest camera drift to any other frame. */
-export function referenceIndex(frameCount: number): number {
-  return Math.floor((frameCount - 1) / 2);
-}
 
 function pendingReport(index: number): FrameReport {
   return { index, status: 'pending', matches: 0, inliers: 0 };
+}
+
+/** Runs `task` on every item, each port taking the next item as soon as it is free; resolves when all are done. */
+async function onPool<Item>(
+  ports: readonly WorkerPort[],
+  items: readonly Item[],
+  task: (port: WorkerPort, item: Item) => Promise<void>,
+): Promise<void> {
+  let next = 0;
+  const drain = async (port: WorkerPort) => {
+    while (next < items.length) {
+      const item = items[next];
+      next += 1;
+      await task(port, item);
+    }
+  };
+  await Promise.all(ports.map(drain));
 }
 
 export function countAligned(frames: readonly FrameReport[]): number {
@@ -82,12 +100,19 @@ export function countAligned(frames: readonly FrameReport[]): number {
 export async function runPipeline(
   input: PipelineInput,
 ): Promise<ExposureResult> {
-  const { files, names, options, workers, onProgress, signal } = input;
+  const { files, reference, names, options, workers, onProgress, signal } =
+    input;
   const total = files.length;
   if (total < 2)
     throw new PipelineError({ kind: 'too_few_aligned', count: total });
+  if (reference < 0 || reference >= total)
+    throw new RangeError(`No photo ${reference} among ${total} to align to.`);
 
   const frames = files.map((_, index) => pendingReport(index));
+  // The transform of every frame that aligned, by burst index: a strip warps with it again.
+  const homographies = new Map<number, Homography>();
+  // How crisp the reference and every aligned frame are, by burst index: the blurred ones are dropped before the crop.
+  const sharpnessByFrame = new Map<number, number>();
   const emit = (stage: PipelineStage, done: number, outOf: number) =>
     onProgress({ stage, done, total: outOf, frames: [...frames] });
   let lastId = 0;
@@ -96,10 +121,8 @@ export async function runPipeline(
     return lastId;
   };
 
-  const aligners: WorkerPort[] = Array.from(
-    { length: Math.max(1, Math.min(options.poolSize, total - 1)) },
-    () => workers.createAlignWorker(),
-  );
+  // One worker decodes the reference; how many more join depends on the photo's size and the budget.
+  const aligners: WorkerPort[] = [workers.createAlignWorker()];
   const stack = workers.createStackWorker();
   const terminateAligners = () => aligners.forEach((port) => port.terminate());
   const terminateAll = () => {
@@ -119,6 +142,7 @@ export async function runPipeline(
           frameCount: total,
           budgetBytes: options.budgetBytes ?? DEFAULT_BUDGET_BYTES,
           maxLongEdge: qualityLongEdge(options.quality),
+          requestedWorkers: options.poolSize,
         },
       },
       { signal },
@@ -156,9 +180,11 @@ export async function runPipeline(
     }
     if (response.type !== 'aligned')
       throw new Error(`Unexpected ${response.type} while aligning.`);
+    homographies.set(index, response.homography);
+    sharpnessByFrame.set(index, response.sharpness);
     await request(
       stack,
-      { type: 'add-frame', id: nextId(), frame: response.frame },
+      { type: 'add-frame', id: nextId(), index, frame: response.frame },
       { transfer: transferablesOf(response.frame), signal },
     );
     return {
@@ -169,24 +195,59 @@ export async function runPipeline(
     };
   };
 
+  // A strip after the first: every aligned frame is decoded and warped again, only those rows, and handed to the stack worker.
+  const warpStrip = (target: Size, rows: RowRange, onDone: () => void) =>
+    onPool(aligners, [...homographies], async (port, [index, homography]) => {
+      const response = await request<AlignWorkerResponse>(
+        port,
+        {
+          type: 'warp-rows',
+          id: nextId(),
+          file: files[index],
+          target,
+          homography,
+          rows,
+        },
+        { signal },
+      );
+      if (response.type === 'unreadable')
+        throw new PipelineError({ kind: 'decode_failed', name: names[index] });
+      if (response.type !== 'warped-rows')
+        throw new Error(`Unexpected ${response.type} while warping a strip.`);
+      await request(
+        stack,
+        { type: 'add-rows', id: nextId(), index, frame: response.frame, rows },
+        { transfer: transferablesOf(response.frame), signal },
+      );
+      onDone();
+    });
+
   try {
-    const reference = referenceIndex(total);
     emit('reference', 0, 1);
     const decoded = await decodeReference(reference);
     const working: Size = {
       width: decoded.image.width,
       height: decoded.image.height,
     };
+    const poolSize = Math.max(1, Math.min(decoded.alignWorkers, total - 1));
+    while (aligners.length < poolSize)
+      aligners.push(workers.createAlignWorker());
     frames[reference] = {
       index: reference,
       status: 'reference',
       matches: 0,
       inliers: 0,
     };
+    sharpnessByFrame.set(reference, decoded.sharpness);
     await Promise.all([
       request(
         stack,
-        { type: 'add-reference', id: nextId(), image: decoded.image },
+        {
+          type: 'add-reference',
+          id: nextId(),
+          image: decoded.image,
+          stripRows: decoded.stripRows,
+        },
         { transfer: transferablesOf({ image: decoded.image }), signal },
       ),
       ...aligners.map((port) =>
@@ -201,40 +262,59 @@ export async function runPipeline(
     const order = frames
       .map((frame) => frame.index)
       .filter((index) => index !== reference);
-    let next = 0;
     let done = 0;
     emit('aligning', done, order.length);
-    const drain = async (port: WorkerPort) => {
-      while (next < order.length) {
-        const index = order[next];
-        next += 1;
-        frames[index] = await alignOne(port, index, working);
-        done += 1;
-        emit('aligning', done, order.length);
-      }
-    };
-    await Promise.all(aligners.map(drain));
+    await onPool(aligners, order, async (port, index) => {
+      frames[index] = await alignOne(port, index, working);
+      done += 1;
+      emit('aligning', done, order.length);
+    });
+
+    for (const index of blurredFrames(sharpnessByFrame, reference)) {
+      await request(
+        stack,
+        { type: 'drop-frame', id: nextId(), index },
+        { signal },
+      );
+      homographies.delete(index);
+      frames[index] = { ...frames[index], status: 'blurred' };
+    }
 
     const alignedCount = countAligned(frames);
     if (alignedCount < 2)
       throw new PipelineError({ kind: 'too_few_aligned', count: alignedCount });
-    // Their buffers are in the stack worker now; freeing the pool before stacking halves peak memory.
-    terminateAligners();
 
-    emit('stacking', 0, 100);
-    const summary = await request<Stacked>(
+    const summary = await request<Cropped>(
       stack,
-      { type: 'stack', id: nextId() },
-      {
-        signal,
-        onProgress: (message) =>
-          emit(
-            'stacking',
-            Math.round((message as StackProgress).fraction * 100),
-            100,
-          ),
-      },
+      { type: 'crop', id: nextId() },
+      { signal },
     );
+    const strips = stripRanges(summary.rect, decoded.stripRows);
+    // Progress in units: stacking each strip is one, and so is warping one frame again for each strip after the first.
+    const units = strips.length * (1 + homographies.size) - homographies.size;
+    let unitsDone = 0;
+    const emitStacking = (fraction = 0) =>
+      emit('stacking', Math.round(((unitsDone + fraction) / units) * 100), 100);
+    emitStacking();
+    for (const [position, rows] of strips.entries()) {
+      if (position > 0)
+        await warpStrip(working, rows, () => {
+          unitsDone += 1;
+          emitStacking();
+        });
+      // Every row the last strip needs is in the stack worker now; freeing the pool before stacking lowers the peak.
+      if (position === strips.length - 1) terminateAligners();
+      await request(
+        stack,
+        { type: 'stack-rows', id: nextId(), rows },
+        {
+          signal,
+          onProgress: (message) =>
+            emitStacking((message as StackProgress).fraction),
+        },
+      );
+      unitsDone += 1;
+    }
     emit('compositing', 0, 1);
 
     return {

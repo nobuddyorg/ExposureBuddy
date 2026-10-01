@@ -29,11 +29,27 @@ can also drop files onto the dotted area. Thumbnails appear as the photos are
 read, with a count. **Add more** appends to the selection, **Clear** starts
 again. A file that is not an image is left out and named in a notice.
 
+The **×** on a thumbnail leaves that photo out, for one that is blurred or
+where someone walked right up to the camera. The photo marked **Reference**
+is the one the others are lined up on, so the result has its framing; it
+starts as the middle one of the burst. Tap another thumbnail to use that
+photo instead, for example the one that is framed best or where the scene is
+emptiest.
+
 **Output size** sets how large the result is: **Small, fast** (1024 px on the
-long side), **Standard** (1600 px) or **Large, slow** (2400 px). A large
-burst may come out smaller than you chose: the app works within a fixed
-memory budget so a phone never runs out of memory, and a bigger burst means
-a smaller working size. The result never comes out larger than the photos.
+long side), **Standard** (1600 px), **Large, slow** (2400 px) or **Original
+size, slowest** (the photos' own size, up to about 16 megapixels). The line
+under the choice says what your burst will come out at. When a burst is too
+large to combine in one go, the app combines it in strips instead of making
+it smaller: the result is exactly the same, it just reads every photo again
+for each strip, and the line says how many passes that takes. A large burst may
+come out smaller than you chose: the app works within a memory budget that
+depends on the device, so a phone does not run out of memory, and a bigger
+burst means a smaller working size; the line says so when that happens, and
+fewer photos give a larger result. The result never comes out larger than
+the photos, and cropping to what every photo covers can take a little more
+off. If a device runs out of memory anyway, the error says so: choose a
+smaller size or fewer photos.
 
 **Combine** starts the pipeline. It is disabled, and says how many more
 photos it needs, until the burst is big enough.
@@ -41,16 +57,37 @@ photos it needs, until the burst is big enough.
 ## While it combines
 
 The progress screen names the stage: reading the photos, finding features in
-the reference photo (the middle one of the burst), aligning the others onto
+the reference photo (the middle one of the burst, or the one you marked), aligning the others onto
 it, stacking, rendering. Every photo has its own status line: waiting,
-reference, aligned with how many matches held, skipped, or could not be read.
+reference, aligned with how many matches held, blurred, skipped, or could
+not be read.
 
 A **skipped** photo did not line up well enough with the reference and is
 left out rather than blended in blurry; a few skips in a hand-held burst are
 normal. If too few line up, the result screen is replaced by an error saying
 so; **Try again** goes back to the picker.
 
+When something keeps failing, **Copy diagnostic info** on the error screen
+copies a short report for a bug report: the app version, the browser, the
+device's memory budget, how many photos, the output size, where the run
+stopped and how each photo fared, and the error. It holds no photo and no
+file name, and nothing is sent anywhere: you paste it where you choose.
+Where the browser does not allow copying, **Diagnostic info** shows the same
+text to copy by hand.
+
+A **blurred** photo lined up, but is much softer than the rest of the burst,
+usually because the phone moved while it was taken. It is left out so it
+does not soften the result, and the result screen says how many were. The
+reference photo is never left out, even when it is the soft one: tap a
+sharper thumbnail in the picker to use that as the reference instead.
+
 **Cancel** stops everything and returns to the picker.
+
+The screen stays on while the photos are combined, so the phone does not
+lock half way through. Keep the app in front: a phone may pause or close a
+tab in the background. Where the browser allows it, closing or reloading the
+tab asks for confirmation while a burst is combining and while a result has
+not been saved or shared yet; phone browsers often skip that question.
 
 ## Adjust the result
 
@@ -74,6 +111,11 @@ Three sliders then re-render the result live:
 - **Glow** adds a bloom to bright moving things, such as headlights, for
   light trails.
 
+**Light trails** above the sliders keeps the brightest value every spot saw
+instead of the average: headlights and stars stay at full strength as
+lines, where the average would fade them. The sliders keep working on the
+trails as they do on ghosts; switch it off to go back.
+
 A line on the result screen says how many photos were aligned out of how
 many, and the result's size in pixels.
 
@@ -92,8 +134,13 @@ see what the ghosts came from.
   sharing fails, the image is saved instead and the notice says so.
 - **Start over** discards the result and goes back to the picker.
 
+The saved JPEG carries one piece of metadata: the date and time the reference
+photo was taken, so the gallery sorts it next to
+the burst. No location, no camera model, nothing else from the originals.
+
 Nothing is stored between visits: reloading the page forgets the burst and
-the result.
+the result, which is why leaving asks for confirmation until the result is
+saved or shared.
 
 ## Install as an app
 
@@ -126,14 +173,17 @@ Two buttons in the header, both remembered on this device:
 
 The **Help** button in the header opens a short guide: what the app does,
 how to shoot, the sliders, privacy. **Ctrl+/** (**Cmd+/** on a Mac) opens it
-from anywhere; **Escape** or **Close** closes it.
+from anywhere; **Escape** or **Close** closes it. Its last line names the
+app's version, which a bug report should mention.
 
 ## Privacy
 
 Everything runs in your browser. The photos are read into memory, combined,
 and shown; nothing is uploaded, there is no account, and the only network
 traffic is the app itself. The device keeps your language and theme choice
-and a cached copy of the app for offline use, nothing else.
+and a cached copy of the app for offline use, nothing else. The **Privacy**
+link in the footer opens a page that says this in full, including what the
+saved image carries and what GitHub Pages, the host, sees when the app loads.
 
 ## Keyboard and screen reader
 
