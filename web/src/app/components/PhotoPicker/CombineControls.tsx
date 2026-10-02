@@ -69,52 +69,54 @@ export function CombineControls({
   ];
 
   return (
-    <div className={cardClasses('flex flex-col gap-3 p-4 sm:p-5')}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <label htmlFor={selectId} className={labelClasses('mb-1.5')}>
-            {t('picker.quality')}
-          </label>
-          <select
-            id={selectId}
-            data-testid="quality-select"
-            value={quality}
-            aria-describedby={sizeId}
-            onChange={(event) =>
-              setQuality(event.target.value as OutputQuality)
-            }
-            className={fieldClasses()}
-          >
-            {options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <p
-            id={sizeId}
-            data-testid="result-size"
-            aria-live="polite"
-            className="mt-1.5 min-h-4 text-xs text-muted-foreground"
-          >
-            {sizeLine()}
-          </p>
-        </div>
-        <button
-          type="button"
-          data-testid="combine"
-          disabled={tooFew || unsupported}
-          aria-describedby={tooFew ? reasonId : undefined}
-          onClick={() => onCombine(quality)}
-          className={buttonClasses({ className: 'w-full sm:w-auto' })}
-        >
-          {tCount('picker.combine', count)}
-        </button>
-      </div>
+    // A grid, so the button lines up with the select and both hint lines share the row below.
+    <div
+      className={cardClasses('grid gap-x-4 p-4 sm:grid-cols-[1fr_auto] sm:p-5')}
+    >
+      <label
+        htmlFor={selectId}
+        className={labelClasses('mb-1.5 sm:col-start-1 sm:row-start-1')}
+      >
+        {t('picker.quality')}
+      </label>
+      <select
+        id={selectId}
+        data-testid="quality-select"
+        value={quality}
+        aria-describedby={sizeId}
+        onChange={(event) => setQuality(event.target.value as OutputQuality)}
+        className={fieldClasses('sm:col-start-1 sm:row-start-2')}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <p
+        id={sizeId}
+        data-testid="result-size"
+        aria-live="polite"
+        className="mt-1.5 min-h-4 text-xs text-muted-foreground sm:col-start-1 sm:row-start-3"
+      >
+        {sizeLine()}
+      </p>
+      <button
+        type="button"
+        data-testid="combine"
+        disabled={tooFew || unsupported}
+        aria-describedby={tooFew ? reasonId : undefined}
+        onClick={() => onCombine(quality)}
+        className={buttonClasses({
+          className: 'mt-4 w-full sm:col-start-2 sm:row-start-2 sm:mt-0',
+        })}
+      >
+        {tCount('picker.combine', count)}
+      </button>
       {tooFew && (
         <p
           id={reasonId}
-          className="text-xs text-muted-foreground sm:text-right"
+          className="mt-3 text-xs text-muted-foreground sm:col-start-2 sm:row-start-3 sm:mt-1.5 sm:text-right"
         >
           {t('picker.need_more', { count: MIN_PHOTOS })}
         </p>
