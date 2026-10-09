@@ -36,11 +36,11 @@ A long exposure turns a busy street into an empty one with faint ghosts of the p
 
 It runs entirely in the browser. There is no account, no upload and no server: the photos never leave the phone.
 
-![Left: the reference photo of a five-photo burst with skaters in motion. Right: the long exposure, with the arena sharp and the skaters faded to faint ghosts.](docs/assets/before-after.jpg)
+![Left: the reference photo of a 13-photo burst of an ice hockey warm-up. Right: the long exposure, with the arena sharp and the skaters faded to faint ghosts.](docs/assets/before-after.jpg)
 
 | Add the burst                                                                               | Combining                                                                         | Result                                                                                       |
 | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| ![The picker with five photo thumbnails and the Combine button.](docs/assets/ui-picker.png) | ![The progress screen while the photos are aligned.](docs/assets/ui-progress.png) | ![The result with its background, ghost, blur and glow controls.](docs/assets/ui-result.png) |
+| ![The picker with 13 photo thumbnails and the Combine button.](docs/assets/ui-picker.png) | ![The progress screen while the photos are aligned.](docs/assets/ui-progress.png) | ![The result with its background, ghost, blur and glow controls.](docs/assets/ui-result.png) |
 
 ## Features
 
