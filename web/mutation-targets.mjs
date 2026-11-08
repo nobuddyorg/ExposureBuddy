@@ -53,6 +53,7 @@ export const MUTATE_TARGETS = [
   'src/app/exposure/useSinglePhoto.ts',
   'src/app/exposure/ml/fetchBytes.ts',
   'src/app/exposure/ml/assetBase.ts',
+  'src/app/exposure/ml/webGlSupport.ts',
   'src/app/exposure/pickedPhotos.ts',
   'src/app/exposure/diagnostics.ts',
   'src/app/exposure/deviceProfile.ts',

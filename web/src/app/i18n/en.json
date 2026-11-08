@@ -127,7 +127,8 @@
     "copy_diagnostics": "Copy diagnostic info",
     "copied": "Copied. Paste it into a bug report.",
     "copy_failed": "Could not copy. Open Diagnostic info and copy the text by hand.",
-    "no_people": "No people were found in this photo. Try a photo where people are larger and clearer, or combine a burst instead."
+    "no_people": "No people were found in this photo. Try a photo where people are larger and clearer, or combine a burst instead.",
+    "detection_unsupported": "This browser cannot run the people detection: it needs WebGL inside a Web Worker. Try a current Chrome or Edge, or combine a burst instead."
   },
   "help": {
     "title": "How ExposureBuddy works",

@@ -2,7 +2,9 @@ import { ImageSegmenter } from '@mediapipe/tasks-vision';
 
 import { maskFromCategories } from '../../vision/effects/mask';
 import type { SingleSteps } from '../../vision/pipeline/singleService';
+import { DETECTION_UNSUPPORTED_MESSAGE } from '../../vision/pipeline/singleProtocol';
 import { loadVisionAssets } from './mlRuntime';
+import { hasWebGlInWorker } from './webGlSupport';
 
 // Browser-only (MediaPipe in a worker): proven by the e2e suite, not by unit tests.
 
@@ -15,6 +17,8 @@ export const segmentPeople: SingleSteps['segmentPeople'] = async (
   image,
   { assetBase, onProgress },
 ) => {
+  // Before the 17 MB download: a browser that cannot run the Wasm should hear so at once.
+  if (!hasWebGlInWorker(self)) throw new Error(DETECTION_UNSUPPORTED_MESSAGE);
   const assets = await loadVisionAssets(
     assetBase,
     MODEL_FILE,

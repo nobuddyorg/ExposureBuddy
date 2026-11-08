@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { NO_OVERLAP_MESSAGE } from '../vision/pipeline/protocol';
+import { DETECTION_UNSUPPORTED_MESSAGE } from '../vision/pipeline/singleProtocol';
 import { PipelineError, toPipelineFailure } from './failure';
 
 describe('PipelineError', () => {
@@ -10,6 +11,7 @@ describe('PipelineError', () => {
       [{ kind: 'too_few_aligned', count: 1 }, /Only 1 photos/],
       [{ kind: 'no_overlap' }, /common area/],
       [{ kind: 'no_people' }, /No people were found in the photo\./],
+      [{ kind: 'detection_unsupported' }, /no WebGL inside a Web Worker/],
       [{ kind: 'decode_failed', name: 'IMG_1.jpg' }, /IMG_1\.jpg/],
       [{ kind: 'cancelled' }, /cancelled/],
       [{ kind: 'out_of_memory' }, /out of memory/],
@@ -21,6 +23,16 @@ describe('PipelineError', () => {
       expect(error.message).toMatch(message);
       expect(error.name).toBe('PipelineError');
     }
+  });
+});
+
+describe('toPipelineFailure, detection', () => {
+  it('maps the no-WebGL message of the detection worker to its own failure', () => {
+    expect(toPipelineFailure(new Error(DETECTION_UNSUPPORTED_MESSAGE))).toEqual(
+      {
+        kind: 'detection_unsupported',
+      },
+    );
   });
 });
 

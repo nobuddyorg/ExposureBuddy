@@ -23,6 +23,44 @@ async function openWith(app: App, photo: string) {
   await expect(app.picker.locators.thumbnails).toHaveCount(1);
 }
 
+/** Whether this engine gives an offscreen WebGL 2 context: the Wasm of the people detection needs one, even on the CPU. */
+function canDetect(page: Page) {
+  return page.evaluate(() => {
+    try {
+      return new OffscreenCanvas(1, 1).getContext('webgl2') !== null;
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * Starts the single-photo mode and says whether detection will run here.
+ * Where the engine has no offscreen WebGL, the right outcome is a clear error and no 17 MB download; that is asserted, and false returned.
+ */
+async function startDetection(app: App, page: Page): Promise<boolean> {
+  const supported = await canDetect(page);
+  const mlRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/ml/')) mlRequests.push(request.url());
+  });
+  await app.picker.do.singlePhoto();
+  if (supported) return true;
+  await expect(app.pipelineError()).toContainText(
+    'needs WebGL inside a Web Worker',
+    { timeout: SINGLE_TIMEOUT },
+  );
+  await app.pipelineError.do.openDiagnostics();
+  await expect(app.pipelineError.locators.diagnosticsText).toContainText(
+    'Failure: detection_unsupported',
+  );
+  expect(
+    mlRequests,
+    'nothing is downloaded for a browser that cannot run it',
+  ).toEqual([]);
+  return false;
+}
+
 function mlCachedUrls(page: Page) {
   return page.evaluate(async (prefix) => {
     const names = (await caches.keys()).filter((name) =>
@@ -49,7 +87,7 @@ test.describe('one photo, no burst', () => {
     // A burst needs two photos; the single-photo mode is what one photo gets instead, and a second photo brings the burst back.
     await expect(app.picker.locators.buttons.combine).toHaveCount(0);
 
-    await app.picker.do.singlePhoto();
+    if (!(await startDetection(app, page))) return;
     await expect(app.progress()).toBeVisible();
     await expect(app.result.locators.canvas).toBeVisible({
       timeout: SINGLE_TIMEOUT,
@@ -98,7 +136,7 @@ test.describe('one photo, no burst', () => {
     test.setTimeout(SINGLE_TIMEOUT * 2);
     const app = on(page);
     await openWith(app, 'single/empty.png');
-    await app.picker.do.singlePhoto();
+    if (!(await startDetection(app, page))) return;
 
     await expect(app.pipelineError()).toBeVisible({ timeout: SINGLE_TIMEOUT });
     await expect(app.pipelineError()).toContainText(
@@ -133,7 +171,7 @@ test.describe('one photo, no burst', () => {
     );
     const app = on(page);
     await openWith(app, 'single/person.png');
-    await app.picker.do.singlePhoto();
+    if (!(await startDetection(app, page))) return;
     await expect(app.result.locators.canvas).toBeVisible({
       timeout: SINGLE_TIMEOUT,
     });
@@ -173,7 +211,7 @@ test.describe('one photo, no burst', () => {
     await page.waitForFunction(
       () => navigator.serviceWorker.controller !== null,
     );
-    await app.picker.do.singlePhoto();
+    if (!(await startDetection(app, page))) return;
     await expect(app.result.locators.canvas).toBeVisible({
       timeout: SINGLE_TIMEOUT,
     });
@@ -212,7 +250,10 @@ test.describe('one photo, accessibility', () => {
     await expect(app.picker.locators.buttons.singlePhoto).toBeVisible();
     await expectNoSeriousA11yViolations(page, testInfo);
 
-    await app.picker.do.singlePhoto();
+    if (!(await startDetection(app, page))) {
+      await expectNoSeriousA11yViolations(page, testInfo);
+      return;
+    }
     await expect(app.result.locators.canvas).toBeVisible({
       timeout: SINGLE_TIMEOUT,
     });

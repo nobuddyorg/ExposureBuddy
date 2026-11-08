@@ -127,7 +127,8 @@
     "copy_diagnostics": "Diagnoseinfo kopieren",
     "copied": "Kopiert. Zum Einfügen in eine Fehlermeldung.",
     "copy_failed": "Kopieren hat nicht geklappt. Diagnoseinfo öffnen und den Text von Hand kopieren.",
-    "no_people": "Auf diesem Foto wurden keine Menschen gefunden. Versuche ein Foto, auf dem die Menschen größer und deutlicher zu sehen sind, oder kombiniere stattdessen eine Serie."
+    "no_people": "Auf diesem Foto wurden keine Menschen gefunden. Versuche ein Foto, auf dem die Menschen größer und deutlicher zu sehen sind, oder kombiniere stattdessen eine Serie.",
+    "detection_unsupported": "Dieser Browser kann die Personenerkennung nicht ausführen: Er braucht WebGL in einem Web Worker. Versuche ein aktuelles Chrome oder Edge oder kombiniere stattdessen eine Serie."
   },
   "help": {
     "title": "So funktioniert ExposureBuddy",

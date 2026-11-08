@@ -42,6 +42,12 @@ describe('failureMessage', () => {
     );
   });
 
+  it('says that the browser cannot run the people detection', () => {
+    expect(failureMessage(t, tCount, { kind: 'detection_unsupported' })).toBe(
+      'errors.detection_unsupported',
+    );
+  });
+
   it('reports a cancellation', () => {
     expect(failureMessage(t, tCount, { kind: 'cancelled' })).toBe(
       'errors.cancelled',

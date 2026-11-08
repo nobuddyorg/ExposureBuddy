@@ -1,6 +1,10 @@
 import type { EffectParams } from '../effects/effectParams';
 import type { RgbaImage } from '../types';
 
+/** What the detection worker says when its browser has no WebGL off the main thread; the coordinator maps it to its own failure. */
+export const DETECTION_UNSUPPORTED_MESSAGE =
+  'This browser has no WebGL inside a Web Worker, which the people detection needs.';
+
 /** The steps a single photo goes through before it can be rendered, in order. */
 export type SingleStage = 'decode' | 'model' | 'detect' | 'prepare';
 
