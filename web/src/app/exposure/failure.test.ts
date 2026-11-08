@@ -9,6 +9,7 @@ describe('PipelineError', () => {
       [{ kind: 'unsupported' }, /Workers/],
       [{ kind: 'too_few_aligned', count: 1 }, /Only 1 photos/],
       [{ kind: 'no_overlap' }, /common area/],
+      [{ kind: 'no_people' }, /No people were found in the photo\./],
       [{ kind: 'decode_failed', name: 'IMG_1.jpg' }, /IMG_1\.jpg/],
       [{ kind: 'cancelled' }, /cancelled/],
       [{ kind: 'out_of_memory' }, /out of memory/],

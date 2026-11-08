@@ -39,19 +39,15 @@ export function combineProgress(
   count: number,
   onProgress: (loaded: number, total: number) => void,
 ): (index: number) => (loaded: number, total: number) => void {
-  const loaded = new Array<number>(count).fill(0);
-  const totals = new Array<number>(count).fill(0);
-  return (index) => (done, total) => {
-    loaded[index] = done;
-    totals[index] = total;
-    const sum = totals.reduce((a, b) => a + b, 0);
+  const downloads = Array.from({ length: count }, () => ({
+    loaded: 0,
+    total: 0,
+  }));
+  return (index) => (loaded, total) => {
+    downloads[index] = { loaded, total };
+    const sum = downloads.reduce((all, one) => all + one.total, 0);
+    const done = downloads.reduce((all, one) => all + one.loaded, 0);
     // A server that compresses reports the compressed size, so what was loaded can pass it.
-    onProgress(
-      Math.min(
-        loaded.reduce((a, b) => a + b, 0),
-        sum,
-      ),
-      sum,
-    );
+    onProgress(Math.min(done, sum), sum);
   };
 }

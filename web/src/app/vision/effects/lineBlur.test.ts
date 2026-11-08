@@ -94,6 +94,20 @@ describe('blurAlongLine', () => {
     expect(total(smeared)).toBeCloseTo(total(layer), 3);
   });
 
+  it('trails above a movement downwards, and nowhere below it', () => {
+    const layer = impulse(3, 25, 1, 12);
+    const smeared = blurAlongLine(layer, WHOLE(layer), {
+      angle: 90,
+      length: 8,
+      trailing: true,
+    });
+    const column = Array.from({ length: 25 }, (_, y) => alphaOf(smeared, 1, y));
+    expect(column[12]).toBeGreaterThan(column[8]);
+    expect(column[4]).toBeGreaterThan(0);
+    expect(column[3]).toBe(0);
+    expect(column.slice(13).every((value) => value === 0)).toBe(true);
+  });
+
   it('puts the trail on the other side when the direction turns round', () => {
     const layer = impulse(25, 3, 12, 1);
     const smeared = blurAlongLine(layer, WHOLE(layer), {

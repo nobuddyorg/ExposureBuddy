@@ -107,6 +107,19 @@ describe('combineProgress', () => {
     ]);
   });
 
+  it('counts a download that has not reported yet as nothing, whatever order they report in', () => {
+    const seen: [number, number][] = [];
+    const of = combineProgress(3, (loaded, total) =>
+      seen.push([loaded, total]),
+    );
+    of(2)(7, 70);
+    of(0)(1, 10);
+    expect(seen).toEqual([
+      [7, 70],
+      [8, 80],
+    ]);
+  });
+
   it('never reports more loaded than the total, which compression can cause', () => {
     const seen: [number, number][] = [];
     combineProgress(1, (loaded, total) => seen.push([loaded, total]))(0)(

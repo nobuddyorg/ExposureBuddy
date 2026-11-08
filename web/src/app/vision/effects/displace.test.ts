@@ -67,6 +67,30 @@ describe('displaceLayer', () => {
     expect(moved.data.every((value) => value === 40)).toBe(true);
   });
 
+  it('replicates the last column and row when an offset points past them, on a layer that is not flat', () => {
+    const layer = emptyLayer(3, 2);
+    for (let pixel = 0; pixel < 6; pixel += 1)
+      layer.data[pixel * 4 + 3] = pixel * 10;
+    const moved = displaceLayer(layer, WHOLE(layer), () => ({ x: 50, y: 50 }));
+    expect(alphaOf(moved, 0, 0)).toBe(50);
+    expect(alphaOf(moved, 2, 1)).toBe(50);
+  });
+
+  it('interpolates bilinearly between all four neighbours', () => {
+    const layer = emptyLayer(2, 2);
+    [10, 20, 30, 50].forEach((value, pixel) => {
+      layer.data[pixel * 4 + 3] = value;
+    });
+    const half = displaceLayer(layer, WHOLE(layer), () => ({ x: 0.5, y: 0.5 }));
+    expect(alphaOf(half, 0, 0)).toBeCloseTo(27.5);
+    const skew = displaceLayer(layer, WHOLE(layer), () => ({
+      x: 0.25,
+      y: 0.75,
+    }));
+    // Top row 10 → 20 at 0.25 = 12.5; bottom row 30 → 50 at 0.25 = 35; between them at 0.75 = 29.375.
+    expect(alphaOf(skew, 0, 0)).toBeCloseTo(29.375);
+  });
+
   it('writes nothing outside the region', () => {
     const layer = impulse(5, 5, 2, 2);
     const moved = displaceLayer(

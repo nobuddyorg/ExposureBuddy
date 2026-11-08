@@ -60,6 +60,25 @@ describe('prepareScene', () => {
   });
 });
 
+describe('prepareScene on a larger photo', () => {
+  it('feathers by a share of the long edge: one pixel at 200, two at 800', () => {
+    const big = withRect(
+      solidImage(800, 600, [100, 100, 100]),
+      { x: 360, y: 200, width: 80, height: 240 },
+      [255, 0, 0],
+    );
+    const bigScene = prepareScene(
+      big,
+      rectMask(800, 600, { x: 360, y: 200, width: 80, height: 240 }),
+    );
+    if (!bigScene) throw new Error('the scene should have a person');
+    expect(360 - bigScene.bounds.x).toBeGreaterThanOrEqual(3);
+    expect(360 - bigScene.bounds.x).toBeLessThanOrEqual(4);
+    expect(PERSON.x - scene.bounds.x).toBeGreaterThanOrEqual(1);
+    expect(PERSON.x - scene.bounds.x).toBeLessThanOrEqual(2);
+  });
+});
+
 describe('reachPixels', () => {
   it('is 15 % of the long edge at full strength, scaled by strength', () => {
     expect(reachPixels(1, { width: 200, height: 120 })).toBe(30);
@@ -108,6 +127,14 @@ describe('renderScene', () => {
     expect(first.data).not.toEqual(
       render({ effect: 'liquid', strength: 0 }).data,
     );
+  });
+
+  it('smear trails one and a half times the reach behind the people, and no further', () => {
+    // Reach 30 at full strength, so the trail is 45 px long: 45 px left of the people's edge at 90, the trail has faded out.
+    const out = render({ effect: 'smear', angle: 0 });
+    expect(pixelOf(out, 60, 60)[0]).toBeGreaterThan(100);
+    expect(pixelOf(out, 48, 60)[0]).toBeGreaterThan(100);
+    expect(pixelOf(out, 40, 60)).toEqual(BACKGROUND);
   });
 
   it('smoke is translucent: neither the person nor the plate in the middle of the cloud', () => {

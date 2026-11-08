@@ -83,6 +83,18 @@ describe('composeOver', () => {
   });
 });
 
+describe('mixByMask over a square image', () => {
+  it('mixes every pixel, with the weights of both images', () => {
+    const from = solidImage(2, 2, [100, 100, 100]);
+    const to = solidImage(2, 2, [200, 0, 0]);
+    const mixed = mixByMask(from, to, grayOf(2, 2, [0, 255, 255, 51]));
+    expect(pixelOf(mixed, 0, 0)).toEqual([100, 100, 100, 255]);
+    expect(pixelOf(mixed, 1, 0)).toEqual([200, 0, 0, 255]);
+    expect(pixelOf(mixed, 0, 1)).toEqual([200, 0, 0, 255]);
+    expect(pixelOf(mixed, 1, 1)).toEqual([120, 80, 80, 255]);
+  });
+});
+
 describe('mixByMask', () => {
   const from = solidImage(3, 1, [0, 0, 0]);
   const to = solidImage(3, 1, [200, 100, 50]);

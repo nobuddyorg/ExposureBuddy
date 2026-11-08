@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { Served, WorkerMessage } from '../vision/pipeline/protocol';
 import type { SingleWorkerResponse } from '../vision/pipeline/singleProtocol';
 import { DEFAULT_BUDGET_BYTES } from '../vision/pipeline/budget';
 import {
@@ -126,5 +127,80 @@ describe('useSinglePhoto', () => {
     expect(factory.singles[0].terminated).toBe(true);
     await flush();
     expect(hook.result.current.state.status).toBe('ready');
+  });
+
+  it('asks the default ml folder when no base path is set, and the size of the device it was last given', async () => {
+    vi.stubEnv('NEXT_PUBLIC_BASE_PATH', undefined);
+    delete process.env.NEXT_PUBLIC_BASE_PATH;
+    const factory = createFakeFactory(unused, unused, singleHandler(true));
+    const hook = renderHook(({ device }) => useSinglePhoto(factory, device), {
+      initialProps: { device: DEVICE },
+    });
+    hook.rerender({
+      device: { poolSize: 1, budgetBytes: DEFAULT_BUDGET_BYTES / 4 },
+    });
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    await flush();
+    expect(factory.singles[0].sent[0]).toMatchObject({
+      longEdge: 1024,
+      assetBase: `${window.location.origin}/ml`,
+    });
+  });
+
+  it('starts on the workers it was last given', async () => {
+    const first = createFakeFactory(unused, unused, singleHandler(true));
+    const second = createFakeFactory(unused, unused, singleHandler(true));
+    const hook = renderHook(({ workers }) => useSinglePhoto(workers, DEVICE), {
+      initialProps: { workers: first },
+    });
+    hook.rerender({ workers: second });
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    await flush();
+    expect(first.singles).toHaveLength(0);
+    expect(second.singles).toHaveLength(1);
+  });
+
+  it('shows each stage the worker reports while it is still running', async () => {
+    let finish: (() => void) | undefined;
+    const handler: FakeHandler = (message, post) => {
+      const { id } = message;
+      post({
+        type: 'single-progress',
+        id,
+        stage: 'model',
+        done: 4,
+        total: 8,
+      } as SingleWorkerResponse);
+      return new Promise<Served<WorkerMessage>>((resolve) => {
+        finish = () =>
+          resolve({
+            response: {
+              type: 'single-prepared',
+              id,
+              width: 4,
+              height: 4,
+              found: true,
+            } as SingleWorkerResponse,
+            transfer: [],
+          });
+      });
+    };
+    const { hook } = setup(handler);
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    await flush();
+    expect(hook.result.current.state).toEqual({
+      status: 'running',
+      progress: { stage: 'model', done: 4, total: 8 },
+    });
+    finish?.();
+    await flush();
+    expect(hook.result.current.state.status).toBe('ready');
+  });
+
+  it('frees the worker when it unmounts mid-run', async () => {
+    const { hook, factory } = setup(() => new Promise<never>(() => {}));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    hook.unmount();
+    expect(factory.singles[0].terminated).toBe(true);
   });
 });

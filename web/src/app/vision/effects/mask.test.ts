@@ -127,6 +127,11 @@ describe('maskBounds', () => {
     expect(maskBounds(mask, 0)).toEqual({ x: 0, y: 0, width: 5, height: 3 });
   });
 
+  it('finds a single pixel in the first row and the first column', () => {
+    const mask = rectMask(4, 4, { x: 0, y: 0, width: 1, height: 1 });
+    expect(maskBounds(mask, 0)).toEqual({ x: 0, y: 0, width: 1, height: 1 });
+  });
+
   it('grows by the margin and stays inside the image', () => {
     const mask = rectMask(10, 10, { x: 1, y: 1, width: 2, height: 2 });
     expect(maskBounds(mask, 3)).toEqual({ x: 0, y: 0, width: 6, height: 6 });

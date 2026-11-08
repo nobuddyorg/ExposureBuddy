@@ -13,7 +13,7 @@ const unused: FakeHandler = () => {
   throw new Error('not a burst worker');
 };
 
-function setup(found: boolean) {
+function setup(found: boolean, renderNeverAnswers = false) {
   const handler: FakeHandler = (message, post) => {
     const { id } = message;
     switch (message.type) {
@@ -36,6 +36,7 @@ function setup(found: boolean) {
           transfer: [],
         };
       case 'single-render':
+        if (renderNeverAnswers) return new Promise<never>(() => {});
         return {
           response: {
             type: 'single-rendered',
@@ -133,5 +134,60 @@ describe('runSinglePhoto', () => {
     workers.singles[0].emitError('The worker failed to start.');
     await expect(pending).rejects.toThrow('The worker failed to start.');
     expect(workers.singles[0].terminated).toBe(true);
+  });
+
+  it('numbers its requests 1, 2, 3 in the order they are sent', async () => {
+    const { workers, run } = setup(true);
+    const result = await run();
+    await result.render({ effect: 'motion', strength: 0.5, angle: 0 });
+    await result.renderReference();
+    expect(workers.singles[0].sent.map((m) => m.id)).toEqual([1, 2, 3]);
+  });
+
+  it('ends the worker of a finished result when the signal aborts afterwards', async () => {
+    const { workers, run } = setup(true);
+    const controller = new AbortController();
+    await run(controller.signal);
+    expect(workers.singles[0].terminated).toBe(false);
+    controller.abort();
+    expect(workers.singles[0].terminations).toBe(1);
+  });
+
+  it('does not end the worker a second time when a disposed result is aborted', async () => {
+    const { workers, run } = setup(true);
+    const controller = new AbortController();
+    const result = await run(controller.signal);
+    result.dispose();
+    controller.abort();
+    expect(workers.singles[0].terminations).toBe(1);
+  });
+
+  it('does not end the worker a second time when a failed run is aborted', async () => {
+    const { workers, run } = setup(false);
+    const controller = new AbortController();
+    await run(controller.signal).catch(() => {});
+    controller.abort();
+    expect(workers.singles[0].terminations).toBe(1);
+  });
+
+  it('rejects a render that is waiting when the signal aborts', async () => {
+    const { run } = setup(true, true);
+    const controller = new AbortController();
+    const result = await run(controller.signal);
+    const pending = result.render({
+      effect: 'motion',
+      strength: 0.5,
+      angle: 0,
+    });
+    controller.abort();
+    await expect(pending).rejects.toThrow('cancelled');
+  });
+
+  it('rejects a waiting reference render when the signal aborts', async () => {
+    const { run } = setup(true);
+    const controller = new AbortController();
+    const result = await run(controller.signal);
+    controller.abort();
+    await expect(result.renderReference()).rejects.toThrow('cancelled');
   });
 });

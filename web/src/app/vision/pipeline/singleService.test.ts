@@ -122,6 +122,22 @@ describe('createSingleService', () => {
     expect((await service(PREPARE)).response).toMatchObject({ found: false });
   });
 
+  it('takes a mask of exactly the minimum coverage for a person', async () => {
+    // 120 × 80 = 9600 pixels; 0.2 % of them is 19.2, so 20 pixels are just over and 19 just under.
+    const over = setup(
+      rectMask(120, 80, { x: 10, y: 10, width: 20, height: 1 }),
+    );
+    expect((await over.service(PREPARE)).response).toMatchObject({
+      found: true,
+    });
+    const under = setup(
+      rectMask(120, 80, { x: 10, y: 10, width: 19, height: 1 }),
+    );
+    expect((await under.service(PREPARE)).response).toMatchObject({
+      found: false,
+    });
+  });
+
   it('forgets an earlier photo when a new one finds nobody', async () => {
     const found = setup(rectMask(120, 80, PERSON));
     await found.service(PREPARE);

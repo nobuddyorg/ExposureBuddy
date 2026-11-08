@@ -4,6 +4,8 @@ import { displaceLayer } from './displace';
 import { composeOver, liftLayer, mixByMask, type Layer } from './layer';
 import { fillHole } from './inpaint';
 import { fractalNoise } from './noise';
+import { featureSize, liquidOffset, smokeDrift, smokeKeep } from './shapes';
+import { indices } from '../indices';
 import type { EffectParams } from './effectParams';
 import type { GrayImage, Rect, RgbaImage } from '../types';
 
@@ -64,32 +66,40 @@ function smoke(
     length: reach,
     trailing: false,
   });
-  const swirl = Math.max(8, longEdgeOf(layer) / 25);
-  const wisp = Math.max(4, longEdgeOf(layer) / 70);
-  const rising = displaceLayer(softer, region, (x, y) => ({
-    x: (fractalNoise(x / swirl, y / swirl, NOISE_SEEDS.x) - 0.5) * reach * 0.25,
-    y: reach * 0.2 * fractalNoise(x / swirl, y / swirl, NOISE_SEEDS.y),
-  }));
+  const swirl = featureSize(longEdgeOf(layer), 25, 8);
+  const wisp = featureSize(longEdgeOf(layer), 70, 4);
+  const rising = displaceLayer(softer, region, (x, y) =>
+    smokeDrift(
+      reach,
+      fractalNoise(x / swirl, y / swirl, NOISE_SEEDS.x),
+      fractalNoise(x / swirl, y / swirl, NOISE_SEEDS.y),
+    ),
+  );
   // Wisps torn in the cloud: where the fine noise is low, the plate shows through.
-  for (let y = region.y; y < region.y + region.height; y += 1) {
-    for (let x = region.x; x < region.x + region.width; x += 1) {
-      const keep =
-        1 -
-        strength * (1 - fractalNoise(x / wisp, y / wisp, NOISE_SEEDS.dissolve));
-      const offset = (y * layer.width + x) * 4;
-      for (const channel of [0, 1, 2, 3])
-        rising.data[offset + channel] *= keep * (1 - 0.4 * strength);
+  for (const y of indices(region.height)) {
+    for (const x of indices(region.width)) {
+      const px = region.x + x;
+      const py = region.y + y;
+      const keep = smokeKeep(
+        strength,
+        fractalNoise(px / wisp, py / wisp, NOISE_SEEDS.dissolve),
+      );
+      const offset = (py * layer.width + px) * 4;
+      for (const channel of [0, 1, 2, 3]) rising.data[offset + channel] *= keep;
     }
   }
   return rising;
 }
 
 function liquid(layer: Layer, region: Rect, reach: number): Layer {
-  const scale = Math.max(8, longEdgeOf(layer) / 10);
-  return displaceLayer(layer, region, (x, y) => ({
-    x: (fractalNoise(x / scale, y / scale, NOISE_SEEDS.x) - 0.5) * reach,
-    y: (fractalNoise(x / scale, y / scale, NOISE_SEEDS.y) - 0.5) * reach,
-  }));
+  const scale = featureSize(longEdgeOf(layer), 10, 8);
+  return displaceLayer(layer, region, (x, y) =>
+    liquidOffset(
+      reach,
+      fractalNoise(x / scale, y / scale, NOISE_SEEDS.x),
+      fractalNoise(x / scale, y / scale, NOISE_SEEDS.y),
+    ),
+  );
 }
 
 /** `scene` rendered with `params`: the people blurred, smeared, melted or turned to smoke over the empty scene. */
