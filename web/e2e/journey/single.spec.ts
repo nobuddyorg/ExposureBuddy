@@ -23,32 +23,28 @@ async function openWith(app: App, photo: string) {
   await expect(app.picker.locators.thumbnails).toHaveCount(1);
 }
 
-/** Whether this engine gives an offscreen WebGL 2 context: the Wasm of the people detection needs one, even on the CPU. */
-function canDetect(page: Page) {
-  return page.evaluate(() => {
-    try {
-      return new OffscreenCanvas(1, 1).getContext('webgl2') !== null;
-    } catch {
-      return false;
-    }
-  });
-}
+type Outcome = 'result' | 'error' | 'unsupported';
 
 /**
- * Starts the single-photo mode and says whether detection will run here.
- * Where the engine has no offscreen WebGL, the right outcome is a clear error and no 17 MB download; that is asserted, and false returned.
+ * Starts the single-photo mode and says how it ended: a result, an error screen, or the clear "no WebGL in a worker" error.
+ * The last must leave nothing downloaded, and Chromium, whose workers have WebGL, must never end on it.
+ * (A probe on the page cannot tell: WebKit has offscreen WebGL on the main thread and none in a worker.)
  */
-async function startDetection(app: App, page: Page): Promise<boolean> {
-  const supported = await canDetect(page);
+async function startDetection(app: App, page: Page): Promise<Outcome> {
+  const engine = page.context().browser()?.browserType().name();
   const mlRequests: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/ml/')) mlRequests.push(request.url());
   });
   await app.picker.do.singlePhoto();
-  if (supported) return true;
-  await expect(app.pipelineError()).toContainText(
-    'needs WebGL inside a Web Worker',
-    { timeout: SINGLE_TIMEOUT },
+  await expect(app.result.locators.canvas.or(app.pipelineError())).toBeVisible({
+    timeout: SINGLE_TIMEOUT,
+  });
+  if (!(await app.pipelineError().isVisible())) return 'result';
+  const message = (await app.pipelineError().textContent()) ?? '';
+  if (!message.includes('needs WebGL inside a Web Worker')) return 'error';
+  expect(engine, 'Chromium has WebGL in its workers and must run it').not.toBe(
+    'chromium',
   );
   await app.pipelineError.do.openDiagnostics();
   await expect(app.pipelineError.locators.diagnosticsText).toContainText(
@@ -58,7 +54,17 @@ async function startDetection(app: App, page: Page): Promise<boolean> {
     mlRequests,
     'nothing is downloaded for a browser that cannot run it',
   ).toEqual([]);
-  return false;
+  return 'unsupported';
+}
+
+/** Runs the detection on a photo with a person: true when it found them, false where the browser clearly says it cannot look. */
+async function findsThePerson(app: App, page: Page): Promise<boolean> {
+  const outcome = await startDetection(app, page);
+  expect(
+    outcome,
+    'the person is found, or the browser says it cannot look',
+  ).not.toBe('error');
+  return outcome === 'result';
 }
 
 function mlCachedUrls(page: Page) {
@@ -87,11 +93,8 @@ test.describe('one photo, no burst', () => {
     // A burst needs two photos; the single-photo mode is what one photo gets instead, and a second photo brings the burst back.
     await expect(app.picker.locators.buttons.combine).toHaveCount(0);
 
-    if (!(await startDetection(app, page))) return;
-    await expect(app.progress()).toBeVisible();
-    await expect(app.result.locators.canvas).toBeVisible({
-      timeout: SINGLE_TIMEOUT,
-    });
+    if (!(await findsThePerson(app, page))) return;
+    await expect(app.result.locators.canvas).toBeVisible();
     await expect(app.result.locators.stats).toHaveText('640 × 480 px');
 
     const motion = await app.result.do.canvasDigest();
@@ -136,9 +139,9 @@ test.describe('one photo, no burst', () => {
     test.setTimeout(SINGLE_TIMEOUT * 2);
     const app = on(page);
     await openWith(app, 'single/empty.png');
-    if (!(await startDetection(app, page))) return;
-
-    await expect(app.pipelineError()).toBeVisible({ timeout: SINGLE_TIMEOUT });
+    const outcome = await startDetection(app, page);
+    if (outcome === 'unsupported') return;
+    expect(outcome, 'nobody is in the photo, and that is said').toBe('error');
     await expect(app.pipelineError()).toContainText(
       'No people were found in this photo',
     );
@@ -171,7 +174,7 @@ test.describe('one photo, no burst', () => {
     );
     const app = on(page);
     await openWith(app, 'single/person.png');
-    if (!(await startDetection(app, page))) return;
+    if (!(await findsThePerson(app, page))) return;
     await expect(app.result.locators.canvas).toBeVisible({
       timeout: SINGLE_TIMEOUT,
     });
@@ -211,7 +214,7 @@ test.describe('one photo, no burst', () => {
     await page.waitForFunction(
       () => navigator.serviceWorker.controller !== null,
     );
-    if (!(await startDetection(app, page))) return;
+    if (!(await findsThePerson(app, page))) return;
     await expect(app.result.locators.canvas).toBeVisible({
       timeout: SINGLE_TIMEOUT,
     });
@@ -250,7 +253,7 @@ test.describe('one photo, accessibility', () => {
     await expect(app.picker.locators.buttons.singlePhoto).toBeVisible();
     await expectNoSeriousA11yViolations(page, testInfo);
 
-    if (!(await startDetection(app, page))) {
+    if (!(await findsThePerson(app, page))) {
       await expectNoSeriousA11yViolations(page, testInfo);
       return;
     }
