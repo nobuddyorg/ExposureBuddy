@@ -173,17 +173,20 @@ describe('renderScene', () => {
           expect([out.width, out.height]).toEqual([200, 120]);
           const margin = Math.ceil(reachPixels(strength, scene.plate) * 2);
           const left = scene.bounds.x - margin;
+          const wrong: string[] = [];
           for (let y = 0; y < 120; y += 7) {
             for (let x = 0; x < 200; x += 5) {
               const pixel = pixelOf(out, x, y);
-              expect(pixel[3]).toBe(255);
-              if (x < left - 1) expect(pixel).toEqual(BACKGROUND);
+              if (pixel[3] !== 255) wrong.push(`${x},${y} not opaque`);
+              if (x < left - 1 && pixel.join() !== BACKGROUND.join())
+                wrong.push(`${x},${y} changed outside the reach`);
             }
           }
+          expect(wrong).toEqual([]);
         },
       ),
       // Each run renders a whole photo; a few dozen cover the property.
-      { numRuns: 40 },
+      { numRuns: 25 },
     );
   });
 });

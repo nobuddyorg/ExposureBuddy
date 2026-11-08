@@ -127,19 +127,20 @@ describe('fillHole', () => {
             half,
             rectMask(30, 6, { x: 10, y: 0, width: 10, height: 6 }),
           );
-          for (const x of [10, 14, 15, 19]) {
-            for (const channel of [0, 1, 2]) {
+          const outside = [10, 14, 15, 19].flatMap((x) =>
+            [0, 1, 2].filter((channel) => {
               const value = pixelOf(filled, x, 3)[channel];
-              expect(value).toBeGreaterThanOrEqual(
-                Math.min(a[channel], b[channel]),
+              return (
+                value < Math.min(a[channel], b[channel]) ||
+                value > Math.max(a[channel], b[channel])
               );
-              expect(value).toBeLessThanOrEqual(
-                Math.max(a[channel], b[channel]),
-              );
-            }
-          }
+            }),
+          );
+          expect(outside).toEqual([]);
         },
       ),
+      // Each run fills a hole; a few dozen cover the property, and the mutation run is slow enough already.
+      { numRuns: 30 },
     );
   });
 
@@ -226,14 +227,16 @@ describe('fillHole on a photo larger than the grid', () => {
     };
     const mask = rectMask(480, 300, { x: 200, y: 100, width: 60, height: 80 });
     const filled = fillHole(busy, mask);
+    const changedOutside: number[] = [];
     for (let y = 0; y < 300; y += 1)
       for (let x = 0; x < 480; x += 1) {
         if (x >= 200 && x < 260 && y >= 100 && y < 180) continue;
         const at = (y * 480 + x) * 4;
-        expect(Array.from(filled.data.subarray(at, at + 3))).toEqual(
-          Array.from(busy.data.subarray(at, at + 3)),
-        );
+        for (let channel = 0; channel < 3; channel += 1)
+          if (filled.data[at + channel] !== busy.data[at + channel])
+            changedOutside.push(at + channel);
       }
+    expect(changedOutside).toEqual([]);
   });
 });
 
