@@ -5,8 +5,7 @@ import { workerScope } from '../exposure/workerScope';
 import { serveRequests } from '../exposure/workerServe';
 import { createSingleService } from '../vision/pipeline/singleService';
 
-// The single-photo worker: its own script, so the ML runtime stays out of the burst workers' bundle.
-// First, before the ML runtime is imported to do anything: nothing in this worker may reach any origin but the app's own.
+// Its own script keeps the ML runtime out of the burst workers; first of all, nothing here may reach another origin.
 allowOnlyOwnOrigin(self);
 
 const scope = workerScope();

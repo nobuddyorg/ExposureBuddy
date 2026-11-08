@@ -4,11 +4,7 @@ import type { GrayImage } from '../types';
 /** √(π/2) / 6: turns the mean absolute response of the Laplacian-difference mask below into a standard deviation. */
 const IMMERKAER_SCALE = Math.sqrt(Math.PI / 2) / 6;
 
-/**
- * The standard deviation of the sensor noise in `image`, in grey levels, by Immerkær's fast estimate:
- * the mean absolute response of a mask that cancels any plane and any ramp, so smooth scenes read as noise only.
- * Edges and fine texture leak in and raise it; it is an upper bound, which is the safe side for choosing how much to smooth.
- */
+/** Immerkær's estimate of the sensor noise in grey levels; edges and texture leak in, so it is an upper bound. */
 export function noiseLevel(image: GrayImage): number {
   const { width, height, data } = image;
   if (width < 3 || height < 3) return 0;

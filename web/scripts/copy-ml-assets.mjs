@@ -1,5 +1,4 @@
-// Copies the MediaPipe Wasm runtime from node_modules into public/ml/, where the export serves it beside the model.
-// `npm run dev` and `npm run build` run it first; the copies are not committed, so the runtime always matches the locked package.
+// Copies the MediaPipe Wasm runtime from node_modules into public/ml/ before dev and build; the copies are not committed.
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

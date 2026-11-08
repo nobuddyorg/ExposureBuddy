@@ -99,10 +99,7 @@ function fillUnknown(grid: Grid): void {
 /** Rounds of smoothing over the filled cells: enough for a fill to settle across a hole that spans most of the grid. */
 const RELAX_ROUNDS = 120;
 
-/**
- * Lets the colour of every filled cell settle to the mean of its neighbours, the known cells holding still.
- * The ring fill alone leaves diamond-shaped steps; settled, the fill is the smooth blend of the colours around the hole.
- */
+/** Lets every filled cell settle to the mean of its neighbours, known cells fixed: the ring fill alone leaves diamond steps. */
 function relax(grid: Grid, filled: readonly number[]): void {
   for (let round = 0; round < RELAX_ROUNDS; round += 1) {
     // Every cell is known by now, so each block holds at least the cell itself.
@@ -136,10 +133,7 @@ function colorAt(grid: Grid, x: number, y: number, channel: number): number {
   return top * (1 - fy) + bottom * fy;
 }
 
-/**
- * `image` with the hole (mask ≥ 128) replaced by a smooth guess of what lay behind it: the colours around it, spread inwards.
- * A photo with nothing outside the hole has nothing to spread, and comes back as it is.
- */
+/** `image` with the hole (mask ≥ 128) replaced by the colours around it, spread inwards; with nothing around it, a copy. */
 export function fillHole(image: RgbaImage, hole: GrayImage): RgbaImage {
   const data = Uint8ClampedArray.from(image.data);
   const grid = sampleGrid(image, hole);

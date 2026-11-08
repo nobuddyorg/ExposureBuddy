@@ -1,8 +1,12 @@
 import { expect, test } from '../fixture';
 
+import { expectNoSeriousA11yViolations } from '../axe';
 import { fixturePath } from '../helpers';
 
 test.use({ locale: 'en-GB' });
+
+// Reduced motion: axe otherwise samples a fading screen mid-transition and reports blended colours as a contrast failure.
+test.use({ reducedMotion: 'reduce' });
 
 // The first run downloads about 17 MB from the local server and starts the Wasm runtime on a CI runner.
 const SINGLE_TIMEOUT = 120_000;
@@ -194,6 +198,33 @@ test.describe('one photo, no burst', () => {
       timeout: SINGLE_TIMEOUT,
     });
     await context.setOffline(false);
+  });
+});
+
+test.describe('one photo, accessibility', () => {
+  test('the picker card, the result and the error screen have no serious or critical violations', async ({
+    on,
+    page,
+  }, testInfo) => {
+    test.setTimeout(SINGLE_TIMEOUT * 2);
+    const app = on(page);
+    await openWith(app, 'single/person.png');
+    await expect(app.picker.locators.buttons.singlePhoto).toBeVisible();
+    await expectNoSeriousA11yViolations(page, testInfo);
+
+    await app.picker.do.singlePhoto();
+    await expect(app.result.locators.canvas).toBeVisible({
+      timeout: SINGLE_TIMEOUT,
+    });
+    await app.result.do.openControls();
+    await expect(app.result.locators.effect).toBeVisible();
+    await expectNoSeriousA11yViolations(page, testInfo);
+
+    await app.result.do.startOver();
+    await app.picker.do.addPhotos([fixturePath('single/empty.png')]);
+    await app.picker.do.singlePhoto();
+    await expect(app.pipelineError()).toBeVisible({ timeout: SINGLE_TIMEOUT });
+    await expectNoSeriousA11yViolations(page, testInfo);
   });
 });
 

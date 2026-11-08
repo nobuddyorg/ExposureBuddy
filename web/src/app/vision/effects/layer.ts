@@ -1,10 +1,7 @@
 import { indices } from '../indices';
 import type { GrayImage, Rect, RgbaImage } from '../types';
 
-/**
- * Premultiplied RGBA as floats, four per pixel, all on the 0–255 scale: colour already multiplied by coverage.
- * It is the people lifted off the photo; whatever blurs or moves them can be laid over the plate again.
- */
+/** Premultiplied RGBA floats, four per pixel on the 0–255 scale: the people lifted off the photo, to be moved and laid back. */
 export interface Layer {
   readonly width: number;
   readonly height: number;

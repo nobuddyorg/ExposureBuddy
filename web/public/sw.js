@@ -10,8 +10,7 @@ function cacheNameFor(search) {
 
 const CACHE_NAME = cacheNameFor(self.location.search);
 
-// The model and its Wasm runtime change rarely and weigh 17 MB: they outlive builds in a cache of their own.
-// Bump the number when public/ml/ ships a different model or runtime.
+// 17 MB that change rarely outlive builds in a cache of their own; bump the number when public/ml/ changes.
 const ML_CACHE_NAME = `${CACHE_PREFIX}ml-1`;
 
 // The prefix spares other sites' caches: every project page of an account shares one github.io origin.

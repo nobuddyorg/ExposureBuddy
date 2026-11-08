@@ -27,10 +27,7 @@ export function smokeDrift(
   return { x: (noiseX - 0.5) * reach * 0.25, y: reach * 0.2 * noiseY };
 }
 
-/**
- * The share of the cloud that stays at a point: `strength` tears wisps out where the fine `noise` is low,
- * and the whole cloud thins by up to 40 % as `strength` rises.
- */
+/** The share of the cloud kept at a point: wisps torn where the fine `noise` is low, the whole cloud thinned up to 40 %. */
 export function smokeKeep(strength: number, noise: number): number {
   return (1 - strength * (1 - noise)) * (1 - 0.4 * strength);
 }

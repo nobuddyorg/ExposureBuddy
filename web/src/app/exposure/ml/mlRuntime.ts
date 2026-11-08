@@ -14,10 +14,7 @@ export interface VisionAssets {
   release(): void;
 }
 
-/**
- * The one place a model and the Wasm runtime come from: the app's own `assetBase` folder, never another host.
- * Both are fetched here, side by side, so the screen can show one honest progress bar; MediaPipe then reads the binary from memory.
- */
+/** The model and the Wasm runtime, fetched side by side from the app's own `assetBase` folder, with one progress. */
 export async function loadVisionAssets(
   assetBase: string,
   modelFile: string,

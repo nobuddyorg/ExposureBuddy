@@ -17,11 +17,7 @@ function refusal(url: URL): Error {
   );
 }
 
-/**
- * Makes `scope` refuse every request that is not to its own origin (`blob:` and `data:` stay local).
- * A worker served from a static host gets no CSP of its own, and MediaPipe's task library posts usage statistics to Google
- * whenever a task closes and offers no switch to stop it; this is what keeps "no request leaves the app" true for code we do not write.
- */
+/** Makes `scope` refuse every request to another origin (`blob:` and `data:` stay local): MediaPipe phones home otherwise. */
 export function allowOnlyOwnOrigin(scope: NetworkScope): void {
   const check = (target: string | URL | Request): void => {
     const raw = target instanceof Request ? target.url : target;
