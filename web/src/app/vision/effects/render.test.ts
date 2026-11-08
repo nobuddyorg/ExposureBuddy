@@ -9,7 +9,12 @@ import {
   solidImage,
   withRect,
 } from './effects.test-support';
-import { prepareScene, reachPixels, renderScene } from './render';
+import {
+  featherRadius,
+  prepareScene,
+  reachPixels,
+  renderScene,
+} from './render';
 
 const BACKGROUND = [100, 100, 100, 255];
 const PERSON = { x: 90, y: 30, width: 20, height: 60 };
@@ -73,23 +78,22 @@ describe('prepareScene', () => {
   });
 });
 
-describe('prepareScene on a larger photo', () => {
-  it('feathers by a share of the long edge: one pixel at 200, two at 800', () => {
+describe('featherRadius', () => {
+  it('is a 400th of the long edge, rounded, and never less than one pixel', () => {
+    expect(featherRadius({ width: 200, height: 120 })).toBe(1);
+    expect(featherRadius({ width: 120, height: 200 })).toBe(1);
+    expect(featherRadius({ width: 10, height: 10 })).toBe(1);
+    expect(featherRadius({ width: 800, height: 600 })).toBe(2);
+    expect(featherRadius({ width: 600, height: 800 })).toBe(2);
+    expect(featherRadius({ width: 1599, height: 1200 })).toBe(4);
+    expect(featherRadius({ width: 1000, height: 1000 })).toBe(3);
+  });
+
+  it('is what prepareScene feathers by: the people reach no further than twice that past the mask', () => {
     const scene = makeScene();
-    const big = withRect(
-      solidImage(800, 600, [100, 100, 100]),
-      { x: 360, y: 200, width: 80, height: 240 },
-      [255, 0, 0],
-    );
-    const bigScene = prepareScene(
-      big,
-      rectMask(800, 600, { x: 360, y: 200, width: 80, height: 240 }),
-    );
-    if (!bigScene) throw new Error('the scene should have a person');
-    expect(360 - bigScene.bounds.x).toBeGreaterThanOrEqual(3);
-    expect(360 - bigScene.bounds.x).toBeLessThanOrEqual(4);
-    expect(PERSON.x - scene.bounds.x).toBeGreaterThanOrEqual(1);
-    expect(PERSON.x - scene.bounds.x).toBeLessThanOrEqual(2);
+    const spread = PERSON.x - scene.bounds.x;
+    expect(spread).toBeGreaterThanOrEqual(1);
+    expect(spread).toBeLessThanOrEqual(2 * featherRadius(photo));
   });
 });
 

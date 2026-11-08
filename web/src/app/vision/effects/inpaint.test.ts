@@ -145,21 +145,24 @@ describe('fillHole', () => {
   });
 
   it('works on a photo large enough for a coarse grid', () => {
-    const image = solidImage(400, 300, [30, 60, 90]);
+    const image = solidImage(321, 201, [30, 60, 90]);
     const filled = fillHole(
       image,
-      rectMask(400, 300, { x: 100, y: 80, width: 200, height: 140 }),
+      rectMask(321, 201, { x: 80, y: 50, width: 160, height: 100 }),
     );
-    expect(pixelOf(filled, 200, 150)).toEqual([30, 60, 90, 255]);
+    expect(pixelOf(filled, 160, 100)).toEqual([30, 60, 90, 255]);
   });
 });
 
-// A photo larger than the colour grid (480 × 300 puts three pixels in a cell), with a steep known colour field:
+// A photo larger than the colour grid (321 × 201 puts three pixels in a cell), with a steep known colour field:
 // red climbs 2 levels per pixel across each 120 px, green 3 per pixel down each 75 px. Holes sit on cell centres,
 // where the cell colours reproduce the field exactly, so any slip in the grid mapping shows as whole levels.
+const FIELD_WIDTH = 321;
+const FIELD_HEIGHT = 201;
+
 function field(): RgbaImage {
-  const width = 480;
-  const height = 300;
+  const width = FIELD_WIDTH;
+  const height = FIELD_HEIGHT;
   const data = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y += 1)
     for (let x = 0; x < width; x += 1)
@@ -168,9 +171,9 @@ function field(): RgbaImage {
 }
 
 function holeAt(points: readonly [number, number][], value = 255) {
-  const data = new Uint8Array(480 * 300);
-  for (const [x, y] of points) data[y * 480 + x] = value;
-  return { width: 480, height: 300, data };
+  const data = new Uint8Array(FIELD_WIDTH * FIELD_HEIGHT);
+  for (const [x, y] of points) data[y * FIELD_WIDTH + x] = value;
+  return { width: FIELD_WIDTH, height: FIELD_HEIGHT, data };
 }
 
 describe('fillHole on a photo larger than the grid', () => {
@@ -181,9 +184,9 @@ describe('fillHole on a photo larger than the grid', () => {
       [100, 40],
       [220, 130],
       [1, 1],
-      [478, 1],
-      [1, 298],
-      [478, 298],
+      [319, 1],
+      [1, 199],
+      [319, 199],
     ];
     const filled = fillHole(image, holeAt(points));
     for (const [x, y] of points) {
@@ -194,11 +197,11 @@ describe('fillHole on a photo larger than the grid', () => {
   });
 
   it('holds the last cell colour past the last cell centre, instead of reaching beyond the grid', () => {
-    const filled = fillHole(field(), holeAt([[479, 299]]));
-    // The last cell is 477–479 by 297–299; the fill is the mean of its eight known pixels, (2124 − 238) / 8 and (1971 − 222) / 8.
-    const [r, g] = pixelOf(filled, 479, 299);
-    expect(r).toBeCloseTo(235.75, 0);
-    expect(g).toBeCloseTo(218.625, 0);
+    const filled = fillHole(field(), holeAt([[320, 200]]));
+    // The last cell is 318–320 by 198–200; the fill is the mean of its eight known pixels, (1422 − 160) / 8 and (1323 − 150) / 8.
+    const [r, g] = pixelOf(filled, 320, 200);
+    expect(r).toBeCloseTo(157.75, 0);
+    expect(g).toBeCloseTo(146.625, 0);
   });
 
   it('counts a mask value of 128 as the hole and 127 as the photo', () => {
@@ -207,10 +210,10 @@ describe('fillHole on a photo larger than the grid', () => {
       ...image,
       data: Uint8ClampedArray.from(image.data),
     };
-    marked.data.set([255, 255, 255, 255], (31 * 480 + 31) * 4);
-    marked.data.set([255, 255, 255, 255], (31 * 480 + 35) * 4);
+    marked.data.set([255, 255, 255, 255], (31 * FIELD_WIDTH + 31) * 4);
+    marked.data.set([255, 255, 255, 255], (31 * FIELD_WIDTH + 35) * 4);
     const mask = holeAt([[31, 31]], 128);
-    mask.data[31 * 480 + 35] = 127;
+    mask.data[31 * FIELD_WIDTH + 35] = 127;
     const filled = fillHole(marked, mask);
     expect(pixelOf(filled, 31, 31).slice(0, 2)).toEqual([62, 93]);
     expect(pixelOf(filled, 35, 31)).toEqual([255, 255, 255, 255]);
@@ -219,19 +222,19 @@ describe('fillHole on a photo larger than the grid', () => {
   it('leaves every pixel outside the hole exactly as it was, even in a busy photo', () => {
     const random = seededRandom(3);
     const busy = {
-      width: 480,
-      height: 300,
-      data: Uint8ClampedArray.from({ length: 480 * 300 * 4 }, (_, i) =>
+      width: 200,
+      height: 120,
+      data: Uint8ClampedArray.from({ length: 200 * 120 * 4 }, (_, i) =>
         i % 4 === 3 ? 255 : Math.floor(random() * 256),
       ),
     };
-    const mask = rectMask(480, 300, { x: 200, y: 100, width: 60, height: 80 });
+    const mask = rectMask(200, 120, { x: 80, y: 30, width: 50, height: 40 });
     const filled = fillHole(busy, mask);
     const changedOutside: number[] = [];
-    for (let y = 0; y < 300; y += 1)
-      for (let x = 0; x < 480; x += 1) {
-        if (x >= 200 && x < 260 && y >= 100 && y < 180) continue;
-        const at = (y * 480 + x) * 4;
+    for (let y = 0; y < 120; y += 1)
+      for (let x = 0; x < 200; x += 1) {
+        if (x >= 80 && x < 130 && y >= 30 && y < 70) continue;
+        const at = (y * 200 + x) * 4;
         for (let channel = 0; channel < 3; channel += 1)
           if (filled.data[at + channel] !== busy.data[at + channel])
             changedOutside.push(at + channel);

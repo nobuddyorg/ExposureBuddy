@@ -26,9 +26,17 @@ export interface Scene {
 const longEdgeOf = (image: { width: number; height: number }) =>
   Math.max(image.width, image.height);
 
+/** How far the mask is feathered, in pixels: a share of the long edge, at least one. */
+export function featherRadius(image: {
+  width: number;
+  height: number;
+}): number {
+  return Math.max(1, Math.round(longEdgeOf(image) * FEATHER_SHARE));
+}
+
 /** Splits `image` into the people under `mask` and the empty scene behind them; null when the mask is empty. */
 export function prepareScene(image: RgbaImage, mask: GrayImage): Scene | null {
-  const feather = Math.max(1, Math.round(longEdgeOf(image) * FEATHER_SHARE));
+  const feather = featherRadius(image);
   const coverage = featherMask(mask, feather);
   const bounds = maskBounds(coverage, 0);
   if (!bounds) return null;
