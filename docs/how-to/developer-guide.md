@@ -280,6 +280,19 @@ the build; commit what it writes. `src/app/manifest.test.ts` checks that every
 icon `site.webmanifest` names exists at the size it claims, and
 `e2e/public/pwa.spec.ts` that the deployed base path serves each one.
 
+## The ML assets
+
+`npm run dev` and `npm run build` first run `scripts/copy-ml-assets.mjs`, which
+copies the MediaPipe Wasm runtime (the classic-script build) from
+`node_modules/@mediapipe/tasks-vision/wasm/` into `public/ml/`. The copies are
+gitignored; the model beside them, `deeplab_v3.tflite`, is committed. To change
+the model or the runtime: replace the file or bump the package, record the new
+SHA-256, size and licence in the
+[design decision](../explanation/design-decisions.md#why-the-kernels-are-plain-typescript-and-where-wasm-and-ml-come-in),
+and bump `ML_CACHE_NAME` in `public/sw.js` so installed copies refresh. The
+stacking benchmark is `npx vitest run src/app/vision/stackingQuality.test.ts`;
+it prints its table with the run.
+
 ## Regenerate the e2e fixtures
 
 ```bash
@@ -290,8 +303,10 @@ npm run fixtures
 `scripts/make-fixtures.mjs` writes `e2e/fixtures/generated/` from a seeded
 generator, so every run produces byte-identical files: a textured street with
 a walker seen through small rotations, translations, scale jitter and gain
-jitter, a tiny burst, two unrelated scenes for the error journey, and a text
-file that is not an image. Each burst's `meta.json` records every frame's
+jitter, a tiny burst, two unrelated scenes for the error journey, a street with
+a standing figure and the same street empty for the single-photo mode (a figure
+with a face and clothes: DeepLab does not take plain shapes for a person), and a
+text file that is not an image. Each burst's `meta.json` records every frame's
 transform and gain and the reference index, which the journey spec uses to
 compute the expected scene. The directory is gitignored: change the generator,
 not the files ([why](../explanation/design-decisions.md#why-the-e2e-fixtures-are-generated-never-committed)).

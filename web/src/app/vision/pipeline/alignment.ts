@@ -1,13 +1,16 @@
 import { detectAndDescribe } from '../features/orb';
 import { isSaneHomography, scaleHomography } from '../geometry/homography';
 import { ransacHomography } from '../geometry/ransac';
+import { boxBlurGray } from '../image/blur';
 import { rgbaToGray } from '../image/gray';
+import { denoiseRadius, noiseLevel } from '../image/noiseLevel';
 import { fitWithin, resizeGray } from '../image/resize';
 import { sharpness } from '../image/sharpness';
 import { matchDescriptors } from '../matching/hamming';
 import type {
   AlignedFrame,
   FeatureSet,
+  GrayImage,
   Homography,
   Point,
   RansacResult,
@@ -54,11 +57,19 @@ export interface ReferenceAnalysis {
   readonly sharpness: number;
 }
 
+/** ORB features of `gray`, found on a copy smoothed as far as its noise calls for: noise makes corners that no other frame has. */
+function describeSmoothed(gray: GrayImage): FeatureSet {
+  return detectAndDescribe(boxBlurGray(gray, denoiseRadius(noiseLevel(gray))));
+}
+
 /** The reference's features and sharpness, from one grayscale copy at the alignment size. */
 export function analyseReference(image: RgbaImage): ReferenceAnalysis {
   const alignmentSize = fitWithin(image, ALIGNMENT_LONG_EDGE);
   const gray = resizeGray(rgbaToGray(image), alignmentSize);
-  return { features: detectAndDescribe(gray), sharpness: sharpness(gray) };
+  return {
+    features: describeSmoothed(gray),
+    sharpness: sharpness(gray),
+  };
 }
 
 type HomographyEstimator = (
@@ -87,7 +98,7 @@ export function alignToReference(
 ): AlignOutcome {
   const { estimate } = { ...DEFAULT_ALIGN_OPTIONS, ...options };
   const gray = resizeGray(rgbaToGray(image), reference);
-  const features = detectAndDescribe(gray);
+  const features = describeSmoothed(gray);
   const matches = matchDescriptors(features, reference);
   // Even a perfect fit could not be trusted on too few matches, so none is attempted.
   if (!explainsEnough(matches.length, matches.length)) {

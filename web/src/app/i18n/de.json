@@ -48,7 +48,11 @@
     "reference": "Referenz",
     "use_as_reference": "Die anderen auf Foto {index} ausrichten",
     "remove": "Foto {index} entfernen",
-    "reference_hint": "Die anderen Fotos werden auf das mit Referenz markierte ausgerichtet, das Ergebnis behält dessen Bildausschnitt. Ein anderes Foto antippen, um es stattdessen zu nehmen, oder ×, um ein Foto wegzulassen."
+    "reference_hint": "Die anderen Fotos werden auf das mit Referenz markierte ausgerichtet, das Ergebnis behält dessen Bildausschnitt. Ein anderes Foto antippen, um es stattdessen zu nehmen, oder ×, um ein Foto wegzulassen.",
+    "single_title": "Nur ein Foto?",
+    "single_body": "Verwandle die Menschen darin in Bewegungsunschärfe, einen Wischer, Flüssigkeit oder Rauch. Der Rest der Szene bleibt scharf.",
+    "single_note": "Die Menschen werden auf diesem Gerät erkannt. Beim ersten Mal wird einmalig ein Erkennungsmodell von etwa 17 MB geladen und für die Offline-Nutzung gespeichert.",
+    "single_action": "Menschen in Geister verwandeln"
   },
   "progress": {
     "title": "Kombinieren",
@@ -64,7 +68,13 @@
     "frame_blurred": "verwackelt",
     "frame_skipped": "übersprungen",
     "frame_unreadable": "nicht lesbar",
-    "frame_detail": "{inliers} von {matches} Treffern"
+    "frame_detail": "{inliers} von {matches} Treffern",
+    "single_title": "Menschen werden zu Geistern",
+    "decode": "Foto wird gelesen",
+    "model": "Erkennungsmodell wird geladen",
+    "model_count": "{done} von {total} MB",
+    "detect": "Menschen werden gesucht",
+    "prepare": "Effekt wird vorbereitet"
   },
   "result": {
     "title": "Deine Langzeitbelichtung",
@@ -116,7 +126,8 @@
     "diagnostics_hint": "Wenn das öfter passiert, helfen diese Angaben bei der Fehlersuche. Sie enthalten kein Foto und keinen Dateinamen.",
     "copy_diagnostics": "Diagnoseinfo kopieren",
     "copied": "Kopiert. Zum Einfügen in eine Fehlermeldung.",
-    "copy_failed": "Kopieren hat nicht geklappt. Diagnoseinfo öffnen und den Text von Hand kopieren."
+    "copy_failed": "Kopieren hat nicht geklappt. Diagnoseinfo öffnen und den Text von Hand kopieren.",
+    "no_people": "Auf diesem Foto wurden keine Menschen gefunden. Versuche ein Foto, auf dem die Menschen größer und deutlicher zu sehen sind, oder kombiniere stattdessen eine Serie."
   },
   "help": {
     "title": "So funktioniert ExposureBuddy",
@@ -151,7 +162,7 @@
     "photos_title": "Deine Fotos",
     "photos_body": "Die Fotos werden in den Speicher dieses Browser-Tabs gelesen, dort kombiniert und angezeigt. Sie werden nicht hochgeladen, nicht gespeichert und nicht weitergegeben; Neuladen oder Schließen der Seite vergisst sie. Die App könnte sie nicht einmal versehentlich verschicken: Ihre Sicherheitsrichtlinie erlaubt Verbindungen nur zur eigenen Adresse.",
     "stored_title": "Was auf deinem Gerät bleibt",
-    "stored_body": "Deine Wahl von Sprache und Farbschema, im lokalen Speicher des Browsers, und eine Kopie der App selbst, im Cache des Browsers, damit sie auch offline startet. Es gibt keine Cookies und sonst nichts. Löschst du die Website-Daten im Browser, ist alles weg.",
+    "stored_body": "Deine Wahl von Sprache und Farbschema, im lokalen Speicher des Browsers, und eine Kopie der App selbst, im Cache des Browsers, damit sie auch offline startet. Nutzt du den Einzelfoto-Modus, liegen auch das Erkennungsmodell und seine Laufzeit (etwa 17 MB) in diesem Cache, damit Menschen auch offline erkannt werden. Es gibt keine Cookies und sonst nichts. Löschst du die Website-Daten im Browser, ist alles weg.",
     "saved_title": "Das gespeicherte Bild",
     "saved_body": "Das JPEG, das du speicherst oder teilst, enthält Datum und Uhrzeit der Aufnahme des Referenzfotos, damit deine Galerie es neben die Serie sortiert. Sonst kommt nichts aus deinen Fotos hinein: kein Ort, kein Kameramodell, keine Seriennummer.",
     "reports_title": "Fehlerberichte",
@@ -160,5 +171,23 @@
     "hosting_body": "Die App wird von GitHub Pages ausgeliefert. Wie jeder Webserver erhält GitHub beim Laden der App die üblichen Daten jeder Anfrage, etwa deine IP-Adresse und deinen Browser, und verarbeitet sie nach seiner eigenen Datenschutzerklärung. Die App selbst hat kein Konto, keine Statistik, kein Tracking und keine Skripte von Dritten.",
     "hosting_link": "Datenschutzerklärung von GitHub",
     "back": "Zurück zur App"
+  },
+  "single": {
+    "title": "Dein Geisterfoto",
+    "stats": "{width} × {height} px",
+    "effect": "Effekt",
+    "effect_motion": "Bewegungsunschärfe",
+    "effect_motion_help": "Menschen verwischen entlang einer Linie, als hätten sie sich während der Belichtung bewegt.",
+    "effect_smear": "Wischer",
+    "effect_smear_help": "Menschen werden entlang einer Linie gezogen und verblassen hinter ihrer Bewegung.",
+    "effect_liquid": "Flüssig",
+    "effect_liquid_help": "Menschen fließen und zerschmelzen, als bestünden sie aus Flüssigkeit.",
+    "effect_smoke": "Rauch",
+    "effect_smoke_help": "Menschen lösen sich in ziehenden Rauch auf, durch den die Szene scheint.",
+    "strength": "Stärke",
+    "strength_help": "Wie weit der Effekt reicht",
+    "angle": "Richtung",
+    "angle_help": "Richtung der Unschärfe oder des Wischers in Grad: 0 ist nach rechts, 90 nach unten",
+    "alt": "Foto, auf dem die Menschen zu Geistern geworden sind"
   }
 }

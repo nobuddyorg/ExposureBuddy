@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FrameReport } from '../vision/types';
-import { diagnosticReport, type FailedRun } from './diagnostics';
+import {
+  diagnosticReport,
+  singleDiagnosticReport,
+  type FailedRun,
+  type FailedSingleRun,
+} from './diagnostics';
 
 const frame = (index: number, status: FrameReport['status']): FrameReport => ({
   index,
@@ -75,5 +80,35 @@ describe('diagnosticReport', () => {
     });
     expect(decode).toMatch(/\nFailure: decode_failed$/);
     expect(decode).not.toContain('IMG_0042');
+  });
+});
+
+describe('singleDiagnosticReport', () => {
+  const run = {
+    progress: { stage: 'model', done: 5, total: 17 },
+    failure: { kind: 'unknown', message: 'fetch failed' },
+  } as const;
+  const report = (failure: FailedSingleRun['failure'] = run.failure) =>
+    singleDiagnosticReport({
+      version: '0.1.0 (abc1234)',
+      userAgent: 'TestBrowser/1.0',
+      device: { poolSize: 3, budgetBytes: 512 * 1024 * 1024 },
+      run: { ...run, failure },
+    });
+
+  it('lists the version, browser, device, the stage the run stopped at and the failure, one per line', () => {
+    expect(report().split('\n')).toEqual([
+      'ExposureBuddy 0.1.0 (abc1234)',
+      'Browser: TestBrowser/1.0',
+      'Device: 512 MiB budget',
+      'Run: one photo, stopped at model (5 of 17)',
+      'Failure: unknown: fetch failed',
+    ]);
+  });
+
+  it('names only the kind of a failure that carries a file name', () => {
+    const text = report({ kind: 'decode_failed', name: 'IMG_1.HEIC' });
+    expect(text).toMatch(/\nFailure: decode_failed$/);
+    expect(text).not.toContain('IMG_1');
   });
 });

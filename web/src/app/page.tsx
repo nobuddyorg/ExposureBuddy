@@ -7,15 +7,21 @@ import AppShell from './components/AppShell';
 import PhotoPicker from './components/PhotoPicker';
 import PipelineError from './components/PipelineError';
 import Progress from './components/Progress';
+import SingleProgress from './components/Single/SingleProgress';
+import SingleResult from './components/Single/SingleResult';
 import Result from './components/Result';
 import {
   readDeviceProfile,
   type DeviceNavigator,
 } from './exposure/deviceProfile';
-import { diagnosticReport } from './exposure/diagnostics';
+import {
+  diagnosticReport,
+  singleDiagnosticReport,
+} from './exposure/diagnostics';
 import { isPipelineSupported } from './exposure/support';
 import { useExposure } from './exposure/useExposure';
 import { usePickedPhotos } from './exposure/usePickedPhotos';
+import { useSinglePhoto } from './exposure/useSinglePhoto';
 import { useReferenceSize } from './exposure/useReferenceSize';
 import { useShotDate } from './exposure/useShotDate';
 import { browserWorkerFactory } from './exposure/workerFactory';
@@ -44,6 +50,7 @@ export default function Home() {
     assumeSupported,
   );
   const exposure = useExposure(browserWorkerFactory, device);
+  const single = useSinglePhoto(browserWorkerFactory, device);
   const picked = usePickedPhotos();
   // Empty: the reference position is −1, which `at` answers with undefined.
   const referencePhoto = picked.photos.at(picked.reference);
@@ -59,19 +66,30 @@ export default function Home() {
       quality,
     );
   // Arrows over the hook's methods: the controller is an object, and unbound-method has a point.
-  const backToPicker = () => exposure.reset();
-  const startOver = () => {
+  const backToPicker = () => {
     exposure.reset();
+    single.reset();
+  };
+  const startOver = () => {
+    backToPicker();
     picked.clear();
   };
+  const singlePhoto = () => {
+    if (referencePhoto) single.start(referencePhoto.file);
+  };
 
+  // Only one of the two runs is ever off idle: starting either one needs the picker, which only idle shows.
+  const status =
+    single.state.status === 'idle'
+      ? exposure.state.status
+      : single.state.status;
   const { state } = exposure;
-  useFocusOnScreenChange(state.status);
-  useWakeLock(state.status === 'running');
-  useLeaveWarning(state.status === 'running');
+  useFocusOnScreenChange(status);
+  useWakeLock(status === 'running');
+  useLeaveWarning(status === 'running');
   return (
     <AppShell>
-      {state.status === 'idle' && (
+      {status === 'idle' && (
         <PhotoPicker
           photos={picked.photos}
           reference={picked.reference}
@@ -84,10 +102,36 @@ export default function Home() {
           onChooseReference={picked.chooseReference}
           onClear={picked.clear}
           onCombine={combine}
+          onSinglePhoto={singlePhoto}
         />
       )}
       {state.status === 'running' && (
         <Progress progress={state.progress} onCancel={backToPicker} />
+      )}
+      {single.state.status === 'running' && (
+        <SingleProgress
+          progress={single.state.progress}
+          onCancel={backToPicker}
+        />
+      )}
+      {single.state.status === 'ready' && (
+        <SingleResult
+          result={single.state.result}
+          onStartOver={startOver}
+          shotDate={shotDate}
+        />
+      )}
+      {single.state.status === 'failed' && (
+        <PipelineError
+          failure={single.state.failure}
+          onRetry={backToPicker}
+          diagnostics={singleDiagnosticReport({
+            version: APP_VERSION,
+            userAgent: navigator.userAgent,
+            device,
+            run: single.state,
+          })}
+        />
       )}
       {state.status === 'ready' && (
         <Result

@@ -10,13 +10,24 @@ function cacheNameFor(search) {
 
 const CACHE_NAME = cacheNameFor(self.location.search);
 
+// The model and its Wasm runtime change rarely and weigh 17 MB: they outlive builds in a cache of their own.
+// Bump the number when public/ml/ ships a different model or runtime.
+const ML_CACHE_NAME = `${CACHE_PREFIX}ml-1`;
+
 // The prefix spares other sites' caches: every project page of an account shares one github.io origin.
 function isStaleCache(key, current) {
-  return key.startsWith(CACHE_PREFIX) && key !== current;
+  return (
+    key.startsWith(CACHE_PREFIX) && key !== current && key !== ML_CACHE_NAME
+  );
 }
 
 function isHashedStaticAsset(pathname) {
   return pathname.includes('/_next/static/');
+}
+
+// Fetched only when a photo's people are to be found, then kept: that is what lets the mode work offline.
+function isMlAsset(pathname) {
+  return pathname.includes('/ml/');
 }
 
 // The shell is the page, the manifest and the logo the header draws; the icons are only for the installer.
@@ -28,13 +39,13 @@ function isAppShellRequest(pathname, mode) {
   );
 }
 
-async function cacheFirst(request) {
+async function cacheFirst(request, cacheName = CACHE_NAME) {
   const cached = await caches.match(request);
   // A copy takes the request's URL; the stored one lost the `#params=` fragment Turbopack's worker chunk boots from.
   if (cached) return new Response(cached.body, cached);
   const response = await fetch(request);
   if (response.ok) {
-    const cache = await caches.open(CACHE_NAME);
+    const cache = await caches.open(cacheName);
     void cache.put(request, response.clone());
   }
   return response;
@@ -125,6 +136,8 @@ self.addEventListener('fetch', (event) => {
 
   if (isHashedStaticAsset(url.pathname)) {
     event.respondWith(cacheFirst(request));
+  } else if (isMlAsset(url.pathname)) {
+    event.respondWith(cacheFirst(request, ML_CACHE_NAME));
   } else if (isAppShellRequest(url.pathname, request.mode)) {
     event.respondWith(networkFirst(request));
   }

@@ -1,3 +1,4 @@
+import { fitWithin } from '../vision/image/resize';
 import { chooseWorkingSize } from '../vision/pipeline/budget';
 import type {
   DecodedReference,
@@ -70,6 +71,22 @@ export async function decodeAt(file: Blob, target: Size): Promise<RgbaImage> {
   const bitmap = await toBitmap(file);
   try {
     return drawScaled(bitmap, target);
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** Decodes `file` to the largest size that fits `longEdge`, never larger than the photo. */
+export async function decodeFitting(
+  file: Blob,
+  longEdge: number,
+): Promise<RgbaImage> {
+  const bitmap = await toBitmap(file);
+  try {
+    return drawScaled(
+      bitmap,
+      fitWithin({ width: bitmap.width, height: bitmap.height }, longEdge),
+    );
   } finally {
     bitmap.close();
   }

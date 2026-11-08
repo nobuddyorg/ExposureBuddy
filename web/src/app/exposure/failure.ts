@@ -5,6 +5,7 @@ export type PipelineFailure =
   | { readonly kind: 'unsupported' }
   | { readonly kind: 'too_few_aligned'; readonly count: number }
   | { readonly kind: 'no_overlap' }
+  | { readonly kind: 'no_people' }
   | { readonly kind: 'decode_failed'; readonly name: string }
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'out_of_memory' }
@@ -18,6 +19,8 @@ function describe(failure: PipelineFailure): string {
       return `Only ${failure.count} photos could be aligned.`;
     case 'no_overlap':
       return 'The aligned photos share no common area.';
+    case 'no_people':
+      return 'No people were found in the photo.';
     case 'decode_failed':
       return `${failure.name} could not be decoded.`;
     case 'cancelled':

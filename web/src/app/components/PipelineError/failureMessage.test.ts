@@ -36,6 +36,12 @@ describe('failureMessage', () => {
     ).toBe('errors.decode_failed{"name":"a.jpg"}');
   });
 
+  it('says that nobody was found in a single photo', () => {
+    expect(failureMessage(t, tCount, { kind: 'no_people' })).toBe(
+      'errors.no_people',
+    );
+  });
+
   it('reports a cancellation', () => {
     expect(failureMessage(t, tCount, { kind: 'cancelled' })).toBe(
       'errors.cancelled',

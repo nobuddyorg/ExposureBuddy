@@ -11,6 +11,7 @@ import { buttonClasses } from '../ui/buttonClasses';
 import { cardClasses } from '../ui/cardClasses';
 import { CombineControls } from './CombineControls';
 import { PhotoGrid } from './PhotoGrid';
+import { SinglePhotoCard } from './SinglePhotoCard';
 import { PickerNotice as NoticeRegion } from './PickerNotice';
 import { Tips } from './Tips';
 import { useDropzone } from './useDropzone';
@@ -30,6 +31,8 @@ export interface PhotoPickerProps {
   onChooseReference: (id: string) => void;
   onClear: () => void;
   onCombine: (quality: OutputQuality) => void;
+  /** Turns the people in the one picked photo into an effect; offered only while exactly one photo is picked. */
+  onSinglePhoto: () => void;
 }
 
 // A stack of three frames, drawn like ui/Icon's set: 24px grid, stroked in the current colour.
@@ -67,6 +70,7 @@ export default function PhotoPicker({
   onChooseReference,
   onClear,
   onCombine,
+  onSinglePhoto,
 }: PhotoPickerProps) {
   const { t, tCount } = useI18n();
   const titleId = useId();
@@ -191,6 +195,10 @@ export default function PhotoPicker({
       </section>
 
       <NoticeRegion notice={notice} unsupported={unsupported} />
+
+      {photos.length === 1 && (
+        <SinglePhotoCard unsupported={unsupported} onStart={onSinglePhoto} />
+      )}
 
       <CombineControls
         count={photos.length}

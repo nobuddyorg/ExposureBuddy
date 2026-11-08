@@ -46,6 +46,21 @@ describe('isHashedStaticAsset', () => {
   });
 });
 
+describe('isMlAsset', () => {
+  const isMlAsset = load<(pathname: string) => boolean>('isMlAsset');
+
+  it('matches the model and the Wasm runtime under ml/', () => {
+    expect(isMlAsset('/ExposureBuddy/ml/deeplab_v3.tflite')).toBe(true);
+    expect(isMlAsset('/ExposureBuddy/ml/vision_wasm_internal.wasm')).toBe(true);
+  });
+
+  it('does not match the shell, a hashed chunk or a name that only contains ml', () => {
+    expect(isMlAsset('/ExposureBuddy/')).toBe(false);
+    expect(isMlAsset('/ExposureBuddy/_next/static/chunks/html.js')).toBe(false);
+    expect(isMlAsset('/ExposureBuddy/xml/a.xml')).toBe(false);
+  });
+});
+
 describe('isAppShellRequest', () => {
   const isAppShellRequest =
     load<(pathname: string, mode: string) => boolean>('isAppShellRequest');
@@ -102,7 +117,7 @@ describe('cacheNameFor', () => {
 describe('isStaleCache', () => {
   const isStaleCache = load<(key: string, current: string) => boolean>(
     'isStaleCache',
-    "const CACHE_PREFIX = 'exposurebuddy-';",
+    "const CACHE_PREFIX = 'exposurebuddy-'; const ML_CACHE_NAME = 'exposurebuddy-ml-1';",
   );
 
   it("marks an earlier build's cache, and the pre-versioning one, for deletion", () => {
@@ -116,6 +131,14 @@ describe('isStaleCache', () => {
     expect(isStaleCache('exposurebuddy-new', 'exposurebuddy-new')).toBe(false);
   });
 
+  it('keeps the model cache across builds', () => {
+    expect(isStaleCache('exposurebuddy-ml-1', 'exposurebuddy-new')).toBe(false);
+  });
+
+  it('deletes the model cache of an earlier version of the model', () => {
+    expect(isStaleCache('exposurebuddy-ml-0', 'exposurebuddy-new')).toBe(true);
+  });
+
   // Every project page of a GitHub account shares one origin, and with it Cache Storage.
   it("never touches another site's cache on the same origin", () => {
     expect(isStaleCache('collectionbuddy-v1', 'exposurebuddy-new')).toBe(false);
@@ -123,10 +146,9 @@ describe('isStaleCache', () => {
 });
 
 describe('cacheFirst', () => {
-  const cacheFirst = load<(request: Request) => Promise<Response>>(
-    'cacheFirst',
-    "const CACHE_NAME = 'exposurebuddy-test';",
-  );
+  const cacheFirst = load<
+    (request: Request, cacheName?: string) => Promise<Response>
+  >('cacheFirst', "const CACHE_NAME = 'exposurebuddy-test';");
   const request = new Request(
     'https://example.test/ExposureBuddy/_next/static/chunks/1.js',
   );
@@ -448,5 +470,11 @@ describe('cache versioning', () => {
   it('serves the app shell network-first and hashed assets cache-first', () => {
     expect(source).toContain('event.respondWith(networkFirst(request));');
     expect(source).toContain('event.respondWith(cacheFirst(request));');
+  });
+
+  it('keeps the model and its runtime cache-first in the cache that outlives a build', () => {
+    expect(source).toContain(
+      'event.respondWith(cacheFirst(request, ML_CACHE_NAME));',
+    );
   });
 });

@@ -47,6 +47,7 @@ function renderPicker(overrides: Partial<PhotoPickerProps> = {}) {
     onChooseReference: vi.fn(),
     onClear: vi.fn(),
     onCombine: vi.fn(),
+    onSinglePhoto: vi.fn(),
     ...overrides,
   };
   render(
@@ -77,6 +78,7 @@ function WiredPicker({
       onChooseReference={photos.chooseReference}
       onClear={photos.clear}
       onCombine={onCombine}
+      onSinglePhoto={vi.fn()}
     />
   );
 }
@@ -433,5 +435,45 @@ describe('PhotoPicker, result size', () => {
     });
     await user.selectOptions(screen.getByTestId('quality-select'), 'high');
     expect(sizeLine()).toHaveTextContent('Smaller than the size chosen');
+  });
+});
+
+describe('PhotoPicker, single-photo mode', () => {
+  it('is offered for exactly one photo, and starts when asked', async () => {
+    const props = renderPicker({ photos: picked(['a.jpg']), reference: 0 });
+    const card = screen.getByTestId('single-photo-card');
+    expect(
+      within(card).getByRole('heading', { name: 'Only one photo?' }),
+    ).toBeVisible();
+    await userEvent.click(
+      within(card).getByRole('button', { name: 'Turn people into ghosts' }),
+    );
+    expect(props.onSinglePhoto).toHaveBeenCalledTimes(1);
+  });
+
+  it('describes the download of the model on the button', () => {
+    renderPicker({ photos: picked(['a.jpg']), reference: 0 });
+    expect(screen.getByTestId('single-photo')).toHaveAccessibleDescription(
+      /detection model of about 17 MB/,
+    );
+  });
+
+  it('is not offered with no photo or with a burst', () => {
+    renderPicker();
+    expect(screen.queryByTestId('single-photo-card')).toBeNull();
+  });
+
+  it('is not offered for a burst', () => {
+    renderPicker({ photos: picked(['a.jpg', 'b.jpg']), reference: 0 });
+    expect(screen.queryByTestId('single-photo-card')).toBeNull();
+  });
+
+  it('is disabled where the browser cannot run the pipeline', () => {
+    renderPicker({
+      photos: picked(['a.jpg']),
+      reference: 0,
+      unsupported: true,
+    });
+    expect(screen.getByTestId('single-photo')).toBeDisabled();
   });
 });

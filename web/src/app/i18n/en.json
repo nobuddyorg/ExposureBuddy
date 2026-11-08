@@ -48,7 +48,11 @@
     "reference": "Reference",
     "use_as_reference": "Align the others to photo {index}",
     "remove": "Remove photo {index}",
-    "reference_hint": "The others are aligned to the photo marked Reference, so the result keeps its framing. Tap another photo to use that one instead, or × to leave a photo out."
+    "reference_hint": "The others are aligned to the photo marked Reference, so the result keeps its framing. Tap another photo to use that one instead, or × to leave a photo out.",
+    "single_title": "Only one photo?",
+    "single_body": "Turn the people in it into motion blur, a smear, liquid or smoke. The rest of the scene stays sharp.",
+    "single_note": "People are found on this device. The first time, a detection model of about 17 MB is downloaded once and kept for offline use.",
+    "single_action": "Turn people into ghosts"
   },
   "progress": {
     "title": "Combining",
@@ -64,7 +68,13 @@
     "frame_blurred": "blurred",
     "frame_skipped": "skipped",
     "frame_unreadable": "could not be read",
-    "frame_detail": "{inliers} of {matches} matches"
+    "frame_detail": "{inliers} of {matches} matches",
+    "single_title": "Ghosting the people",
+    "decode": "Reading the photo",
+    "model": "Loading the detection model",
+    "model_count": "{done} of {total} MB",
+    "detect": "Finding people",
+    "prepare": "Preparing the effect"
   },
   "result": {
     "title": "Your long exposure",
@@ -116,7 +126,8 @@
     "diagnostics_hint": "If this keeps happening, these details help to fix it. They hold no photo and no file name.",
     "copy_diagnostics": "Copy diagnostic info",
     "copied": "Copied. Paste it into a bug report.",
-    "copy_failed": "Could not copy. Open Diagnostic info and copy the text by hand."
+    "copy_failed": "Could not copy. Open Diagnostic info and copy the text by hand.",
+    "no_people": "No people were found in this photo. Try a photo where people are larger and clearer, or combine a burst instead."
   },
   "help": {
     "title": "How ExposureBuddy works",
@@ -151,7 +162,7 @@
     "photos_title": "Your photos",
     "photos_body": "Photos are read into this browser tab's memory, combined there and shown. They are not uploaded, not stored and not shared; reloading or closing the page forgets them. The app could not send them anywhere even by mistake: its security policy only lets it connect to its own address.",
     "stored_title": "What stays on your device",
-    "stored_body": "Your choice of language and theme, in the browser's local storage, and a copy of the app itself, in the browser's cache, so it opens offline. There are no cookies and nothing else. Clearing this site's data in your browser removes all of it.",
+    "stored_body": "Your choice of language and theme, in the browser's local storage, and a copy of the app itself, in the browser's cache, so it opens offline. If you use the single-photo mode, the detection model and its runtime (about 17 MB) are kept in the same cache, so people can be found offline too. There are no cookies and nothing else. Clearing this site's data in your browser removes all of it.",
     "saved_title": "The image you save",
     "saved_body": "The JPEG you save or share carries the date and time the reference photo was taken, so your gallery sorts it next to the burst. Nothing else from your photos goes into it: no location, no camera model, no serial number.",
     "reports_title": "Bug reports",
@@ -160,5 +171,23 @@
     "hosting_body": "The app is served by GitHub Pages. Like any web server, GitHub receives the usual data of each request when the app loads, such as your IP address and browser, and handles it under its own privacy statement. The app itself has no account, no analytics, no tracking and no third-party scripts.",
     "hosting_link": "GitHub's privacy statement",
     "back": "Back to the app"
+  },
+  "single": {
+    "title": "Your ghosted photo",
+    "stats": "{width} × {height} px",
+    "effect": "Effect",
+    "effect_motion": "Motion blur",
+    "effect_motion_help": "People blur along a line, as if they had moved during the exposure.",
+    "effect_smear": "Smear",
+    "effect_smear_help": "People are dragged along a line and fade out behind their movement.",
+    "effect_liquid": "Liquid",
+    "effect_liquid_help": "People flow and melt as if they were made of liquid.",
+    "effect_smoke": "Smoke",
+    "effect_smoke_help": "People dissolve into drifting smoke, with the scene showing through.",
+    "strength": "Strength",
+    "strength_help": "How far the effect reaches",
+    "angle": "Direction",
+    "angle_help": "Direction of the blur or smear in degrees: 0 is to the right, 90 is down",
+    "alt": "Photo with the people turned into ghosts"
   }
 }

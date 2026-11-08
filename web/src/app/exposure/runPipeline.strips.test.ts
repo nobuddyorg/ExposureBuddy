@@ -69,7 +69,11 @@ function realWorkers(): WorkerFactory {
       return serve(request as unknown as WorkerRequest);
     });
   };
-  return { createAlignWorker: port, createStackWorker: port };
+  return {
+    createAlignWorker: port,
+    createStackWorker: port,
+    createSingleWorker: port,
+  };
 }
 
 const BURST = Array.from(

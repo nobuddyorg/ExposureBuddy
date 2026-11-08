@@ -1,4 +1,5 @@
 import type { WorkerMessage, WorkerRequest } from '../vision/pipeline/protocol';
+import type { SingleWorkerRequest } from '../vision/pipeline/singleProtocol';
 
 /** A worker as the coordinator sees it; a fake in tests, `portFromWorker` in the browser. */
 export interface WorkerPort {
@@ -13,6 +14,8 @@ export interface WorkerPort {
 export interface WorkerFactory {
   createAlignWorker(): WorkerPort;
   createStackWorker(): WorkerPort;
+  /** The worker that finds the people in one photo; it carries the ML runtime, which the burst workers do not. */
+  createSingleWorker(): WorkerPort;
 }
 
 export interface RequestOptions {
@@ -32,7 +35,7 @@ export function isAbortError(error: unknown): boolean {
 /** Posts `message` and resolves with the response echoing its id; `*-progress` messages go to `onProgress`. */
 export function request<Response extends WorkerMessage>(
   port: WorkerPort,
-  message: WorkerRequest,
+  message: WorkerRequest | SingleWorkerRequest,
   options: RequestOptions = {},
 ): Promise<Response> {
   return new Promise((resolve, reject) => {

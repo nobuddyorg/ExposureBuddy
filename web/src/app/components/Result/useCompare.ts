@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { ExposureResult } from '../../exposure/runPipeline';
 import type { RgbaImage } from '../../vision/types';
 
 // A touch that turns into a scroll cancels within this time, so a swipe over the image never flashes the photo.
@@ -20,8 +19,13 @@ export interface CompareController {
   hold: (holding: boolean) => void;
 }
 
+/** What the compare toggle needs of a result: a burst's and a single photo's both have it. */
+export interface Comparable {
+  renderReference(): Promise<RgbaImage>;
+}
+
 /** The compare toggle: fetches `result.renderReference()` once, on the first press, and keeps it. */
-export function useCompare(result: ExposureResult): CompareController {
+export function useCompare(result: Comparable): CompareController {
   const [toggled, setToggled] = useState(false);
   const [holding, setHolding] = useState(false);
   const comparing = toggled || holding;

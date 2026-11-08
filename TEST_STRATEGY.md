@@ -711,6 +711,8 @@ file.
 input channel appears (a camera stream, a shared link, a file from another
 app); a §5 verdict changes (record the reasoning); a gate moves (a changed
 number is a changed justification); a kernel moves to WASM or the GPU (the
-unit layer for that kernel changes shape); a named gap closes (delete it); or
+unit layer for that kernel changes shape); a model joins the app (it is faked
+only at the worker boundary, in Node, with a mask of known shape; the browser
+suite runs the real one, on fixtures generated to be found, or not found); a named gap closes (delete it); or
 an incident happens — add it to the risk model and name the level that should
 have caught it.

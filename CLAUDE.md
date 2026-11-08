@@ -15,8 +15,10 @@ phone-first.
 
 - **Frontend only**: Next.js App Router as a **static export** on GitHub
   Pages. No server, no backend, no account, no upload. `web/`.
-- **All compute in the browser**, in Web Workers, in plain TypeScript over
-  typed arrays: `web/src/app/vision/`. No WASM, no OpenCV, no GPU code yet.
+- **All compute in the browser**, in Web Workers: the kernels are plain
+  TypeScript over typed arrays in `web/src/app/vision/`. WASM and ML models
+  are welcome where a measurement shows they help, provided they run on the
+  device from files the app serves itself (`web/src/app/exposure/ml/`).
 - **Privacy is the product claim**: photos never leave the device. Nothing in
   the app may send image data anywhere; the only network traffic is the app
   shell itself.
@@ -36,10 +38,15 @@ phone-first.
 Settled decisions and safety rules. If a task seems to need one reversed, stop
 and say so; never work around it quietly.
 
-- No backend, no telemetry, no third-party script, no request carrying
-  pixels. A feature that needs a server is a design question for the owner.
+- No backend, no telemetry, no third-party script, no CDN for a model or a
+  runtime, no request carrying pixels. A feature that needs a server is a design question for the owner.
 - `web/src/app/vision/` stays pure: no React, no Next, no DOM, no `Worker`
   construction. It must run in Node under Vitest. Workers are glue only.
+- A model or a Wasm runtime is self-hosted in the static export, loaded
+  lazily, cached by the service worker for offline use, and its size and
+  licence are checked before it is added. `vision/` never imports it: the
+  runtime sits behind `exposure/ml/` and a worker. A quality claim needs the
+  number from `vision/stackingQuality.test.ts` or a benchmark like it.
 - Never lower a coverage or mutation threshold (`web/vitest.config.mts`,
   `web/stryker.config.mjs`, `web/e2e/coverage.ts`, `web/lighthouserc.json`)
   or auto-ratchet one. An unreachable threshold is a design problem.

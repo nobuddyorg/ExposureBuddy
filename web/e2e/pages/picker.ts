@@ -10,6 +10,7 @@ interface Picker {
     clear(): Promise<void>;
     combine(): Promise<void>;
     open(): Promise<void>;
+    singlePhoto(): Promise<void>;
     removePhoto(index: number): Promise<void>;
     selectQuality(quality: Quality): Promise<void>;
     thumbnailNaturalWidth(index: number): Promise<number>;
@@ -19,6 +20,7 @@ interface Picker {
       clear: Locator;
       combine: Locator;
       pick: Locator;
+      singlePhoto: Locator;
     };
     count: Locator;
     dropzone: Locator;
@@ -42,6 +44,7 @@ export function initPicker(page: Page): Picker {
       clear: page.getByTestId('clear-photos'),
       combine: page.getByTestId('combine'),
       pick: page.getByTestId('pick-photos'),
+      singlePhoto: page.getByTestId('single-photo'),
     },
     count: page.getByTestId('photo-count'),
     dropzone: page.getByTestId('photo-dropzone'),
@@ -73,6 +76,10 @@ export function initPicker(page: Page): Picker {
     open: async () => {
       await page.goto('', { waitUntil: 'networkidle' });
       await expect(locators.dropzone).toBeVisible();
+    },
+    // Returns when the click landed, not when people were found: the spec watches progress and result.
+    singlePhoto: async () => {
+      await locators.buttons.singlePhoto.click();
     },
     removePhoto: async (index: number) => {
       await locators.tiles.nth(index).getByTestId('remove-photo').click();

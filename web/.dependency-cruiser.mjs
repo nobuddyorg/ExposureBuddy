@@ -54,14 +54,15 @@ const config = {
       name: 'workers-reach-only-vision',
       severity: 'error',
       comment:
-        'A worker entry imports the vision layer plus the three browser-bound glue files it needs ' +
-        '(decode, the worker scope, the request server): no React, no UI, no coordinator.',
+        'A worker entry imports the vision layer plus the browser-bound glue it needs ' +
+        '(decode, the worker scope, the request server, the ML runtime): no React, no UI, no coordinator.',
       from: { path: '\\.worker\\.ts$' },
       to: {
         path: '^src/app/',
         pathNot: [
           '^src/app/vision/',
           '^src/app/exposure/(decode|workerScope|workerServe)\\.ts$',
+          '^src/app/exposure/ml/',
         ],
       },
     },

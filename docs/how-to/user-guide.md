@@ -22,6 +22,27 @@ same in every photo and something in it has to move.
   everything moves (water only, a crowd filling the frame) gives the app
   nothing to line up on.
 
+## Turn the people in one photo into ghosts
+
+No burst? Pick exactly one photo and a second card appears: **Turn people
+into ghosts**. The app finds the people in the photo and turns them into
+motion blur, a smear, liquid or smoke, while the rest of the scene stays
+sharp.
+
+- **First time:** a detection model of about 17 MB is downloaded once, with a
+  progress bar, and kept on your device. After that the mode also works
+  offline.
+- **On the result screen**, pick the effect and set its strength. Motion blur
+  and smear also take a direction in degrees (0 is to the right, 90 is
+  down); a smear trails behind the movement.
+- **Compare** works as for a burst: hold the picture or press the compare
+  button to see the original.
+- **If nobody is found** you get a message that says so, never the photo
+  unchanged. Small, distant people are easy to miss; a photo where the
+  people are larger and clearer works better.
+- **Nothing leaves your device.** The people are found by a model running in
+  your browser, and the app refuses any network access except to itself.
+
 ## Pick the photos
 
 **Choose photos** opens your photo library or file chooser; on a desktop you

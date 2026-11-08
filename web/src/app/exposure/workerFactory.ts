@@ -12,4 +12,10 @@ const startWorker = () =>
 export const browserWorkerFactory: WorkerFactory = {
   createAlignWorker: startWorker,
   createStackWorker: startWorker,
+  createSingleWorker: () =>
+    portFromWorker(
+      new Worker(new URL('../workers/single.worker.ts', import.meta.url), {
+        type: 'module',
+      }),
+    ),
 };
