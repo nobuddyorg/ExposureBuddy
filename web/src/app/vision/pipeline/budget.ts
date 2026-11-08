@@ -50,6 +50,13 @@ export function qualityLongEdge(quality: OutputQuality): number {
   return QUALITY_LONG_EDGE[quality];
 }
 
+/** The long edge a single photo is rendered at: the standard size, or the small one on a device whose budget is below the default. */
+export function singleLongEdge(budgetBytes: number): number {
+  return qualityLongEdge(
+    budgetBytes >= DEFAULT_BUDGET_BYTES ? 'standard' : 'low',
+  );
+}
+
 /** How many align workers fit: as many as asked for, at least one, while their full-size decodes stay within DECODE_SHARE of the budget. */
 export function alignWorkersFor(input: {
   readonly source: Size;

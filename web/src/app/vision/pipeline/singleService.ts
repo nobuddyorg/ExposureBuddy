@@ -1,7 +1,6 @@
 import { maskCoverage } from '../effects/mask';
 import { prepareScene, renderScene, type Scene } from '../effects/render';
 import type { GrayImage, RgbaImage } from '../types';
-import { DEFAULT_BUDGET_BYTES } from './budget';
 import type { Served } from './protocol';
 import { transferablesOf, unexpectedRequest } from './protocol';
 import type {
@@ -12,11 +11,6 @@ import type {
 
 /** Fewer people pixels than this share of the photo are taken for noise in the segmenter's output, not for a person. */
 export const MIN_PERSON_COVERAGE = 0.002;
-
-/** A single photo is rendered at this long edge, or at the smaller one on a device whose budget is below the default. */
-export function singleLongEdge(budgetBytes: number): number {
-  return budgetBytes >= DEFAULT_BUDGET_BYTES ? 1600 : 1024;
-}
 
 /** The browser-only steps, injected so the service runs in Node under test. */
 export interface SingleSteps {

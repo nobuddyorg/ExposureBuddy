@@ -20,6 +20,7 @@ import {
   stripRanges,
   stripRowsFor,
   qualityLongEdge,
+  singleLongEdge,
   workerPoolSize,
 } from './budget';
 
@@ -462,5 +463,14 @@ describe('estimateOutput', () => {
     // For one frame rendering is the peak, 37 B/px: these budgets give 1598 and 1596 px after even rounding.
     expect(at(37 * 1599 * 1599)).toMatchObject({ width: 1598, limited: false });
     expect(at(37 * 1597 * 1597)).toMatchObject({ width: 1596, limited: true });
+  });
+});
+
+describe('singleLongEdge', () => {
+  it('is the standard 1600 on a device with the default budget or more, and the small 1024 below it', () => {
+    expect(singleLongEdge(DEFAULT_BUDGET_BYTES)).toBe(1600);
+    expect(singleLongEdge(DEFAULT_BUDGET_BYTES * 4)).toBe(1600);
+    expect(singleLongEdge(DEFAULT_BUDGET_BYTES - 1)).toBe(1024);
+    expect(singleLongEdge(0)).toBe(1024);
   });
 });

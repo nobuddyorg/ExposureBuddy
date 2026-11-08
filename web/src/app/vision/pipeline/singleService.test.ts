@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_BUDGET_BYTES } from './budget';
 import { EFFECTS } from '../effects/effectParams';
 import { prepareScene, renderScene } from '../effects/render';
 import {
@@ -13,7 +12,6 @@ import type { SingleStage, SingleWorkerResponse } from './singleProtocol';
 import {
   createSingleService,
   MIN_PERSON_COVERAGE,
-  singleLongEdge,
   type SingleSteps,
 } from './singleService';
 
@@ -227,13 +225,5 @@ describe('createSingleService', () => {
     await expect(service(unknown)).rejects.toThrow(
       'The single-photo worker got a request it does not know: align.',
     );
-  });
-});
-
-describe('singleLongEdge', () => {
-  it('is 1600 on a device with the default budget or more, and 1024 below it', () => {
-    expect(singleLongEdge(DEFAULT_BUDGET_BYTES)).toBe(1600);
-    expect(singleLongEdge(DEFAULT_BUDGET_BYTES * 4)).toBe(1600);
-    expect(singleLongEdge(DEFAULT_BUDGET_BYTES - 1)).toBe(1024);
   });
 });

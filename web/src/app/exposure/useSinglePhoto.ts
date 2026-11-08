@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
-import { singleLongEdge } from '../vision/pipeline/singleService';
+import { singleLongEdge } from '../vision/pipeline/budget';
 import type { DeviceProfile } from './deviceProfile';
 import type { FailedSingleRun } from './diagnostics';
 import { toPipelineFailure } from './failure';
