@@ -119,9 +119,9 @@ function relax(grid: Grid, filled: readonly number[]): void {
 function colorAt(grid: Grid, x: number, y: number, channel: number): number {
   const gx = Math.max(0, (x + 0.5) / grid.cell - 0.5);
   const gy = Math.max(0, (y + 0.5) / grid.cell - 0.5);
-  // Past the last cell centre both neighbours are that cell, so the fraction does not matter.
-  const x0 = Math.min(grid.columns - 1, Math.floor(gx));
-  const y0 = Math.min(grid.rows - 1, Math.floor(gy));
+  // gx and gy stay below the last cell, and past its centre both neighbours are that cell, so the fraction does not matter.
+  const x0 = Math.floor(gx);
+  const y0 = Math.floor(gy);
   const x1 = Math.min(grid.columns - 1, x0 + 1);
   const y1 = Math.min(grid.rows - 1, y0 + 1);
   const fx = gx - Math.floor(gx);

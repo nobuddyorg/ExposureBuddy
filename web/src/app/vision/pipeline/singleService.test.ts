@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_BUDGET_BYTES } from './budget';
 import { EFFECTS } from '../effects/effectParams';
+import { prepareScene, renderScene } from '../effects/render';
 import {
   rectMask,
   solidImage,
@@ -184,6 +185,23 @@ describe('createSingleService', () => {
       expect(response.image.data[3]).toBe(255);
       expect(transfer).toEqual([response.image.data.buffer]);
     }
+  });
+
+  it('renders the effect, not the original photo, and exactly what the kernels render', async () => {
+    const mask = rectMask(120, 80, PERSON);
+    const { service } = setup(mask);
+    await service(PREPARE);
+    const params = { effect: 'smear', strength: 0.7, angle: 20 } as const;
+    const { response } = await service({
+      type: 'single-render',
+      id: 2,
+      params,
+    });
+    if (response.type !== 'single-rendered') throw new Error('not rendered');
+    const scene = prepareScene(photo, mask);
+    if (!scene) throw new Error('the scene should have a person');
+    expect(response.image.data).toEqual(renderScene(scene, params).data);
+    expect(response.image.data).not.toEqual(photo.data);
   });
 
   it('renders the original untouched, as a copy that leaves the photo in place for the next render', async () => {
