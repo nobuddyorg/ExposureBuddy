@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
+import { digest } from '../golden.test-support';
 import { EFFECTS, type EffectParams } from './effectParams';
 import {
   pixelOf,
@@ -170,5 +171,46 @@ describe('renderScene', () => {
       // Each run renders a whole photo; a few dozen cover the property.
       { numRuns: 40 },
     );
+  });
+});
+
+// Digests of the plate and of every effect on a textured photo, recorded from output checked by eye on a real street photo:
+// they pin the noise, the drift, the feather and the order of the passes, which the behavioural tests above cannot see.
+describe('renderScene, golden digests', () => {
+  function textured() {
+    const base = solidImage(200, 120, [100, 100, 100]);
+    for (let y = 0; y < 120; y += 1)
+      for (let x = 0; x < 200; x += 1)
+        base.data.set(
+          [
+            60 + ((x * 3 + y * 5) % 90),
+            80 + ((x * 7) % 60),
+            90 + ((y * 11) % 70),
+            255,
+          ],
+          (y * 200 + x) * 4,
+        );
+    return withRect(base, PERSON, [250, 20, 40]);
+  }
+  const textureScene = prepareScene(textured(), rectMask(200, 120, PERSON));
+  if (!textureScene) throw new Error('the scene should have a person');
+  const digestOf = (data: ArrayLike<number>) => {
+    const hash = digest();
+    for (let i = 0; i < data.length; i += 1) hash.add(Math.round(data[i]));
+    return hash.value();
+  };
+
+  it('keeps the plate behind the people as it was recorded', () => {
+    expect(digestOf(textureScene.plate.data)).toBe(1680082838);
+  });
+
+  it.each([
+    ['motion', 3925492565],
+    ['smear', 822021012],
+    ['liquid', 3582543747],
+    ['smoke', 2453103050],
+  ] as const)('renders %s as recorded', (effect, expected) => {
+    const out = renderScene(textureScene, { effect, strength: 0.8, angle: 30 });
+    expect(digestOf(out.data)).toBe(expected);
   });
 });

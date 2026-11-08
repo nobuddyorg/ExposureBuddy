@@ -138,6 +138,23 @@ describe('createSingleService', () => {
     });
   });
 
+  it('takes a mask of exactly the minimum share of the photo for a person', async () => {
+    // 100 × 50 = 5000 pixels, and 0.2 % of them is exactly 10.
+    const small = solidImage(100, 50, [90, 90, 90]);
+    const run = (width: number) =>
+      createSingleService(
+        {
+          decode: async () => small,
+          segmentPeople: async () =>
+            rectMask(100, 50, { x: 0, y: 0, width, height: 1 }),
+        },
+        () => {},
+      )(PREPARE);
+    expect(MIN_PERSON_COVERAGE * 5000).toBeCloseTo(10, 9);
+    expect((await run(10)).response).toMatchObject({ found: true });
+    expect((await run(9)).response).toMatchObject({ found: false });
+  });
+
   it('forgets an earlier photo when a new one finds nobody', async () => {
     const found = setup(rectMask(120, 80, PERSON));
     await found.service(PREPARE);
