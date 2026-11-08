@@ -99,33 +99,33 @@ function fillUnknown(grid: Grid): void {
 /** Rounds of smoothing over the filled cells: enough for a fill to settle across a hole that spans most of the grid. */
 const RELAX_ROUNDS = 120;
 
+function relaxOnce(grid: Grid, filled: readonly number[]): void {
+  // Every cell is known by now, so each block holds at least the cell itself.
+  const settled = filled.map((target) => {
+    const { sum, count } = knownNeighbourhood(grid, target);
+    return sum.map((v) => v / count);
+  });
+  filled.forEach((target, index) =>
+    grid.colors.set(settled[index], target * 3),
+  );
+}
+
 /** Lets every filled cell settle to the mean of its neighbours, known cells fixed: the ring fill alone leaves diamond steps. */
 function relax(grid: Grid, filled: readonly number[]): void {
-  for (let round = 0; round < RELAX_ROUNDS; round += 1) {
-    // Every cell is known by now, so each block holds at least the cell itself.
-    const settled = filled.map((target) => {
-      const { sum, count } = knownNeighbourhood(grid, target);
-      return sum.map((v) => v / count);
-    });
-    filled.forEach((target, index) =>
-      grid.colors.set(settled[index], target * 3),
-    );
-  }
+  indices(RELAX_ROUNDS).forEach(() => relaxOnce(grid, filled));
 }
 
 /** The grid colour at pixel (x, y), interpolated between the four nearest cell centres. */
 function colorAt(grid: Grid, x: number, y: number, channel: number): number {
-  const gx = Math.min(
-    grid.columns - 1,
-    Math.max(0, (x + 0.5) / grid.cell - 0.5),
-  );
-  const gy = Math.min(grid.rows - 1, Math.max(0, (y + 0.5) / grid.cell - 0.5));
-  const x0 = Math.floor(gx);
-  const y0 = Math.floor(gy);
+  const gx = Math.max(0, (x + 0.5) / grid.cell - 0.5);
+  const gy = Math.max(0, (y + 0.5) / grid.cell - 0.5);
+  // Past the last cell centre both neighbours are that cell, so the fraction does not matter.
+  const x0 = Math.min(grid.columns - 1, Math.floor(gx));
+  const y0 = Math.min(grid.rows - 1, Math.floor(gy));
   const x1 = Math.min(grid.columns - 1, x0 + 1);
   const y1 = Math.min(grid.rows - 1, y0 + 1);
-  const fx = gx - x0;
-  const fy = gy - y0;
+  const fx = gx - Math.floor(gx);
+  const fy = gy - Math.floor(gy);
   const at = (column: number, row: number) =>
     grid.colors[(row * grid.columns + column) * 3 + channel];
   const top = at(x0, y0) * (1 - fx) + at(x1, y0) * fx;

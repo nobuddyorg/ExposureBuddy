@@ -94,9 +94,7 @@ describe('fetchBytes', () => {
 describe('combineProgress', () => {
   it('adds up downloads that run side by side', () => {
     const seen: [number, number][] = [];
-    const of = combineProgress(2, (loaded, total) =>
-      seen.push([loaded, total]),
-    );
+    const of = combineProgress((loaded, total) => seen.push([loaded, total]));
     of(0)(10, 100);
     of(1)(5, 50);
     of(0)(100, 100);
@@ -109,9 +107,7 @@ describe('combineProgress', () => {
 
   it('counts a download that has not reported yet as nothing, whatever order they report in', () => {
     const seen: [number, number][] = [];
-    const of = combineProgress(3, (loaded, total) =>
-      seen.push([loaded, total]),
-    );
+    const of = combineProgress((loaded, total) => seen.push([loaded, total]));
     of(2)(7, 70);
     of(0)(1, 10);
     expect(seen).toEqual([
@@ -122,10 +118,7 @@ describe('combineProgress', () => {
 
   it('never reports more loaded than the total, which compression can cause', () => {
     const seen: [number, number][] = [];
-    combineProgress(1, (loaded, total) => seen.push([loaded, total]))(0)(
-      120,
-      100,
-    );
+    combineProgress((loaded, total) => seen.push([loaded, total]))(0)(120, 100);
     expect(seen).toEqual([[100, 100]]);
   });
 });

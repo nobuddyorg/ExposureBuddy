@@ -34,15 +34,11 @@ export async function fetchBytes(
   return bytes;
 }
 
-/** Combines the progress of several downloads that run side by side into one `loaded` of `total`. */
+/** Combines the progress of downloads that run side by side into one `loaded` of `total`; one that has not reported counts as nothing. */
 export function combineProgress(
-  count: number,
   onProgress: (loaded: number, total: number) => void,
 ): (index: number) => (loaded: number, total: number) => void {
-  const downloads = Array.from({ length: count }, () => ({
-    loaded: 0,
-    total: 0,
-  }));
+  const downloads: { loaded: number; total: number }[] = [];
   return (index) => (loaded, total) => {
     downloads[index] = { loaded, total };
     const sum = downloads.reduce((all, one) => all + one.total, 0);

@@ -23,7 +23,7 @@ export async function loadVisionAssets(
   const base = assetBase.replace(/\/$/, '');
   // The classic build of the loader: Turbopack starts every worker through a classic bootstrap that `importScripts` it.
   const resolved = await FilesetResolver.forVisionTasks(base);
-  const progressOf = combineProgress(2, onProgress);
+  const progressOf = combineProgress(onProgress);
   const [wasm, model] = await Promise.all([
     fetchBytes(resolved.wasmBinaryPath, progressOf(0)),
     fetchBytes(`${base}/${modelFile}`, progressOf(1)),

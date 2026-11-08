@@ -18,11 +18,20 @@ const photo = withRect(
   PERSON,
   [255, 0, 0],
 );
-const scene = prepareScene(photo, rectMask(200, 120, PERSON));
-if (!scene) throw new Error('the scene should have a person');
+// Built inside each test, not at load: a scene made on import would make prepareScene code every test depends on.
+function makeScene() {
+  const scene = prepareScene(photo, rectMask(200, 120, PERSON));
+  if (!scene) throw new Error('the scene should have a person');
+  return scene;
+}
 
 const render = (params: Partial<EffectParams>) =>
-  renderScene(scene, { effect: 'motion', strength: 1, angle: 0, ...params });
+  renderScene(makeScene(), {
+    effect: 'motion',
+    strength: 1,
+    angle: 0,
+    ...params,
+  });
 
 describe('prepareScene', () => {
   it('finds nobody in an empty mask', () => {
@@ -35,6 +44,7 @@ describe('prepareScene', () => {
   });
 
   it('bounds the people, feather included', () => {
+    const scene = makeScene();
     expect(scene.bounds.x).toBeLessThanOrEqual(PERSON.x);
     expect(scene.bounds.x).toBeGreaterThanOrEqual(PERSON.x - 3);
     expect(scene.bounds.y + scene.bounds.height).toBeGreaterThanOrEqual(
@@ -43,12 +53,14 @@ describe('prepareScene', () => {
   });
 
   it('shows the empty scene on the plate where the people stood, and the photo elsewhere', () => {
+    const scene = makeScene();
     expect(pixelOf(scene.plate, 100, 60)).toEqual(BACKGROUND);
     expect(pixelOf(scene.plate, 90, 30)).toEqual(BACKGROUND);
     expect(pixelOf(scene.plate, 10, 10)).toEqual(BACKGROUND);
   });
 
   it('lifts the people off the photo as opaque colour in the middle and nothing far away', () => {
+    const scene = makeScene();
     expect(
       Array.from(
         scene.people.data.subarray(
@@ -63,6 +75,7 @@ describe('prepareScene', () => {
 
 describe('prepareScene on a larger photo', () => {
   it('feathers by a share of the long edge: one pixel at 200, two at 800', () => {
+    const scene = makeScene();
     const big = withRect(
       solidImage(800, 600, [100, 100, 100]),
       { x: 360, y: 200, width: 80, height: 240 },
@@ -149,6 +162,7 @@ describe('renderScene', () => {
   });
 
   it('touches nothing outside the reach of the effect, and always returns an opaque photo of the same size', () => {
+    const scene = makeScene();
     fc.assert(
       fc.property(
         fc.constantFrom(...EFFECTS),
@@ -192,8 +206,11 @@ describe('renderScene, golden digests', () => {
         );
     return withRect(base, PERSON, [250, 20, 40]);
   }
-  const textureScene = prepareScene(textured(), rectMask(200, 120, PERSON));
-  if (!textureScene) throw new Error('the scene should have a person');
+  function textureScene() {
+    const built = prepareScene(textured(), rectMask(200, 120, PERSON));
+    if (!built) throw new Error('the scene should have a person');
+    return built;
+  }
   const digestOf = (data: ArrayLike<number>) => {
     const hash = digest();
     for (let i = 0; i < data.length; i += 1) hash.add(Math.round(data[i]));
@@ -201,7 +218,7 @@ describe('renderScene, golden digests', () => {
   };
 
   it('keeps the plate behind the people as it was recorded', () => {
-    expect(digestOf(textureScene.plate.data)).toBe(1680082838);
+    expect(digestOf(textureScene().plate.data)).toBe(1680082838);
   });
 
   it.each([
@@ -210,7 +227,11 @@ describe('renderScene, golden digests', () => {
     ['liquid', 3582543747],
     ['smoke', 2453103050],
   ] as const)('renders %s as recorded', (effect, expected) => {
-    const out = renderScene(textureScene, { effect, strength: 0.8, angle: 30 });
+    const out = renderScene(textureScene(), {
+      effect,
+      strength: 0.8,
+      angle: 30,
+    });
     expect(digestOf(out.data)).toBe(expected);
   });
 });
