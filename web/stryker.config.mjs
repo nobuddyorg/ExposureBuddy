@@ -36,6 +36,8 @@ const config = {
   ],
   // A mutant covered by hundreds of tests runs the whole suite; the 5s default reported honest failures as timeouts.
   timeoutMS: 20_000,
+  // The instrumented suite takes about five minutes on a CI runner; the five-minute default aborted the run before a single mutant.
+  dryRunTimeoutMinutes: 15,
   // Shared with vitest.config.mts's per-file coverage floors so the two lists cannot drift.
   mutate: MUTATE_TARGETS,
   // Blind to non-mutated, non-test files, so main forces a full run.

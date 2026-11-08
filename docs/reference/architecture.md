@@ -23,7 +23,7 @@ web/src/app/
   useLeaveWarning.ts   asks to confirm leaving while a run or an unsaved result would be lost
   components/      React only: AppShell (chrome around every page), Header, Help,
                    PhotoPicker, Progress, Result, PipelineError, ui/ (class helpers, Dialog)
-  exposure/        the pipeline as the UI sees it: runPipeline (coordinator), decode, useExposure,
+  exposure/        the pipeline as the UI sees it: runPipeline (coordinator), runSingle + useSinglePhoto (one photo), decode, useExposure,
                    deviceProfile (pool size and memory budget), useReferenceSize (for the picker's size line),
                    exifDate + useShotDate (the reference photo's shooting date, written into the export)
   vision/          pure TypeScript over typed arrays -- no React, no Next, no DOM (enforced)
@@ -33,10 +33,14 @@ web/src/app/
     geometry/      homography algebra, normalised DLT, RANSAC
     warp/          inverse-mapped bilinear warp into RGB bands, with the covered run of each row
     stack/         exposure gain, crop, median / mean / robust backgrounds stack, composite, in-place blur
-    pipeline/      memory budget, worker message protocol, pure request handlers
+    effects/       the single-photo mode's kernels: person mask, premultiplied layers, hole fill, line blur, noise, displacement, render
+    pipeline/      memory budget, worker message protocol, pure request handlers (burst: protocol, alignService, stackService; one photo: singleProtocol, singleService)
     indices.ts     the row and sample index lists kernels walk, so their loops carry no bound
-  workers/         exposure.worker.ts, the one entry point: `self.onmessage` glue over vision/pipeline handlers
-web/public/        sw.js (precaches out/precache.json at install), site.webmanifest, icons, logo.svg
+  workers/         exposure.worker.ts, the one entry point of the burst: `self.onmessage` glue over vision/pipeline handlers;
+                   single.worker.ts, the single-photo mode's, which alone carries the ML runtime
+  exposure/ml/     the shared ML/WASM runtime layer: fetchBytes (progress), mlRuntime (MediaPipe runtime and model from the app's own ml/ folder), personSegmenter
+web/public/        sw.js (precaches out/precache.json at install), site.webmanifest, icons, logo.svg,
+                   ml/ (deeplab_v3.tflite committed; the MediaPipe Wasm copied in by scripts/copy-ml-assets.mjs)
 web/e2e/           Playwright: page objects, public specs, synthetic burst fixtures
 web/scripts/       Node tools: precache-manifest (runs in `npm run build`), serve-export, make-fixtures, make-icons, lighthouse, summaries
 ```
@@ -49,6 +53,7 @@ Layer rules, checked by `dependency-cruiser` and ESLint:
   glue files it needs: `exposure/decode.ts`, `exposure/workerScope.ts` and
   `exposure/workerServe.ts`. No React, no UI, no coordinator.
 - `i18n/` imports nothing from `vision/` or `components/`.
+- The single-photo worker may also import `exposure/ml/`, the only place MediaPipe is imported.
 - `e2e/` and `scripts/` never import `src/app/`; `src/app/` never imports them.
 
 ## The pipeline
@@ -193,9 +198,27 @@ worker decode and warp its frames' rows again and `add-rows` hands them to
 the stack worker. With one strip that is `crop` and one `stack-rows`, and the
 align workers stop before it.
 
+## The single-photo mode
+
+With exactly one photo picked, the picker offers a second action beside the
+burst's. `useSinglePhoto` → `runSinglePhoto` starts `single.worker.ts`, which
+runs `createSingleService` over three requests: `single-prepare` (decode to
+a long edge of 1600, or 1024 below the default memory budget; segment with
+DeepLab v3 through MediaPipe on the CPU; reject a mask under 0.2 % of the
+photo; lift the people into a layer and fill the plate behind them),
+`single-render` (one effect with strength and direction) and
+`single-render-original` (the photo, for compare). Progress goes out as
+`single-progress` with the stage (`decode`, `model`, `detect`, `prepare`);
+during `model`, `done` and `total` are bytes of the model and the runtime.
+Nobody found ends on the error screen with the `no_people` failure, never on
+an unchanged photo. By arithmetic, not yet by measurement: a layer is 16
+bytes per pixel and smoke holds three at once, plus the plate and the photo
+(4 each), so a person filling a 1600 × 1200 frame peaks near 100 MB. Segmentation of a 640 × 480 photo took about 0.2 s on a
+laptop CPU in headless Chromium; a phone has not been measured.
+
 ## The screen
 
-The app is one route: three states of one page, driven by `useExposure`. A
+The app is one route: the states of one page, driven by `useExposure` for a burst and `useSinglePhoto` for one photo. A
 second, static route, `/privacy/` (`privacy/page.tsx`, test ids `privacy`,
 `privacy-photos`, `privacy-stored`, `privacy-saved`, `privacy-reports`,
 `privacy-hosting`, `privacy-back`), says in both languages what stays on the
@@ -206,6 +229,7 @@ device and what the host sees.
 | Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-tile` (with `data-reference`), `photo-thumb`, `choose-reference`, `remove-photo`, `reference-badge`, `reference-hint`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
 | Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
 | Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `result-blurred`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
+| One photo | `SinglePhotoCard` in the picker, then `SingleProgress` and `SingleResult` | `single-photo-card`, `single-photo`; the progress and result ids above, plus `effect-select`, `strength-slider`, `angle-slider` (`single-result` is the result's root) |
 | Failed | `PipelineError` | `pipeline-error`, `retry`, `copy-diagnostics`, `copy-status`, `diagnostics`, `diagnostics-toggle`, `diagnostics-text` |
 
 Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),
@@ -219,7 +243,7 @@ line (`footer-privacy`) and its link to the privacy page (`privacy-link`).
   URL; `PAGES_BASE_URL` overrides it for a custom domain).
 - `public/sw.js` precaches the shell (`./`, `site.webmanifest`, `logo.svg`)
   and every file in `precache.json` at install, then serves `_next/static/**`
-  cache-first and the shell network-first, one cache per build
+  cache-first, `ml/**` (the model and its runtime) cache-first in a separate cache that outlives builds, and the shell network-first, one cache per build
   (`NEXT_PUBLIC_BUILD_ID`); a new build's worker deletes the previous builds'
   caches and nothing else on the origin. `npm run build` runs
   `scripts/precache-manifest.mjs` after `next build`, which lists

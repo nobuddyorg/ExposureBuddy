@@ -45,6 +45,9 @@ export default defineConfig({
         'src/app/exposure/decode.ts',
         'src/app/exposure/workerScope.ts',
         'src/app/exposure/workerFactory.ts',
+        // MediaPipe's Wasm and a model in a worker: Playwright runs them for real (e2e/journey/single.spec.ts).
+        'src/app/exposure/ml/mlRuntime.ts',
+        'src/app/exposure/ml/personSegmenter.ts',
       ],
       thresholds: {
         ...GLOBAL_COVERAGE_THRESHOLDS,

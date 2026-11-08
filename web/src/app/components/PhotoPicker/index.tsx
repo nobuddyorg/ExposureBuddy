@@ -11,6 +11,7 @@ import { buttonClasses } from '../ui/buttonClasses';
 import { cardClasses } from '../ui/cardClasses';
 import { CombineControls } from './CombineControls';
 import { PhotoGrid } from './PhotoGrid';
+import { SinglePhotoCard } from './SinglePhotoCard';
 import { PickerNotice as NoticeRegion } from './PickerNotice';
 import { Tips } from './Tips';
 import { useDropzone } from './useDropzone';
@@ -30,6 +31,8 @@ export interface PhotoPickerProps {
   onChooseReference: (id: string) => void;
   onClear: () => void;
   onCombine: (quality: OutputQuality) => void;
+  /** Turns the people in the one picked photo into an effect; offered only while exactly one photo is picked. */
+  onSinglePhoto: () => void;
 }
 
 // A stack of three frames, drawn like ui/Icon's set: 24px grid, stroked in the current colour.
@@ -67,12 +70,15 @@ export default function PhotoPicker({
   onChooseReference,
   onClear,
   onCombine,
+  onSinglePhoto,
 }: PhotoPickerProps) {
   const { t, tCount } = useI18n();
   const titleId = useId();
   const input = useRef<HTMLInputElement>(null);
   const { dragging, handlers } = useDropzone(onAdd);
   const hasPhotos = photos.length > 0;
+  // One photo has no burst to combine and nobody to align: it gets the single-photo card instead.
+  const isSinglePhoto = photos.length === 1;
 
   const openChooser = () => input.current?.click();
   const onInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -149,12 +155,14 @@ export default function PhotoPicker({
               onRemove={onRemove}
               onChooseReference={onChooseReference}
             />
-            <p
-              data-testid="reference-hint"
-              className="text-sm text-muted-foreground"
-            >
-              {t('picker.reference_hint')}
-            </p>
+            {!isSinglePhoto && (
+              <p
+                data-testid="reference-hint"
+                className="text-sm text-muted-foreground"
+              >
+                {t('picker.reference_hint')}
+              </p>
+            )}
             <p className="hidden text-center text-xs text-muted-foreground sm:block">
               {t('picker.drop_hint')}
             </p>
@@ -192,13 +200,17 @@ export default function PhotoPicker({
 
       <NoticeRegion notice={notice} unsupported={unsupported} />
 
-      <CombineControls
-        count={photos.length}
-        unsupported={unsupported}
-        referenceSize={referenceSize}
-        device={device}
-        onCombine={onCombine}
-      />
+      {isSinglePhoto ? (
+        <SinglePhotoCard unsupported={unsupported} onStart={onSinglePhoto} />
+      ) : (
+        <CombineControls
+          count={photos.length}
+          unsupported={unsupported}
+          referenceSize={referenceSize}
+          device={device}
+          onCombine={onCombine}
+        />
+      )}
 
       <Tips />
     </div>

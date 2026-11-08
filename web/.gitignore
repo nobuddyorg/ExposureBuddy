@@ -35,3 +35,6 @@ next-env.d.ts
 # Lighthouse CI: raw reports (npm run lighthouse) and lhci autorun's own scratch directory.
 /lighthouse-reports
 /.lighthouseci
+
+# The MediaPipe Wasm runtime scripts/copy-ml-assets.mjs copies in; the model beside it is committed.
+/public/ml/vision_wasm_internal.*

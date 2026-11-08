@@ -17,6 +17,10 @@ export function failureMessage(
       return tCount('errors.too_few_aligned', failure.count);
     case 'no_overlap':
       return t('errors.no_overlap');
+    case 'no_people':
+      return t('errors.no_people');
+    case 'detection_unsupported':
+      return t('errors.detection_unsupported');
     case 'decode_failed':
       return t('errors.decode_failed', { name: failure.name });
     case 'cancelled':

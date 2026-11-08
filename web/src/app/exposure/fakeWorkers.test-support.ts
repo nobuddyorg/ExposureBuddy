@@ -75,15 +75,20 @@ export function createFakePort(handle: FakeHandler): FakePort {
 export interface FakeFactory extends WorkerFactory {
   readonly aligners: FakePort[];
   readonly stacks: FakePort[];
+  readonly singles: FakePort[];
 }
 
 export function createFakeFactory(
   align: FakeHandler,
   stack: FakeHandler,
+  single: FakeHandler = () => {
+    throw new Error('No single-photo worker was expected.');
+  },
 ): FakeFactory {
   const factory: FakeFactory = {
     aligners: [],
     stacks: [],
+    singles: [],
     createAlignWorker() {
       const port = createFakePort(align);
       factory.aligners.push(port);
@@ -92,6 +97,11 @@ export function createFakeFactory(
     createStackWorker() {
       const port = createFakePort(stack);
       factory.stacks.push(port);
+      return port;
+    },
+    createSingleWorker() {
+      const port = createFakePort(single);
+      factory.singles.push(port);
       return port;
     },
   };

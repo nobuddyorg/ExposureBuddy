@@ -9,6 +9,7 @@ import type { DecodedPng } from '../png';
 
 type Slider = 'ghost' | 'blur' | 'glow';
 type Background = 'median' | 'trimmed' | 'clipped' | 'mode';
+type Effect = 'motion' | 'smear' | 'liquid' | 'smoke';
 
 interface Result {
   (): Locator;
@@ -19,8 +20,10 @@ interface Result {
     holdCompare(): Promise<void>;
     openControls(): Promise<void>;
     releaseCompare(): Promise<void>;
+    selectEffect(effect: Effect): Promise<void>;
     selectBackground(mode: Background): Promise<void>;
     setSlider(slider: Slider, fraction: number): Promise<void>;
+    setStrength(fraction: number): Promise<void>;
     startOver(): Promise<void>;
     toggleCompare(): Promise<void>;
     toggleTrails(): Promise<void>;
@@ -33,12 +36,15 @@ interface Result {
       share: Locator;
       startOver: Locator;
     };
+    angle: Locator;
     background: Locator;
     canvas: Locator;
+    effect: Locator;
     skipped: Locator;
     blurred: Locator;
     sliders: Record<Slider, Locator>;
     stats: Locator;
+    strength: Locator;
     trails: Locator;
   };
 }
@@ -83,6 +89,7 @@ export function initResult(page: Page): Result {
     .getByRole('main')
     .filter({ has: page.getByTestId('result-canvas') });
   const locators = {
+    angle: page.getByTestId('angle-slider'),
     background: page.getByTestId('background-select'),
     buttons: {
       adjust: page.getByTestId('adjust-toggle'),
@@ -92,6 +99,7 @@ export function initResult(page: Page): Result {
       startOver: page.getByTestId('start-over'),
     },
     canvas: page.getByTestId('result-canvas'),
+    effect: page.getByTestId('effect-select'),
     skipped: page.getByTestId('result-skipped'),
     blurred: page.getByTestId('result-blurred'),
     sliders: {
@@ -100,6 +108,7 @@ export function initResult(page: Page): Result {
       glow: page.getByTestId('glow-slider'),
     },
     stats: page.getByTestId('result-stats'),
+    strength: page.getByTestId('strength-slider'),
     trails: page.getByTestId('trails-toggle'),
   };
   // The composite re-renders in a worker after a debounce: wait for a change, then for two identical reads of it.
@@ -159,6 +168,20 @@ export function initResult(page: Page): Result {
     setSlider: async (slider: Slider, fraction: number) => {
       const before = await canvasDigest(locators.canvas);
       const changed = await setRangeValue(locators.sliders[slider], fraction);
+      if (changed) await waitForRender(before);
+    },
+    // Returns once the canvas shows the other effect.
+    selectEffect: async (effect: Effect) => {
+      await interactions.openControls();
+      const before = await canvasDigest(locators.canvas);
+      await locators.effect.selectOption(effect);
+      await waitForRender(before);
+    },
+    // `fraction` is 0–1 of the strength slider's range; returns once the canvas shows the new strength.
+    setStrength: async (fraction: number) => {
+      await interactions.openControls();
+      const before = await canvasDigest(locators.canvas);
+      const changed = await setRangeValue(locators.strength, fraction);
       if (changed) await waitForRender(before);
     },
     // Modes can render identical pixels on a simple scene, so wait for the canvas to hold still instead of to change.

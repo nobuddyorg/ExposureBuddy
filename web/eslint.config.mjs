@@ -15,6 +15,8 @@ const eslintConfig = [
       '.stryker-tmp/**',
       'reports/**',
       'out/**',
+      // The MediaPipe Wasm runtime scripts/copy-ml-assets.mjs copies in: minified third-party output, not ours.
+      'public/ml/**',
       '.next/**',
       '.e2e-serve/**',
       'test-results/**',

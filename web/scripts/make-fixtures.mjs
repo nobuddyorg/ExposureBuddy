@@ -374,6 +374,71 @@ function motionBlur(image, length) {
   return blurred;
 }
 
+/** Fills the polygon through `points` (even-odd), pixel by pixel. */
+function fillPolygon(image, points, color) {
+  const ys = points.map((point) => point.y);
+  const xs = points.map((point) => point.x);
+  for (let y = Math.min(...ys); y <= Math.max(...ys); y += 1) {
+    for (let x = Math.min(...xs); x <= Math.max(...xs); x += 1) {
+      let inside = false;
+      for (let a = 0, b = points.length - 1; a < points.length; b = a, a += 1) {
+        const crosses =
+          points[a].y > y !== points[b].y > y &&
+          x <
+            ((points[b].x - points[a].x) * (y - points[a].y)) /
+              (points[b].y - points[a].y) +
+              points[a].x;
+        if (crosses) inside = !inside;
+      }
+      if (inside) setPixel(image, x, y, color);
+    }
+  }
+}
+
+/** A standing figure with a face, hair, clothes and shoes: plain shapes are not taken for a person, this one is. */
+function paintFigure(image) {
+  const skin = [224, 172, 140];
+  const shirt = [40, 70, 160];
+  const trousers = [50, 50, 60];
+  const dark = [30, 30, 30];
+  const at = (x, y) => ({ x, y });
+  fillEllipse(image, at(320, 128), 33, 30, [60, 40, 30]);
+  fillEllipse(image, at(320, 148), 30, 37, skin);
+  fillEllipse(image, at(310, 142), 4, 4, dark);
+  fillEllipse(image, at(330, 142), 4, 4, dark);
+  fillRect(image, { x: 312, y: 162, width: 16, height: 3 }, [150, 60, 60]);
+  fillRect(image, { x: 310, y: 182, width: 20, height: 18 }, skin);
+  fillPolygon(
+    image,
+    [at(270, 200), at(370, 200), at(380, 330), at(260, 330)],
+    shirt,
+  );
+  fillPolygon(
+    image,
+    [at(270, 205), at(245, 300), at(262, 306), at(285, 225)],
+    shirt,
+  );
+  fillPolygon(
+    image,
+    [at(370, 205), at(395, 300), at(378, 306), at(355, 225)],
+    shirt,
+  );
+  fillEllipse(image, at(253, 310), 13, 12, skin);
+  fillEllipse(image, at(387, 310), 13, 12, skin);
+  fillPolygon(
+    image,
+    [at(262, 330), at(318, 330), at(312, 455), at(278, 455)],
+    trousers,
+  );
+  fillPolygon(
+    image,
+    [at(322, 330), at(378, 330), at(362, 455), at(328, 455)],
+    trousers,
+  );
+  fillEllipse(image, at(293, 460), 25, 10, dark);
+  fillEllipse(image, at(347, 460), 25, 10, dark);
+}
+
 const BURSTS = [
   { name: 'burst-street', seed: 7, width: 640, height: 480, frameCount: 12 },
   { name: 'burst-tiny', seed: 11, width: 320, height: 240, frameCount: 3 },
@@ -388,5 +453,13 @@ writePng(
 const unrelated = resolve(outputRoot, 'unrelated');
 writePng(unrelated, 'scene-a.png', renderScene(101, 640, 480).image);
 writePng(unrelated, 'scene-b.png', renderScene(202, 640, 480).image);
+// One photo for the single-photo mode: the street with a figure standing in it, and the same street with nobody.
+const single = resolve(outputRoot, 'single');
+const streetScene = renderScene(301, 640, 480).image;
+writePng(single, 'empty.png', streetScene);
+const withFigure = createImage(640, 480);
+withFigure.data.set(streetScene.data);
+paintFigure(withFigure);
+writePng(single, 'person.png', motionBlur(withFigure, 3));
 writeFileSync(resolve(outputRoot, 'not-an-image.txt'), 'not a photo\n');
 console.log(`fixtures written to ${outputRoot}`);
