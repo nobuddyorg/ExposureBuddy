@@ -77,6 +77,8 @@ export default function PhotoPicker({
   const input = useRef<HTMLInputElement>(null);
   const { dragging, handlers } = useDropzone(onAdd);
   const hasPhotos = photos.length > 0;
+  // One photo has no burst to combine and nobody to align: it gets the single-photo card instead.
+  const isSinglePhoto = photos.length === 1;
 
   const openChooser = () => input.current?.click();
   const onInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -153,12 +155,14 @@ export default function PhotoPicker({
               onRemove={onRemove}
               onChooseReference={onChooseReference}
             />
-            <p
-              data-testid="reference-hint"
-              className="text-sm text-muted-foreground"
-            >
-              {t('picker.reference_hint')}
-            </p>
+            {!isSinglePhoto && (
+              <p
+                data-testid="reference-hint"
+                className="text-sm text-muted-foreground"
+              >
+                {t('picker.reference_hint')}
+              </p>
+            )}
             <p className="hidden text-center text-xs text-muted-foreground sm:block">
               {t('picker.drop_hint')}
             </p>
@@ -196,17 +200,17 @@ export default function PhotoPicker({
 
       <NoticeRegion notice={notice} unsupported={unsupported} />
 
-      {photos.length === 1 && (
+      {isSinglePhoto ? (
         <SinglePhotoCard unsupported={unsupported} onStart={onSinglePhoto} />
+      ) : (
+        <CombineControls
+          count={photos.length}
+          unsupported={unsupported}
+          referenceSize={referenceSize}
+          device={device}
+          onCombine={onCombine}
+        />
       )}
-
-      <CombineControls
-        count={photos.length}
-        unsupported={unsupported}
-        referenceSize={referenceSize}
-        device={device}
-        onCombine={onCombine}
-      />
 
       <Tips />
     </div>

@@ -476,4 +476,19 @@ describe('PhotoPicker, single-photo mode', () => {
     });
     expect(screen.getByTestId('single-photo')).toBeDisabled();
   });
+
+  it('shows no burst controls and no reference hint for a single photo, but keeps Add more', () => {
+    renderPicker({ photos: picked(['a.jpg']), reference: 0 });
+    expect(screen.queryByTestId('combine')).toBeNull();
+    expect(screen.queryByTestId('quality-select')).toBeNull();
+    expect(screen.queryByTestId('reference-hint')).toBeNull();
+    expect(screen.getByTestId('pick-photos')).toBeVisible();
+  });
+
+  it('brings the burst controls and the hint back with a second photo', () => {
+    renderPicker({ photos: picked(['a.jpg', 'b.jpg']), reference: 0 });
+    expect(screen.getByTestId('combine')).toBeEnabled();
+    expect(screen.getByTestId('quality-select')).toBeVisible();
+    expect(screen.getByTestId('reference-hint')).toBeVisible();
+  });
 });

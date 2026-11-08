@@ -46,8 +46,8 @@ test.describe('one photo, no burst', () => {
     const app = on(page);
     await openWith(app, 'single/person.png');
     await expect(app.picker.locators.buttons.singlePhoto).toBeEnabled();
-    // A burst needs two photos; the single-photo mode is what one photo gets instead.
-    await expect(app.picker.locators.buttons.combine).toBeDisabled();
+    // A burst needs two photos; the single-photo mode is what one photo gets instead, and a second photo brings the burst back.
+    await expect(app.picker.locators.buttons.combine).toHaveCount(0);
 
     await app.picker.do.singlePhoto();
     await expect(app.progress()).toBeVisible();
