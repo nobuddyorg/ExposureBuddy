@@ -15,6 +15,7 @@ describe('stageLabel', () => {
   it.each([
     ['reference', 'progress.reference'],
     ['aligning', 'progress.aligning'],
+    ['movers', 'progress.movers'],
     ['stacking', 'progress.stacking'],
     ['compositing', 'progress.compositing'],
   ] as const)('names the %s stage', (stage, key) => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { WorkerMessage } from '../vision/pipeline/protocol';
 import { PipelineError } from './failure';
@@ -182,6 +182,29 @@ describe('runPipeline with movers', () => {
     ).toBe(false);
   });
 
+  it('lets the single-photo worker go when the run is cancelled while it searches', async () => {
+    const controller = new AbortController();
+    const stalled: FakeHandler = () => new Promise<void>(() => {});
+    const workers = createFakeFactory(align, stack, stalled);
+    const result = runPipeline({
+      files,
+      reference: 1,
+      names: files.map((each) => each.name),
+      options: { quality: 'low', poolSize: 1, movers: MOVERS },
+      onProgress: () => {},
+      workers,
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => expect(workers.singles).toHaveLength(1));
+    await vi.waitFor(() => expect(workers.singles[0].sent).toHaveLength(1));
+    controller.abort();
+    await expect(result).rejects.toSatisfy(
+      (error) =>
+        error instanceof PipelineError && error.failure.kind === 'cancelled',
+    );
+    expect(workers.singles[0].terminations).toBeGreaterThan(0);
+  });
+
   it('fails with the cause when the browser cannot run the detection', async () => {
     const { result } = start({ movers: MOVERS }, () => {
       throw new Error(
@@ -238,6 +261,15 @@ describe('runPipeline with movers', () => {
         sent.findLastIndex((request) => request.type === 'stack-rows'),
       );
       expect(sent[mean].image).toBe(blurredImage);
+    });
+
+    it('tells the result its movers are blurred, and only then', async () => {
+      const blurredRun = start({ movers: { ...MOVERS, blur: BLUR } }, withBlur);
+      expect((await blurredRun.result).blurredMovers).toBe(true);
+      expect((await start({ movers: MOVERS }).result).blurredMovers).toBe(
+        false,
+      );
+      expect((await start({}).result).blurredMovers).toBe(false);
     });
 
     it('sends no set-mean and no effect when only the background is cleaned', async () => {

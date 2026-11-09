@@ -121,9 +121,17 @@ describe('createSingleService, movers', () => {
 
   it('grows every mask by a share of the long edge, at least one pixel', async () => {
     const wide = solidImage(1000, 500, [10, 10, 10]);
+    const other = solidImage(1000, 500, [240, 10, 10]);
     const point = rectMask(1000, 500, { x: 500, y: 250, width: 1, height: 1 });
-    const { service } = setup(wide, [point, point]);
-    const { response } = await service(
+    // Frames that differ, so that the grown area is judged to move.
+    const imageOf = (file: Blob) => (file === FIRST ? wide : other);
+    const steps: SingleSteps = {
+      decode: async (file) => imageOf(file),
+      decodeAt: async (file) => imageOf(file),
+      segmentPeople: async () => point,
+      segmentMovers: async (images) => images.map(() => point),
+    };
+    const { response } = await createSingleService(steps, () => {})(
       movers({ working: { width: 1000, height: 500 } }),
     );
     if (response.type !== 'movers-masked') throw new Error('wrong response');
@@ -206,6 +214,39 @@ describe('createSingleService, movers', () => {
       const { response } = await service(movers({ working }));
       if (response.type !== 'movers-masked') throw new Error('wrong response');
       expect('blurred' in response).toBe(false);
+    });
+  });
+
+  describe('what does not change between the frames', () => {
+    const BIG = { x: 10, y: 10, width: 30, height: 20 };
+    const big = rectMask(100, 50, BIG);
+    const still = solidImage(100, 50, [100, 100, 100]);
+    const run = async (imageOf: (file: Blob) => RgbaImage) => {
+      const steps: SingleSteps = {
+        decode: async (file) => imageOf(file),
+        decodeAt: async (file) => imageOf(file),
+        segmentPeople: async () => big,
+        segmentMovers: async (images) => images.map(() => big),
+      };
+      const { response } = await createSingleService(steps, () => {})(
+        movers({ working: { width: 100, height: 50 } }),
+      );
+      if (response.type !== 'movers-masked') throw new Error('wrong response');
+      return response.masks;
+    };
+
+    it('is dropped from every mask: a statue is no mover', async () => {
+      const masks = await run(() => still);
+      expect(
+        masks.every((mask) => mask.data.every((value) => value === 0)),
+      ).toBe(true);
+    });
+
+    it('stays where the frames do change there', async () => {
+      const changing = (file: Blob) =>
+        file === FIRST ? still : solidImage(100, 50, [220, 40, 40]);
+      const masks = await run(changing);
+      expect(masks[0].data[20 * 100 + 25]).toBe(255);
     });
   });
 });

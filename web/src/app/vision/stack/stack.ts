@@ -6,6 +6,7 @@ import {
 } from '../image/banded';
 import type {
   AlignedFrame,
+  BandedRgb,
   GrayImage,
   Rect,
   RowRange,
@@ -75,16 +76,15 @@ export function stackRows(
     mean,
     brightest,
   ];
-  const red = new Uint8Array(frameCount);
-  const green = new Uint8Array(frameCount);
-  const blue = new Uint8Array(frameCount);
-  const channels = [red, green, blue];
-  const scratch = new Uint8Array(frameCount);
-  const samples = new Uint8Array(frameCount);
-  const flags = new Uint8Array(frameCount);
-  const estimates = new Uint8Array(ROBUST_MODE_COUNT);
+  const work: Workspace = {
+    frameCount,
+    channels: [0, 1, 2].map(() => new Uint8Array(frameCount)),
+    scratch: new Uint8Array(frameCount),
+    samples: new Uint8Array(frameCount),
+    flags: new Uint8Array(frameCount),
+    estimates: new Uint8Array(ROBUST_MODE_COUNT),
+  };
   const { bandRows } = mean;
-  const columns = indices(rect.width);
   const first = Math.max(rows.start, rect.y) - rect.y;
   const last = Math.min(rows.end, rect.y + rect.height) - rect.y;
   let reported = 0;
@@ -95,71 +95,8 @@ export function stackRows(
     layers.forEach((layer) => {
       if (layer.bands[band].length === 0) allocateBand(layer, band);
     });
-    for (let y = chunkStart; y < chunkEnd; y += 1) {
-      const sourceRows = frames.map((frame) => rowOf(frame.image, rect.y + y));
-      const [
-        medianRow,
-        trimmedRow,
-        clippedRow,
-        modeRow,
-        meanRow,
-        brightestRow,
-      ] = layers.map((layer) => rowOf(layer, y));
-      const maskRows = hidden?.map((mask, frame) =>
-        maskRowOffset(mask, frames[frame].image, rect.y + y),
-      );
-      for (const x of columns) {
-        const source = (rect.x + x) * RGB;
-        const target = x * RGB;
-        if (hidden && maskRows) {
-          let visible = 0;
-          hidden.forEach((mask, frame) => {
-            flags[frame] = isHidden(
-              mask,
-              maskRows[frame],
-              (rect.x + x + 0.5) / frames[frame].image.width,
-            )
-              ? 1
-              : 0;
-            visible += 1 - flags[frame];
-          });
-          if (holes && visible === 0) holes.data[y * rect.width + x] = HOLE;
-        }
-        for (let channel = 0; channel < RGB; channel += 1) {
-          const values = channels[channel];
-          let sum = 0;
-          let highest = 0;
-          for (let frame = 0; frame < frameCount; frame += 1) {
-            values[frame] = sourceRows[frame][source + channel];
-            samples[frame] = values[frame];
-            sum += values[frame];
-            highest = Math.max(highest, values[frame]);
-          }
-          brightestRow[target + channel] = highest;
-          const median = selectMedian(values, frameCount);
-          medianRow[target + channel] = hidden
-            ? cleanMedian(
-                {
-                  values: samples,
-                  hidden: flags,
-                  count: frameCount,
-                  fallback: median,
-                },
-                scratch,
-              )
-            : median;
-          meanRow[target + channel] = Math.round(sum / frameCount);
-          robustBackgrounds(
-            { values, count: frameCount, median },
-            scratch,
-            estimates,
-          );
-          trimmedRow[target + channel] = estimates[0];
-          clippedRow[target + channel] = estimates[1];
-          modeRow[target + channel] = estimates[2];
-        }
-      }
-    }
+    for (let y = chunkStart; y < chunkEnd; y += 1)
+      stackRow(work, frames, { y, rect, layers, hidden, holes });
     frames.forEach((frame) =>
       releaseBandsAbove(frame.image, rect.y + chunkEnd),
     );
@@ -173,6 +110,116 @@ export function stackRows(
 }
 
 function noProgress(): void {}
+
+/** Stacks row `y` of the crop: every column's three channels into the layers' rows. */
+function stackRow(
+  work: Workspace,
+  frames: readonly AlignedFrame[],
+  row: {
+    readonly y: number;
+    readonly rect: Rect;
+    readonly layers: readonly BandedRgb[];
+    readonly hidden?: readonly GrayImage[];
+    readonly holes?: GrayImage;
+  },
+): void {
+  const { y, rect, layers, hidden, holes } = row;
+  const sourceRows = frames.map((frame) => rowOf(frame.image, rect.y + y));
+  const outputs = layers.map((layer) => rowOf(layer, y));
+  const maskRows = hidden?.map((mask, frame) =>
+    maskRowOffset(mask, frames[frame].image, rect.y + y),
+  );
+  for (const x of indices(rect.width)) {
+    if (hidden && maskRows) {
+      // Every frame has the working size, so one width places the pixel in every mask.
+      const visible = flagHiddenFrames(
+        { hidden, maskRows, flags: work.flags },
+        (rect.x + x + 0.5) / frames[0].image.width,
+      );
+      if (holes && visible === 0) holes.data[y * rect.width + x] = HOLE;
+    }
+    for (let channel = 0; channel < RGB; channel += 1) {
+      stackSample(work, {
+        sourceRows,
+        outputs,
+        offset: {
+          source: (rect.x + x) * RGB + channel,
+          target: x * RGB + channel,
+        },
+        channel,
+        masked: hidden !== undefined,
+      });
+    }
+  }
+}
+
+interface Workspace {
+  readonly frameCount: number;
+  /** One buffer of the frames' values per colour channel. */
+  readonly channels: readonly Uint8Array[];
+  readonly scratch: Uint8Array;
+  /** The frames' values in frame order, kept intact for the median that leaves the movers out. */
+  readonly samples: Uint8Array;
+  /** 1 for the frames whose mask hides the pixel. */
+  readonly flags: Uint8Array;
+  readonly estimates: Uint8Array;
+}
+
+/** Writes one channel of one pixel into every layer's row, in the order of `layers` in stackRows. */
+function stackSample(
+  work: Workspace,
+  at: {
+    readonly sourceRows: readonly Uint8ClampedArray[];
+    readonly outputs: readonly Uint8ClampedArray[];
+    readonly offset: { readonly source: number; readonly target: number };
+    readonly channel: number;
+    readonly masked: boolean;
+  },
+): void {
+  const { frameCount, samples, flags, scratch, estimates } = work;
+  const values = work.channels[at.channel];
+  const { source, target } = at.offset;
+  const [medianRow, trimmedRow, clippedRow, modeRow, meanRow, brightestRow] =
+    at.outputs;
+  let sum = 0;
+  let highest = 0;
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    values[frame] = at.sourceRows[frame][source];
+    samples[frame] = values[frame];
+    sum += values[frame];
+    highest = Math.max(highest, values[frame]);
+  }
+  brightestRow[target] = highest;
+  const median = selectMedian(values, frameCount);
+  medianRow[target] = at.masked
+    ? cleanMedian(
+        { values: samples, hidden: flags, count: frameCount, fallback: median },
+        scratch,
+      )
+    : median;
+  meanRow[target] = Math.round(sum / frameCount);
+  robustBackgrounds({ values, count: frameCount, median }, scratch, estimates);
+  trimmedRow[target] = estimates[0];
+  clippedRow[target] = estimates[1];
+  modeRow[target] = estimates[2];
+}
+
+/** Sets `flags[frame]` to 1 where the frame's mask hides the pixel at `across` (0–1) of the row; returns how many frames show it. */
+function flagHiddenFrames(
+  masks: {
+    readonly hidden: readonly GrayImage[];
+    readonly maskRows: readonly number[];
+    readonly flags: Uint8Array;
+  },
+  across: number,
+): number {
+  let visible = 0;
+  masks.hidden.forEach((mask, frame) => {
+    masks.flags[frame] = isHidden(mask, masks.maskRows[frame], across) ? 1 : 0;
+    visible += 1 - masks.flags[frame];
+  });
+  return visible;
+}
 
 // Where row `y` of a frame starts in a mask of any size laid over it.
 function maskRowOffset(

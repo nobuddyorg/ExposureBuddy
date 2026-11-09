@@ -28,6 +28,7 @@ export const MUTATE_TARGETS = [
   'src/app/vision/effects/mask.ts',
   'src/app/vision/effects/warpMask.ts',
   'src/app/vision/pipeline/blurFrames.ts',
+  'src/app/vision/pipeline/staticMovers.ts',
   'src/app/vision/effects/layer.ts',
   'src/app/vision/effects/inpaint.ts',
   'src/app/vision/effects/lineBlur.ts',

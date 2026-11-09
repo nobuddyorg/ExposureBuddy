@@ -65,11 +65,11 @@ function segmentCategories(
 
 type OnProgress = Parameters<SingleSteps['segmentPeople']>[1]['onProgress'];
 
-/** Opens the model (after the WebGL check, before the download), runs `use` with it, and lets everything go again. */
+/** Opens the model (after the WebGL check, before the download), runs `run` with it, and lets everything go again. */
 async function withSegmenter<Result>(
   assetBase: string,
   onProgress: OnProgress,
-  use: (segmenter: ImageSegmenter) => Promise<Result>,
+  run: (segmenter: ImageSegmenter) => Promise<Result>,
 ): Promise<Result> {
   // Before the 17 MB download: a browser that cannot run the Wasm should hear so at once.
   if (!hasWebGlInWorker(self)) throw new Error(DETECTION_UNSUPPORTED_MESSAGE);
@@ -86,7 +86,7 @@ async function withSegmenter<Result>(
       outputConfidenceMasks: false,
     });
     try {
-      return await use(segmenter);
+      return await run(segmenter);
     } finally {
       segmenter.close();
     }

@@ -70,6 +70,8 @@ export interface ExposureResult {
   readonly frames: readonly FrameReport[];
   readonly alignedCount: number;
   readonly totalCount: number;
+  /** The long exposure is the mean of frames whose movers were blurred, so the ghost slider belongs at its top. */
+  readonly blurredMovers: boolean;
   render(params: CompositeParams): Promise<RgbaImage>;
   renderReference(): Promise<RgbaImage>;
   dispose(): void;
@@ -403,6 +405,7 @@ export async function runPipeline(
       frames,
       alignedCount,
       totalCount: total,
+      blurredMovers: blurred !== undefined,
       render: (params) =>
         request<Rendered>(stack, { type: 'render', id: nextId(), params }).then(
           (rendered) => rendered.image,

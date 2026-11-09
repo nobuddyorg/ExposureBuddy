@@ -13,6 +13,7 @@ import { warpRgba } from '../warp/warp';
 import type { GrayImage, Homography, RgbaImage, Size } from '../types';
 import { ALIGNMENT_LONG_EDGE } from './budget';
 import { spreadOut } from './blurFrames';
+import { temporalDeviation, withoutStaticAreas } from './staticMovers';
 import {
   addBlurredFrame,
   averageOf,
@@ -192,7 +193,7 @@ export function createSingleService(
       detail: request.detail,
       onFrame: frame,
     });
-    const masks = found.map((mask, index) =>
+    const moved = found.map((mask, index) =>
       dilateMask(
         warpMask(
           mask,
@@ -207,6 +208,17 @@ export function createSingleService(
         ),
       ),
     );
+    // The model also takes statues and reliefs for people in some frames; what does not change between the frames is not a mover.
+    const deviation = temporalDeviation(
+      images.map((image, index) =>
+        alignedTo(
+          image,
+          scaleHomography(items[index].homography, image.width / working.width),
+          image,
+        ),
+      ),
+    );
+    const masks = moved.map((mask) => withoutStaticAreas(mask, deviation));
     const blurred = await blurredMean(request, masks, (done) =>
       frame(items.length + done),
     );

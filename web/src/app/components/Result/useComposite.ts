@@ -23,12 +23,16 @@ export function useComposite(
   result: ExposureResult,
   { debounceMs = DEFAULT_DEBOUNCE_MS }: { debounceMs?: number } = {},
 ): CompositeController {
-  const [params, setParams] = useState(() =>
-    defaultCompositeParams({
+  const [params, setParams] = useState(() => {
+    const defaults = defaultCompositeParams({
       frameCount: result.alignedCount,
       longEdge: Math.max(result.width, result.height),
-    }),
-  );
+    });
+    // The blurred movers are the picture itself: all of them, as they are, nothing smeared over them again.
+    return result.blurredMovers
+      ? { ...defaults, ghostStrength: 1, ghostBlur: 0, glow: 0 }
+      : defaults;
+  });
   const [image, setImage] = useState<RgbaImage | null>(null);
   const [error, setError] = useState('');
   const sequence = useRef(0);
