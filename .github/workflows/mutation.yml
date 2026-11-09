@@ -69,4 +69,3 @@ jobs:
           name: mutation-report
           path: web/reports/mutation
           retention-days: 30
-
