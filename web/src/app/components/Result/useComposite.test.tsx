@@ -44,6 +44,19 @@ describe('useComposite', () => {
     expect(hook.current.error).toBe('');
   });
 
+  it('opens a result of blurred movers with the ghosts at full strength and nothing smeared over them', async () => {
+    const render = vi.fn(async () => rgbaImage(4, 3));
+    const result = fakeResult({ render, blurredMovers: true });
+    const { result: hook } = renderHook(() => useComposite(result));
+    expect(hook.current.params).toEqual({
+      ...FAKE_RESULT_DEFAULTS,
+      ghostStrength: 1,
+      ghostBlur: 0,
+      glow: 0,
+    });
+    await tick();
+  });
+
   it('debounces later renders so a burst of changes renders once', async () => {
     const render = vi.fn(async () => rgbaImage(4, 3));
     const result = fakeResult({ render });

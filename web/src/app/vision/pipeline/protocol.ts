@@ -2,6 +2,7 @@ import type {
   AlignedFrame,
   CompositeParams,
   FeatureSet,
+  GrayImage,
   Homography,
   Rect,
   RgbaImage,
@@ -124,6 +125,20 @@ export type StackWorkerRequest =
       readonly id: number;
       /** A frame added earlier that must not go into the stack after all; only before the crop. */
       readonly index: number;
+    }
+  | {
+      readonly type: 'add-mask';
+      readonly id: number;
+      /** The frame the mask belongs to: its burst index, or the reference. */
+      readonly index: number | 'reference';
+      /** Where something that moves is in that frame, laid over the reference (any size): 255 on it. */
+      readonly mask: GrayImage;
+    }
+  | {
+      readonly type: 'set-mean';
+      readonly id: number;
+      /** The burst's long exposure at the working size, in place of the mean the stack made; after the last strip is stacked. */
+      readonly image: RgbaImage;
     }
   | { readonly type: 'crop'; readonly id: number }
   | {

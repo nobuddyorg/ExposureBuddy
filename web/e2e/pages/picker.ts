@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 type Quality = 'low' | 'standard' | 'high' | 'original';
 type Detail = 'fast' | 'thorough';
+type Movers = 'off' | 'remove' | 'blur';
 
 interface Picker {
   (): Locator;
@@ -13,6 +14,7 @@ interface Picker {
     open(): Promise<void>;
     singlePhoto(detail?: Detail): Promise<void>;
     removePhoto(index: number): Promise<void>;
+    selectMovers(movers: Movers, detail?: Detail): Promise<void>;
     selectQuality(quality: Quality): Promise<void>;
     thumbnailNaturalWidth(index: number): Promise<number>;
   };
@@ -27,6 +29,8 @@ interface Picker {
     detail: Locator;
     dropzone: Locator;
     input: Locator;
+    movers: Locator;
+    moversDetail: Locator;
     notice: Locator;
     quality: Locator;
     referenceTile: Locator;
@@ -52,6 +56,8 @@ export function initPicker(page: Page): Picker {
     detail: page.getByTestId('detail-select'),
     dropzone: page.getByTestId('photo-dropzone'),
     input: page.getByTestId('photo-input'),
+    movers: page.getByTestId('movers-select'),
+    moversDetail: page.getByTestId('movers-detail-select'),
     notice: page.getByTestId('picker-notice'),
     quality: page.getByTestId('quality-select'),
     referenceTile: page
@@ -87,6 +93,11 @@ export function initPicker(page: Page): Picker {
     },
     removePhoto: async (index: number) => {
       await locators.tiles.nth(index).getByTestId('remove-photo').click();
+    },
+    // The detail, fast unless asked, is chosen only once there is something to search for.
+    selectMovers: async (movers: Movers, detail: Detail = 'fast') => {
+      await locators.movers.selectOption(movers);
+      if (movers !== 'off') await locators.moversDetail.selectOption(detail);
     },
     selectQuality: async (quality: Quality) => {
       await locators.quality.selectOption(quality);

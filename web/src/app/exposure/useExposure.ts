@@ -12,6 +12,9 @@ import type { OutputQuality } from '../vision/pipeline/budget';
 import type { DeviceProfile } from './deviceProfile';
 import type { FailedRun } from './diagnostics';
 import { toPipelineFailure } from './failure';
+import { pageAssetBase } from './ml/assetBase';
+import type { BurstMovers } from './moversChoice';
+import { BURST_BLUR } from '../vision/effects/effectParams';
 import {
   runPipeline,
   type ExposureResult,
@@ -29,6 +32,8 @@ type ExposureState =
 export interface Burst {
   readonly files: readonly File[];
   readonly reference: number;
+  /** When set, people, vehicles and animals are searched for in every frame and left out of the background or turned into a soft trail. */
+  readonly movers?: BurstMovers;
 }
 
 export interface ExposureController {
@@ -70,7 +75,7 @@ export function useExposure(
   useEffect(() => () => disposeRun(activeRun), []);
 
   const start = useCallback(
-    ({ files, reference }: Burst, quality: OutputQuality) => {
+    ({ files, reference, movers }: Burst, quality: OutputQuality) => {
       disposeRun(activeRun);
       const run: Run = { controller: new AbortController(), result: null };
       activeRun.current = run;
@@ -84,6 +89,11 @@ export function useExposure(
           quality,
           poolSize: device.poolSize,
           budgetBytes: device.budgetBytes,
+          movers: movers && {
+            assetBase: pageAssetBase(),
+            detail: movers.detail,
+            ...(movers.look === 'blur' && { blur: BURST_BLUR }),
+          },
         },
         workers,
         signal: run.controller.signal,

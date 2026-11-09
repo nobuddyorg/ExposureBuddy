@@ -5,6 +5,7 @@ import {
   releaseBandsFrom,
   toRgba,
 } from '../image/banded';
+import { fillHole } from '../effects/inpaint';
 import { composite } from '../stack/composite';
 import { applyGain, estimateGain, type Gain } from '../stack/exposure';
 import { emptyStack, fullCoverageRect, stackRows } from '../stack/stack';
@@ -12,6 +13,7 @@ import type {
   AlignedFrame,
   BandedRgb,
   CompositeParams,
+  GrayImage,
   Rect,
   RgbaImage,
   RowRange,
@@ -31,6 +33,10 @@ export interface StackSession {
   addReference: (image: RgbaImage, stripRows: number) => void;
   /** Normalises the frame's exposure to the reference and keeps its first strip, under the burst `index` addRows refers to. */
   addFrame: (index: number, frame: AlignedFrame) => void;
+  /** Where something moves in frame `index` (or the reference), laid over the reference at any size; once every frame has one, the background leaves them out. */
+  addMask: (index: number | 'reference', mask: GrayImage) => void;
+  /** Replaces the long exposure (the mean) with `image`, at the working size; after the rows are stacked, before the first render. */
+  setMean: (image: RgbaImage) => void;
   /** Forgets frame `index` again, so it neither decides the crop nor is stacked; only before `crop()`. */
   dropFrame: (index: number) => void;
   readonly frameCount: number;
@@ -55,6 +61,8 @@ interface Kept {
 interface Cropped {
   readonly rect: Rect;
   readonly result: StackResult;
+  /** Where every frame shows a mover (crop-sized), or null when no masks were given; filled from the surroundings once, at the first render. */
+  readonly holes: GrayImage | null;
   readonly reference: BandedRgb;
 }
 
@@ -69,6 +77,7 @@ export function createStackSession(): StackSession {
   const frames = new Map<number, Kept>();
   let reference: AlignedFrame | null = null;
   let stripRows = 0;
+  const masks = new Map<number | 'reference', GrayImage>();
   let cropped: Cropped | null = null;
 
   const requireReference = (): AlignedFrame => {
@@ -79,10 +88,36 @@ export function createStackSession(): StackSession {
     if (!cropped) throw new Error('Nothing has been stacked yet.');
     return cropped;
   };
+  // The masks count only when every frame has one: a frame without is one that might show a mover where the others do not.
+  const hiddenMasks = (): GrayImage[] | undefined => {
+    const ordered = ['reference' as const, ...frames.keys()].map((key) =>
+      masks.get(key),
+    );
+    return ordered.every((mask) => mask !== undefined) ? ordered : undefined;
+  };
   const allFrames = (): AlignedFrame[] => [
     requireReference(),
     ...[...frames.values()].map((kept) => kept.frame),
   ];
+
+  // Where no frame showed the scene the median is a smear of movers; the colours around the hole replace it, once.
+  const fillHoles = (): void => {
+    const current = requireCropped();
+    if (!current.holes) return;
+    const filled = fillHole(
+      toRgba(current.result.backgrounds.median),
+      current.holes,
+    );
+    const { backgrounds } = current.result;
+    cropped = {
+      ...current,
+      holes: null,
+      result: {
+        ...current.result,
+        backgrounds: { ...backgrounds, median: bandedFromRgba(filled) },
+      },
+    };
+  };
 
   return {
     addReference(image, rows) {
@@ -110,6 +145,21 @@ export function createStackSession(): StackSession {
       if (cropped) throw new Error('A frame cannot be dropped after the crop.');
       if (!frames.delete(index))
         throw new Error(`Frame ${index} was never added.`);
+      masks.delete(index);
+    },
+    setMean(image) {
+      const current = requireCropped();
+      const { rect } = current;
+      cropped = {
+        ...current,
+        result: {
+          ...current.result,
+          mean: cropBanded(bandedFromRgba(image), rect),
+        },
+      };
+    },
+    addMask(index, mask) {
+      masks.set(index, mask);
     },
     get frameCount() {
       return frames.size + (reference ? 1 : 0);
@@ -126,6 +176,13 @@ export function createStackSession(): StackSession {
       cropped = {
         rect,
         result: emptyStack(rect, everyFrame.length),
+        holes: hiddenMasks()
+          ? {
+              width: rect.width,
+              height: rect.height,
+              data: new Uint8Array(rect.width * rect.height),
+            }
+          : null,
         // Copied now: stacking frees the reference's bands along with every other frame's.
         reference: cropBanded(base, rect),
       };
@@ -137,8 +194,14 @@ export function createStackSession(): StackSession {
       };
     },
     stackRows(rows, onProgress) {
-      const { rect, result } = requireCropped();
-      stackRows(allFrames(), result, { rect, rows, onProgress });
+      const { rect, result, holes } = requireCropped();
+      stackRows(allFrames(), result, {
+        rect,
+        rows,
+        hidden: hiddenMasks(),
+        holes: holes ?? undefined,
+        onProgress,
+      });
     },
     addRows(index, frame, rows) {
       const kept = frames.get(index);
@@ -147,6 +210,7 @@ export function createStackSession(): StackSession {
       adoptBands(kept.frame.image, frame.image);
     },
     render(params) {
+      fillHoles();
       return composite(requireCropped().result, params);
     },
     renderReference() {
@@ -154,6 +218,7 @@ export function createStackSession(): StackSession {
     },
     dispose() {
       frames.clear();
+      masks.clear();
       reference = null;
       cropped = null;
     },

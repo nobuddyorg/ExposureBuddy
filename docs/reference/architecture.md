@@ -198,6 +198,29 @@ worker decode and warp its frames' rows again and `add-rows` hands them to
 the stack worker. With one strip that is `crop` and one `stack-rows`, and the
 align workers stop before it.
 
+### Moving things in a burst
+
+The picker's **Moving things** setting (`Keep`, `Remove`, `Blur`, and how hard to
+search) starts one more worker, the single-photo worker, after the frames are
+aligned. Its `movers-masks` request carries every aligned frame's file and
+transform; it decodes each at the alignment size, finds people, vehicles and
+animals (the Pascal VOC classes `person`, `car`, `bus`, `motorbike`, `bicycle`,
+`train`, `boat`, `aeroplane`, `bird`, `cat`, `cow`, `dog`, `horse`, `sheep`)
+with one model load and the same tiling and vote as the single-photo mode, moves
+each mask onto the reference (`effects/warpMask.ts`) and grows it by 1.2 % of
+the long edge. The coordinator hands the masks to the stack worker
+(`add-mask`, by burst index or `reference`). Once every frame has one,
+`stackRows` takes the background median over the frames that show no mover at
+a pixel; where every frame does, the pixel is a hole that the session fills
+from the colours around it (`effects/inpaint.ts`) at the first render. With
+`Blur`, the same request also decodes up to six frames evenly spread over the
+burst (`pipeline/blurFrames.ts`) at the working size, aligns them, blurs their
+movers with the single-photo effect (`pipeline/blurMovers.ts`, the mask stretched
+bilinearly to the full size) and answers with the mean; the coordinator sends it
+after the last strip as `set-mean`, replacing the stack's plain mean, so the
+ghost slider runs from the empty scene to the blurred movers. Progress goes out
+as `movers-progress` (frames searched, then frames blurred).
+
 ## The single-photo mode
 
 With exactly one photo picked, the picker offers a second action beside the

@@ -7,7 +7,7 @@ import { singleLongEdge } from '../vision/pipeline/budget';
 import type { DeviceProfile } from './deviceProfile';
 import type { FailedSingleRun } from './diagnostics';
 import { toPipelineFailure } from './failure';
-import { mlAssetBase } from './ml/assetBase';
+import { pageAssetBase } from './ml/assetBase';
 import {
   runSinglePhoto,
   type SingleProgress,
@@ -44,14 +44,6 @@ function disposeRun(activeRun: RefObject<Run | null>): void {
   run.result?.dispose();
 }
 
-/** Where the model and the Wasm runtime live: the app's own `ml/` folder, whatever base path it is served under. */
-function assetBase(): string {
-  return mlAssetBase(
-    window.location.origin,
-    process.env.NEXT_PUBLIC_BASE_PATH ?? '',
-  );
-}
-
 /** Drives one photo through people detection, with the size its device allows. */
 export function useSinglePhoto(
   workers: WorkerFactory,
@@ -72,7 +64,7 @@ export function useSinglePhoto(
       file,
       workers,
       longEdge: singleLongEdge(device.budgetBytes),
-      assetBase: assetBase(),
+      assetBase: pageAssetBase(),
       detail,
       signal: run.controller.signal,
       onProgress: (progress) => {

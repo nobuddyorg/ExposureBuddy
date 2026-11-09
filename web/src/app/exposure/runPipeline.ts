@@ -5,6 +5,9 @@ import {
   type OutputQuality,
 } from '../vision/pipeline/budget';
 import { blurredFrames } from '../vision/pipeline/blurred';
+import type { EffectParams } from '../vision/effects/effectParams';
+import type { DetectionDetail } from '../vision/effects/tiles';
+import type { SingleWorkerResponse } from '../vision/pipeline/singleProtocol';
 import type {
   AlignWorkerResponse,
   StackProgress,
@@ -23,7 +26,7 @@ import { PipelineError, toPipelineFailure } from './failure';
 import { request, type WorkerFactory, type WorkerPort } from './workerPort';
 
 export type PipelineStage =
-  'reference' | 'aligning' | 'stacking' | 'compositing';
+  'reference' | 'aligning' | 'movers' | 'stacking' | 'compositing';
 
 export interface PipelineProgress {
   readonly stage: PipelineStage;
@@ -37,6 +40,14 @@ interface PipelineOptions {
   /** Align workers the device could run at once; the budget may allow fewer. The stack worker is always one more. */
   readonly poolSize: number;
   readonly budgetBytes?: number;
+  /** When set, what moves between the shots (people, vehicles, animals) is found in every frame and left out of the background. */
+  readonly movers?: {
+    /** Absolute URL of the folder the model and the Wasm runtime are served from. */
+    readonly assetBase: string;
+    readonly detail: DetectionDetail;
+    /** When set, a few frames also get this effect on their movers at full size and their mean becomes the long exposure, instead of a plain average. */
+    readonly blur?: EffectParams;
+  };
 }
 
 export interface PipelineInput {
@@ -58,6 +69,8 @@ export interface ExposureResult {
   readonly frames: readonly FrameReport[];
   readonly alignedCount: number;
   readonly totalCount: number;
+  /** The long exposure is the mean of frames whose movers were blurred, so the ghost slider belongs at its top. */
+  readonly blurredMovers: boolean;
   render(params: CompositeParams): Promise<RgbaImage>;
   renderReference(): Promise<RgbaImage>;
   dispose(): void;
@@ -69,6 +82,9 @@ type ReferenceDecoded = Extract<
 >;
 type Cropped = Extract<StackWorkerResponse, { type: 'cropped' }>;
 type Rendered = Extract<StackWorkerResponse, { type: 'rendered' }>;
+
+/** The reference's own transform; a function so every item gets an array of its own. */
+const IDENTITY = (): Homography => Float64Array.of(1, 0, 0, 0, 1, 0, 0, 0, 1);
 
 function pendingReport(index: number): FrameReport {
   return { index, status: 'pending', matches: 0, inliers: 0 };
@@ -222,6 +238,61 @@ export async function runPipeline(
       onDone();
     });
 
+  // The reference counts as a frame of its own, with the identity as its transform.
+  const findMovers = async (
+    movers: NonNullable<PipelineOptions['movers']>,
+    working: Size,
+  ) => {
+    const finder = workers.createSingleWorker();
+    const stop = () => finder.terminate();
+    signal?.addEventListener('abort', stop);
+    try {
+      const keys = ['reference' as const, ...homographies.keys()];
+      const masks = await request<
+        Extract<SingleWorkerResponse, { type: 'movers-masked' }>
+      >(
+        finder,
+        {
+          type: 'movers-masks',
+          id: nextId(),
+          items: keys.map((key) => ({
+            file: files[key === 'reference' ? reference : key],
+            homography:
+              key === 'reference'
+                ? IDENTITY()
+                : (homographies.get(key) as Homography),
+          })),
+          working,
+          assetBase: movers.assetBase,
+          detail: movers.detail,
+          ...(movers.blur && { blur: movers.blur }),
+        },
+        {
+          signal,
+          onProgress: (message) => {
+            const { done, total } = message as Extract<
+              SingleWorkerResponse,
+              { type: 'movers-progress' }
+            >;
+            emit('movers', done, total);
+          },
+        },
+      );
+      for (const [position, key] of keys.entries()) {
+        const mask = masks.masks[position];
+        await request(
+          stack,
+          { type: 'add-mask', id: nextId(), index: key, mask },
+          { transfer: transferablesOf({ mask }), signal },
+        );
+      }
+      return masks.blurred;
+    } finally {
+      signal?.removeEventListener('abort', stop);
+      finder.terminate();
+    }
+  };
+
   try {
     emit('reference', 0, 1);
     const decoded = await decodeReference(reference);
@@ -284,6 +355,12 @@ export async function runPipeline(
     if (alignedCount < 2)
       throw new PipelineError({ kind: 'too_few_aligned', count: alignedCount });
 
+    let blurred: RgbaImage | undefined;
+    if (options.movers) {
+      emit('movers', 0, alignedCount);
+      blurred = await findMovers(options.movers, working);
+    }
+
     const summary = await request<Cropped>(
       stack,
       { type: 'crop', id: nextId() },
@@ -315,6 +392,13 @@ export async function runPipeline(
       );
       unitsDone += 1;
     }
+    // After the last strip: stacking writes the plain mean, which the blurred frames' mean replaces.
+    if (blurred)
+      await request(
+        stack,
+        { type: 'set-mean', id: nextId(), image: blurred },
+        { transfer: transferablesOf({ image: blurred }), signal },
+      );
     emit('compositing', 0, 1);
 
     return {
@@ -323,6 +407,7 @@ export async function runPipeline(
       frames,
       alignedCount,
       totalCount: total,
+      blurredMovers: blurred !== undefined,
       render: (params) =>
         request<Rendered>(stack, { type: 'render', id: nextId(), params }).then(
           (rendered) => rendered.image,

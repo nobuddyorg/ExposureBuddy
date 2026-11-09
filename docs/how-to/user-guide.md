@@ -22,6 +22,20 @@ same in every photo and something in it has to move.
   everything moves (water only, a crowd filling the frame) gives the app
   nothing to line up on.
 
+## Deal with people and vehicles in a burst
+
+Under the size choice, **Moving things** decides what happens to people,
+vehicles and animals that pass between the shots. **Keep** (the default) leaves
+the burst as it is. **Remove** leaves them out of the background: wherever
+at least one photo shows the place without them, you see it; where somebody
+stands in every photo, the gap is filled smoothly from its surroundings, so a
+dense, standing crowd leaves soft patches. **Blur** turns them into a soft
+trail instead, from a few photos at full size. The second choice, **Search**,
+is how hard they are looked for: _Fast_ misses small, far-away people,
+_Thorough_ takes several times longer. The first use downloads the model (about
+17 MB) once; everything runs on your device. Expect a minute or more for a
+dozen photos, longer on a phone.
+
 ## Turn the people in one photo into ghosts
 
 No burst? Pick exactly one photo and a second card appears: **Turn people

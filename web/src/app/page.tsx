@@ -19,6 +19,7 @@ import {
   singleDiagnosticReport,
 } from './exposure/diagnostics';
 import { isPipelineSupported } from './exposure/support';
+import { moversOf, type MoversChoice } from './exposure/moversChoice';
 import { useExposure } from './exposure/useExposure';
 import { usePickedPhotos } from './exposure/usePickedPhotos';
 import { useSinglePhoto } from './exposure/useSinglePhoto';
@@ -58,11 +59,12 @@ export default function Home() {
   const referenceSize = useReferenceSize(referencePhoto);
   const shotDate = useShotDate(referencePhoto);
 
-  const combine = (quality: OutputQuality) =>
+  const combine = (quality: OutputQuality, movers: MoversChoice) =>
     exposure.start(
       {
         files: picked.photos.map((photo) => photo.file),
         reference: picked.reference,
+        movers: moversOf(movers),
       },
       quality,
     );
