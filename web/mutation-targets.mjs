@@ -26,6 +26,7 @@ export const MUTATE_TARGETS = [
   'src/app/vision/stack/composite.ts',
   'src/app/vision/stack/compositeParams.ts',
   'src/app/vision/effects/mask.ts',
+  'src/app/vision/effects/warpMask.ts',
   'src/app/vision/effects/layer.ts',
   'src/app/vision/effects/inpaint.ts',
   'src/app/vision/effects/lineBlur.ts',

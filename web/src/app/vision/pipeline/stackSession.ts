@@ -12,6 +12,7 @@ import type {
   AlignedFrame,
   BandedRgb,
   CompositeParams,
+  GrayImage,
   Rect,
   RgbaImage,
   RowRange,
@@ -31,6 +32,8 @@ export interface StackSession {
   addReference: (image: RgbaImage, stripRows: number) => void;
   /** Normalises the frame's exposure to the reference and keeps its first strip, under the burst `index` addRows refers to. */
   addFrame: (index: number, frame: AlignedFrame) => void;
+  /** Where something moves in frame `index` (or the reference), laid over the reference at any size; once every frame has one, the background leaves them out. */
+  addMask: (index: number | 'reference', mask: GrayImage) => void;
   /** Forgets frame `index` again, so it neither decides the crop nor is stacked; only before `crop()`. */
   dropFrame: (index: number) => void;
   readonly frameCount: number;
@@ -69,6 +72,7 @@ export function createStackSession(): StackSession {
   const frames = new Map<number, Kept>();
   let reference: AlignedFrame | null = null;
   let stripRows = 0;
+  const masks = new Map<number | 'reference', GrayImage>();
   let cropped: Cropped | null = null;
 
   const requireReference = (): AlignedFrame => {
@@ -110,6 +114,10 @@ export function createStackSession(): StackSession {
       if (cropped) throw new Error('A frame cannot be dropped after the crop.');
       if (!frames.delete(index))
         throw new Error(`Frame ${index} was never added.`);
+      masks.delete(index);
+    },
+    addMask(index, mask) {
+      masks.set(index, mask);
     },
     get frameCount() {
       return frames.size + (reference ? 1 : 0);
@@ -138,7 +146,14 @@ export function createStackSession(): StackSession {
     },
     stackRows(rows, onProgress) {
       const { rect, result } = requireCropped();
-      stackRows(allFrames(), result, { rect, rows, onProgress });
+      // The masks count only when every frame has one: a frame without is one that might show a mover where the others do not.
+      const ordered = ['reference' as const, ...frames.keys()].map((key) =>
+        masks.get(key),
+      );
+      const hidden = ordered.every((mask) => mask !== undefined)
+        ? ordered
+        : undefined;
+      stackRows(allFrames(), result, { rect, rows, hidden, onProgress });
     },
     addRows(index, frame, rows) {
       const kept = frames.get(index);
@@ -154,6 +169,7 @@ export function createStackSession(): StackSession {
     },
     dispose() {
       frames.clear();
+      masks.clear();
       reference = null;
       cropped = null;
     },

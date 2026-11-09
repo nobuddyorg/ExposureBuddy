@@ -5,11 +5,11 @@ import type { GrayImage, Rect, Size } from '../types';
 const INSIDE = 255;
 const HALF = 128;
 
-/** A mask that is 255 where the segmenter's category map says `personCategory`, 0 elsewhere. */
-export function maskFromCategories(
+/** A mask that is 255 where the segmenter's category map says one of `wanted`, 0 elsewhere. */
+export function maskFromAnyCategory(
   categories: Uint8Array,
   size: Size,
-  personCategory: number,
+  wanted: ReadonlySet<number>,
 ): GrayImage {
   if (categories.length !== size.width * size.height)
     throw new RangeError(
@@ -18,9 +18,18 @@ export function maskFromCategories(
   return {
     ...size,
     data: Uint8Array.from(categories, (category) =>
-      category === personCategory ? INSIDE : 0,
+      wanted.has(category) ? INSIDE : 0,
     ),
   };
+}
+
+/** A mask that is 255 where the segmenter's category map says `personCategory`, 0 elsewhere. */
+export function maskFromCategories(
+  categories: Uint8Array,
+  size: Size,
+  personCategory: number,
+): GrayImage {
+  return maskFromAnyCategory(categories, size, new Set([personCategory]));
 }
 
 /** The share of pixels, 0–1, that are more inside the mask than out. */

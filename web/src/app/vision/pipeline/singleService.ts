@@ -1,3 +1,4 @@
+import { scaleHomography } from '../geometry/homography';
 import { dilateMask, maskCoverage } from '../effects/mask';
 import {
   growRadius,
@@ -6,7 +7,9 @@ import {
   type Scene,
 } from '../effects/render';
 import type { DetectionDetail } from '../effects/tiles';
+import { warpMask } from '../effects/warpMask';
 import type { GrayImage, RgbaImage } from '../types';
+import { ALIGNMENT_LONG_EDGE } from './budget';
 import type { Served } from './protocol';
 import { transferablesOf, unexpectedRequest } from './protocol';
 import type {
@@ -34,6 +37,15 @@ export interface SingleSteps {
       ) => void;
     },
   ): Promise<GrayImage>;
+  /** One mask per image of everything that moves (people, vehicles, animals), 255 on it; the model is loaded once for all. */
+  segmentMovers(
+    images: readonly RgbaImage[],
+    options: {
+      readonly assetBase: string;
+      readonly detail: DetectionDetail;
+      readonly onFrame: (done: number) => void;
+    },
+  ): Promise<GrayImage[]>;
 }
 
 export type SingleService = (
@@ -109,8 +121,44 @@ export function createSingleService(
     });
   };
 
+  const findMovers = async (
+    request: Extract<SingleWorkerRequest, { type: 'movers-masks' }>,
+  ) => {
+    const { id, items, working } = request;
+    const longEdge = Math.min(
+      ALIGNMENT_LONG_EDGE,
+      Math.max(working.width, working.height),
+    );
+    const frame = (done: number) =>
+      postProgress({ type: 'movers-progress', id, done, total: items.length });
+    frame(0);
+    const images: RgbaImage[] = [];
+    for (const item of items)
+      images.push(await steps.decode(item.file, longEdge));
+    const found = await steps.segmentMovers(images, {
+      assetBase: request.assetBase,
+      detail: request.detail,
+      onFrame: frame,
+    });
+    const masks = found.map((mask, index) =>
+      warpMask(
+        mask,
+        scaleHomography(
+          items[index].homography,
+          images[index].width / working.width,
+        ),
+      ),
+    );
+    return served(
+      { type: 'movers-masked', id, masks },
+      transferablesOf({ masks }),
+    );
+  };
+
   return async (request) => {
     switch (request.type) {
+      case 'movers-masks':
+        return findMovers(request);
       case 'single-prepare':
         return prepare(request);
       case 'single-render':

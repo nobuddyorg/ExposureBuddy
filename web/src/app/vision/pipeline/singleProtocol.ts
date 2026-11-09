@@ -1,6 +1,6 @@
 import type { EffectParams } from '../effects/effectParams';
 import type { DetectionDetail } from '../effects/tiles';
-import type { RgbaImage } from '../types';
+import type { GrayImage, Homography, RgbaImage, Size } from '../types';
 
 /** What the detection worker says when its browser has no WebGL off the main thread; the coordinator maps it to its own failure. */
 export const DETECTION_UNSUPPORTED_MESSAGE =
@@ -26,7 +26,19 @@ export type SingleWorkerRequest =
       readonly id: number;
       readonly params: EffectParams;
     }
-  | { readonly type: 'single-render-original'; readonly id: number };
+  | { readonly type: 'single-render-original'; readonly id: number }
+  | {
+      readonly type: 'movers-masks';
+      readonly id: number;
+      /** The photos of a burst, each with the transform that put it onto the reference at `working`. */
+      readonly items: readonly {
+        readonly file: Blob;
+        readonly homography: Homography;
+      }[];
+      readonly working: Size;
+      readonly assetBase: string;
+      readonly detail: DetectionDetail;
+    };
 
 export type SingleWorkerResponse =
   | {
@@ -49,4 +61,17 @@ export type SingleWorkerResponse =
       readonly type: 'single-rendered';
       readonly id: number;
       readonly image: RgbaImage;
+    }
+  | {
+      readonly type: 'movers-progress';
+      readonly id: number;
+      /** Photos of the burst searched so far, of `total`. */
+      readonly done: number;
+      readonly total: number;
+    }
+  | {
+      readonly type: 'movers-masked';
+      readonly id: number;
+      /** One per item, in order, laid over the reference: 255 where a person, a vehicle or an animal was found. */
+      readonly masks: readonly GrayImage[];
     };

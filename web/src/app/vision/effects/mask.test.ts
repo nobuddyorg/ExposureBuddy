@@ -7,6 +7,7 @@ import {
   growRect,
   maskBounds,
   maskCoverage,
+  maskFromAnyCategory,
   maskFromCategories,
 } from './mask';
 import { grayOf, rectMask } from './effects.test-support';
@@ -29,6 +30,27 @@ describe('maskFromCategories', () => {
     expect(() =>
       maskFromCategories(new Uint8Array(3), { width: 2, height: 2 }, 1),
     ).toThrow('3 categories for a 2 × 2 image.');
+  });
+});
+
+describe('maskFromAnyCategory', () => {
+  it('is 255 where the category is any of the wanted ones', () => {
+    const mask = maskFromAnyCategory(
+      Uint8Array.from([0, 15, 7, 2]),
+      { width: 2, height: 2 },
+      new Set([15, 2]),
+    );
+    expect([...mask.data]).toEqual([0, 255, 0, 255]);
+  });
+
+  it('is empty for no wanted category and refuses a map of another size', () => {
+    const size = { width: 2, height: 1 };
+    expect([
+      ...maskFromAnyCategory(Uint8Array.from([1, 2]), size, new Set()).data,
+    ]).toEqual([0, 0]);
+    expect(() =>
+      maskFromAnyCategory(new Uint8Array(3), size, new Set([1])),
+    ).toThrow('3 categories for a 2 × 1 image.');
   });
 });
 

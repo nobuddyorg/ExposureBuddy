@@ -11,6 +11,8 @@ export function stageLabel(t: Translate, stage: PipelineStage): string {
       return t('progress.reference');
     case 'aligning':
       return t('progress.aligning');
+    case 'movers':
+      return t('progress.movers');
     case 'stacking':
       return t('progress.stacking');
     case 'compositing':

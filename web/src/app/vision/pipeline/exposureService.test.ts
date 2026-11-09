@@ -30,6 +30,7 @@ const STACK_REQUESTS: readonly WorkerRequest['type'][] = [
   'add-reference',
   'add-frame',
   'drop-frame',
+  'add-mask',
   'crop',
   'stack-rows',
   'add-rows',

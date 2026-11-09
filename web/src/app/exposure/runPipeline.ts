@@ -5,6 +5,9 @@ import {
   type OutputQuality,
 } from '../vision/pipeline/budget';
 import { blurredFrames } from '../vision/pipeline/blurred';
+import { identityHomography } from '../vision/geometry/homography';
+import type { DetectionDetail } from '../vision/effects/tiles';
+import type { SingleWorkerResponse } from '../vision/pipeline/singleProtocol';
 import type {
   AlignWorkerResponse,
   StackProgress,
@@ -23,7 +26,7 @@ import { PipelineError, toPipelineFailure } from './failure';
 import { request, type WorkerFactory, type WorkerPort } from './workerPort';
 
 export type PipelineStage =
-  'reference' | 'aligning' | 'stacking' | 'compositing';
+  'reference' | 'aligning' | 'movers' | 'stacking' | 'compositing';
 
 export interface PipelineProgress {
   readonly stage: PipelineStage;
@@ -37,6 +40,12 @@ interface PipelineOptions {
   /** Align workers the device could run at once; the budget may allow fewer. The stack worker is always one more. */
   readonly poolSize: number;
   readonly budgetBytes?: number;
+  /** When set, what moves between the shots (people, vehicles, animals) is found in every frame and left out of the background. */
+  readonly movers?: {
+    /** Absolute URL of the folder the model and the Wasm runtime are served from. */
+    readonly assetBase: string;
+    readonly detail: DetectionDetail;
+  };
 }
 
 export interface PipelineInput {
@@ -222,6 +231,59 @@ export async function runPipeline(
       onDone();
     });
 
+  // The reference counts as a frame of its own, with the identity as its transform.
+  const findMovers = async (
+    movers: NonNullable<PipelineOptions['movers']>,
+    working: Size,
+  ) => {
+    const finder = workers.createSingleWorker();
+    const stop = () => finder.terminate();
+    signal?.addEventListener('abort', stop);
+    try {
+      const keys = ['reference' as const, ...homographies.keys()];
+      const masks = await request<
+        Extract<SingleWorkerResponse, { type: 'movers-masked' }>
+      >(
+        finder,
+        {
+          type: 'movers-masks',
+          id: nextId(),
+          items: keys.map((key) => ({
+            file: files[key === 'reference' ? reference : key],
+            homography:
+              key === 'reference'
+                ? identityHomography()
+                : (homographies.get(key) as Homography),
+          })),
+          working,
+          assetBase: movers.assetBase,
+          detail: movers.detail,
+        },
+        {
+          signal,
+          onProgress: (message) => {
+            const { done, total } = message as Extract<
+              SingleWorkerResponse,
+              { type: 'movers-progress' }
+            >;
+            emit('movers', done, total);
+          },
+        },
+      );
+      for (const [position, key] of keys.entries()) {
+        const mask = masks.masks[position];
+        await request(
+          stack,
+          { type: 'add-mask', id: nextId(), index: key, mask },
+          { transfer: transferablesOf({ mask }), signal },
+        );
+      }
+    } finally {
+      signal?.removeEventListener('abort', stop);
+      finder.terminate();
+    }
+  };
+
   try {
     emit('reference', 0, 1);
     const decoded = await decodeReference(reference);
@@ -283,6 +345,11 @@ export async function runPipeline(
     const alignedCount = countAligned(frames);
     if (alignedCount < 2)
       throw new PipelineError({ kind: 'too_few_aligned', count: alignedCount });
+
+    if (options.movers) {
+      emit('movers', 0, alignedCount);
+      await findMovers(options.movers, working);
+    }
 
     const summary = await request<Cropped>(
       stack,

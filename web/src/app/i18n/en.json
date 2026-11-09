@@ -62,6 +62,7 @@
     "title": "Combining",
     "reference": "Finding features in the reference photo",
     "aligning": "Aligning photos",
+    "movers": "Finding people and vehicles",
     "stacking": "Stacking",
     "compositing": "Rendering",
     "count": "{done} of {total}",
