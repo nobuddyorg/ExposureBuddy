@@ -1,3 +1,4 @@
+import type { WarpKernel } from '../warp/warp';
 import type {
   AlignedFrame,
   CompositeParams,
@@ -42,8 +43,9 @@ export type AlignWorkerRequest =
       readonly id: number;
       readonly file: Blob;
       readonly target: Size;
-      /** The transform the frame's `aligned` answer carried. */
+      /** The transform and the kernel the frame's `aligned` answer carried. */
       readonly homography: Homography;
+      readonly kernel: WarpKernel;
       readonly rows: RowRange;
     };
 
@@ -70,6 +72,7 @@ export type AlignWorkerResponse =
       readonly matches: number;
       readonly inliers: number;
       readonly sharpness: number;
+      readonly kernel: WarpKernel;
     }
   | {
       readonly type: 'warped-rows';

@@ -16,7 +16,7 @@ import type {
   RansacResult,
   RgbaImage,
 } from '../types';
-import { warpRgba } from '../warp/warp';
+import { kernelForNoise, warpRgba, type WarpKernel } from '../warp/warp';
 import { ALIGNMENT_LONG_EDGE } from './budget';
 
 /** Fewer inliers than this, or a smaller share of the matches, and the frame is skipped rather than guessed at. */
@@ -43,6 +43,8 @@ export type AlignOutcome =
       readonly inliers: number;
       /** How crisp the frame is at the alignment size (image/sharpness.ts). */
       readonly sharpness: number;
+      /** The sampling kernel the frame was warped with, chosen by its noise; a strip is warped with it again. */
+      readonly kernel: WarpKernel;
     }
   | {
       readonly kind: 'skipped';
@@ -117,16 +119,18 @@ export function alignToReference(
     return skipped(matches.length, fit.inlierCount);
   }
 
+  const kernel = kernelForNoise(noiseLevel(gray));
   const toWorking = scaleHomography(
     fit.homography,
     image.width / reference.width,
   );
   return {
     kind: 'aligned',
-    frame: warpRgba(image, toWorking, image),
+    frame: warpRgba(image, toWorking, image, kernel),
     homography: toWorking,
     matches: matches.length,
     inliers: fit.inlierCount,
     sharpness: sharpness(gray),
+    kernel,
   };
 }

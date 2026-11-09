@@ -31,7 +31,7 @@ web/src/app/
     features/      FAST corners, intensity-centroid orientation, rBRIEF descriptors, ORB front door
     matching/      Hamming distance, ratio + cross-check matching
     geometry/      homography algebra, normalised DLT, RANSAC
-    warp/          inverse-mapped bilinear warp into RGB bands, with the covered run of each row
+    warp/          inverse-mapped bicubic warp (sharp or soft kernel) into RGB bands, with the covered run of each row
     stack/         exposure gain, crop, median / mean / robust backgrounds stack, composite, in-place blur
     effects/       the single-photo mode's kernels: person mask, premultiplied layers, hole fill, line blur, noise, displacement, render
     pipeline/      memory budget, worker message protocol, pure request handlers (burst: protocol, alignService, stackService; one photo: singleProtocol, singleService)
@@ -85,7 +85,7 @@ One burst goes through five stages. Each stage reports progress to the UI as
    homography with a 3 px inlier threshold, least-squares refinement on the
    inliers, and a sanity check on the model (scale, skew and perspective
    bounds). The homography is scaled to working coordinates and the frame is
-   inverse-warped into the reference frame with bilinear sampling, producing
+   inverse-warped into the reference frame with bicubic sampling (Catmull-Rom for clean frames, Mitchell–Netravali for noisy ones), producing
    an RGB image in bands of 64 rows and, per row, the one run of columns the
    source covers (a warped rectangle is convex, so a row never covers two
    runs). A per-channel gain estimated over the

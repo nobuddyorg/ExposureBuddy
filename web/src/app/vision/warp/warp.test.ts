@@ -12,7 +12,15 @@ import {
 } from '../geometry/homography';
 import { rowOf } from '../image/banded';
 import type { AlignedFrame, Homography, RgbaImage, Size } from '../types';
-import { warpRgba as warpToFrame } from './warp';
+import {
+  SHARP_KERNEL,
+  SHARP_KERNEL_MAX_NOISE,
+  SOFT_KERNEL,
+  cubicWeights,
+  kernelForNoise,
+  warpRgba as warpToFrame,
+  type WarpKernel,
+} from './warp';
 
 type Pixel = readonly [number, number, number, number];
 
@@ -40,22 +48,32 @@ function pixelAt(image: RgbaImage, x: number, y: number): Pixel {
   ];
 }
 
-// The reference: bilinear over the 2×2 neighbourhood with the far sample clamped to the image.
-function sampleBilinear(image: RgbaImage, x: number, y: number): number[] {
+// The reference: Catmull-Rom over the 4×4 neighbourhood, taps clamped to the image, written as the textbook polynomial.
+function catmullRom(distance: number): number {
+  const d = Math.abs(distance);
+  if (d < 1) return 1.5 * d ** 3 - 2.5 * d ** 2 + 1;
+  if (d < 2) return -0.5 * d ** 3 + 2.5 * d ** 2 - 4 * d + 2;
+  return 0;
+}
+
+function sampleCubic(image: RgbaImage, x: number, y: number): number[] {
   const x0 = Math.floor(x);
   const y0 = Math.floor(y);
-  const x1 = Math.min(x0 + 1, image.width - 1);
-  const y1 = Math.min(y0 + 1, image.height - 1);
-  const fx = x - x0;
-  const fy = y - y0;
-  const at = (px: number, py: number) => pixelAt(image, px, py);
-  return [0, 1, 2].map(
-    (channel) =>
-      (1 - fx) * (1 - fy) * at(x0, y0)[channel] +
-      fx * (1 - fy) * at(x1, y0)[channel] +
-      (1 - fx) * fy * at(x0, y1)[channel] +
-      fx * fy * at(x1, y1)[channel],
-  );
+  const clamp = (value: number, max: number) =>
+    Math.min(Math.max(value, 0), max);
+  return [0, 1, 2].map((channel) => {
+    let sum = 0;
+    for (let tapY = -1; tapY <= 2; tapY += 1) {
+      for (let tapX = -1; tapX <= 2; tapX += 1) {
+        const weight =
+          catmullRom(x - (x0 + tapX)) * catmullRom(y - (y0 + tapY));
+        const px = clamp(x0 + tapX, image.width - 1);
+        const py = clamp(y0 + tapY, image.height - 1);
+        sum += weight * pixelAt(image, px, py)[channel];
+      }
+    }
+    return sum;
+  });
 }
 
 /** The warped frame as RGBA with alpha 255 where covered, and its per-pixel coverage: what the checks below read. */
@@ -78,8 +96,13 @@ function unpack(frame: AlignedFrame): {
   return { image: { width, height, data }, coverage };
 }
 
-function warpRgba(source: RgbaImage, homography: Homography, target: Size) {
-  return unpack(warpToFrame(source, homography, target));
+function warpRgba(
+  source: RgbaImage,
+  homography: Homography,
+  target: Size,
+  kernel?: WarpKernel,
+) {
+  return unpack(warpToFrame(source, homography, target, kernel));
 }
 
 function coveredCount(coverage: Uint8Array): number {
@@ -202,12 +225,11 @@ describe('warpRgba', () => {
           source.y <= patterned.height - 1;
         expect(coverage[y * patterned.width + x]).toBe(inside ? 1 : 0);
         if (!inside) continue;
-        const expected = sampleBilinear(patterned, source.x, source.y);
+        const expected = sampleCubic(patterned, source.x, source.y);
         const actual = pixelAt(image, x, y);
         for (let channel = 0; channel < 3; channel += 1) {
-          expect(
-            Math.abs(actual[channel] - expected[channel]),
-          ).toBeLessThanOrEqual(1);
+          const clamped = Math.min(Math.max(expected[channel], 0), 255);
+          expect(Math.abs(actual[channel] - clamped)).toBeLessThanOrEqual(1);
         }
         checked += 1;
       }
@@ -346,5 +368,72 @@ describe('warpRgba', () => {
     expect(() =>
       warpToFrame(patterned, new Float64Array(9), patterned),
     ).toThrow(/singular/);
+  });
+});
+
+describe('the sampling kernels', () => {
+  const weights = new Float64Array(4);
+
+  it('give weights that sum to 1 at every fraction, for both kernels', () => {
+    fc.assert(
+      fc.property(fc.double({ min: 0, max: 1, noNaN: true }), (fraction) => {
+        for (const kernel of [SHARP_KERNEL, SOFT_KERNEL]) {
+          cubicWeights(fraction, weights, kernel);
+          expect(weights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(
+            1,
+            9,
+          );
+        }
+      }),
+    );
+  });
+
+  it('take the sample itself, whole, at fraction 0 with the sharp kernel', () => {
+    cubicWeights(0, weights, SHARP_KERNEL);
+    expect([...weights].map((weight) => Math.abs(weight))).toEqual([
+      0, 1, 0, 0,
+    ]);
+  });
+
+  it('keep a hard edge crisper with the sharp kernel than with the soft one, at a half-pixel shift', () => {
+    const edge = makeImage(32, 8, (x) =>
+      x < 16 ? [40, 40, 40, 255] : [200, 200, 200, 255],
+    );
+    const run = (kernel: WarpKernel) => {
+      const { image } = warpRgba(
+        edge,
+        translationHomography(0.5, 0),
+        edge,
+        kernel,
+      );
+      const row = Array.from({ length: 32 }, (_, x) => pixelAt(image, x, 3)[0]);
+      // The steepest step between neighbours: the crisper the edge, the larger it is.
+      return Math.max(
+        ...row.slice(2, 29).map((value, x) => Math.abs(row[x + 3] - value)),
+      );
+    };
+    expect(run(SHARP_KERNEL)).toBeGreaterThan(run(SOFT_KERNEL));
+  });
+
+  it('overshoot at a hard edge and the frame holds the clamped value', () => {
+    const edge = makeImage(32, 8, (x) =>
+      x < 16 ? [0, 0, 0, 255] : [255, 255, 255, 255],
+    );
+    const { image } = warpRgba(
+      edge,
+      translationHomography(0.5, 0),
+      edge,
+      SHARP_KERNEL,
+    );
+    const row = Array.from({ length: 32 }, (_, x) => pixelAt(image, x, 3)[0]);
+    expect(Math.min(...row.slice(2, 30))).toBe(0);
+    expect(Math.max(...row.slice(2, 30))).toBe(255);
+  });
+
+  it('are chosen by the noise of the frame: sharp up to the limit, soft above it', () => {
+    expect(kernelForNoise(0)).toBe(SHARP_KERNEL);
+    expect(kernelForNoise(SHARP_KERNEL_MAX_NOISE)).toBe(SHARP_KERNEL);
+    expect(kernelForNoise(SHARP_KERNEL_MAX_NOISE + 0.01)).toBe(SOFT_KERNEL);
+    expect(kernelForNoise(28)).toBe(SOFT_KERNEL);
   });
 });

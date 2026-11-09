@@ -1,3 +1,4 @@
+import { SHARP_KERNEL } from '../warp/warp';
 import { describe, expect, it } from 'vitest';
 
 import { toRgba as bandedToRgba } from '../image/banded';
@@ -97,6 +98,8 @@ describe('alignToReference with an injected fit', () => {
     // The frame is the reference itself, so it is exactly as crisp, measured the same way.
     expect(referenceSharpness).toBeGreaterThan(0);
     expect(outcome.sharpness).toBe(referenceSharpness);
+    // A clean synthetic frame has next to no noise, so it is resampled with the sharp kernel.
+    expect(outcome.kernel).toBe(SHARP_KERNEL);
     expect(Array.from(outcome.frame.spans.start)).toEqual(
       Array(image.height).fill(0),
     );
