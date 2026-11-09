@@ -11,3 +11,4 @@ lighthouse-reports
 .next
 next-env.d.ts
 e2e/fixtures/generated
+src/app/vision/features/xfeat/xfeat.reference.json
