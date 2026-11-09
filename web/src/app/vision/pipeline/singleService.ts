@@ -1,5 +1,11 @@
-import { maskCoverage } from '../effects/mask';
-import { prepareScene, renderScene, type Scene } from '../effects/render';
+import { dilateMask, maskCoverage } from '../effects/mask';
+import {
+  growRadius,
+  prepareScene,
+  renderScene,
+  type Scene,
+} from '../effects/render';
+import type { DetectionDetail } from '../effects/tiles';
 import type { GrayImage, RgbaImage } from '../types';
 import type { Served } from './protocol';
 import { transferablesOf, unexpectedRequest } from './protocol';
@@ -20,6 +26,7 @@ export interface SingleSteps {
     image: RgbaImage,
     options: {
       readonly assetBase: string;
+      readonly detail: DetectionDetail;
       readonly onProgress: (
         stage: SingleStage,
         done: number,
@@ -35,7 +42,11 @@ export type SingleService = (
 
 interface Prepared {
   readonly image: RgbaImage;
+  /** What the model found, before any growing. */
+  readonly mask: GrayImage;
   readonly scene: Scene;
+  /** The `grow` the scene was built with. */
+  readonly grow: number;
 }
 
 /** Answers the single-photo worker's requests: prepares one photo, then renders it with any effect, as often as asked. */
@@ -55,6 +66,17 @@ export function createSingleService(
     return prepared;
   };
 
+  // The scene is rebuilt only when the mask's growth changes: the plate behind the people depends on it.
+  const grownScene = (grow: number): Scene => {
+    const current = preparedOrThrow();
+    if (grow === current.grow) return current.scene;
+    const grown = dilateMask(current.mask, growRadius(grow, current.image));
+    // Growing a mask that has people never empties it, so the fallback is never used.
+    const scene = prepareScene(current.image, grown) ?? current.scene;
+    prepared = { ...current, scene, grow };
+    return scene;
+  };
+
   const rendered = (id: number, image: RgbaImage) =>
     served({ type: 'single-rendered', id, image }, transferablesOf(image));
 
@@ -69,6 +91,7 @@ export function createSingleService(
     const image = await steps.decode(request.file, request.longEdge);
     const mask = await steps.segmentPeople(image, {
       assetBase: request.assetBase,
+      detail: request.detail,
       onProgress: progress,
     });
     progress('prepare', 0, 1);
@@ -76,7 +99,7 @@ export function createSingleService(
       maskCoverage(mask) < MIN_PERSON_COVERAGE
         ? null
         : prepareScene(image, mask);
-    if (scene) prepared = { image, scene };
+    if (scene) prepared = { image, mask, scene, grow: 0 };
     return served({
       type: 'single-prepared',
       id,
@@ -93,7 +116,7 @@ export function createSingleService(
       case 'single-render':
         return rendered(
           request.id,
-          renderScene(preparedOrThrow().scene, request.params),
+          renderScene(grownScene(request.params.grow), request.params),
         );
       case 'single-render-original': {
         const { image } = preparedOrThrow();

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
+import type { DetectionDetail } from '../vision/effects/tiles';
 import { singleLongEdge } from '../vision/pipeline/budget';
 import type { DeviceProfile } from './deviceProfile';
 import type { FailedSingleRun } from './diagnostics';
@@ -22,7 +23,7 @@ type SinglePhotoState =
 
 export interface SinglePhotoController {
   readonly state: SinglePhotoState;
-  start(file: File): void;
+  start(file: File, detail: DetectionDetail): void;
   /** Aborts a run in flight or discards a result; either way back to idle. */
   reset(): void;
 }
@@ -61,7 +62,7 @@ export function useSinglePhoto(
 
   useEffect(() => () => disposeRun(activeRun), []);
 
-  const start = (file: File) => {
+  const start = (file: File, detail: DetectionDetail) => {
     disposeRun(activeRun);
     const run: Run = { controller: new AbortController(), result: null };
     activeRun.current = run;
@@ -72,6 +73,7 @@ export function useSinglePhoto(
       workers,
       longEdge: singleLongEdge(device.budgetBytes),
       assetBase: assetBase(),
+      detail,
       signal: run.controller.signal,
       onProgress: (progress) => {
         lastProgress = progress;

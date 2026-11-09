@@ -60,7 +60,7 @@ describe('useSinglePhoto', () => {
 
   it('runs, and ends ready with the result', async () => {
     const { hook } = setup(singleHandler(true));
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     expect(hook.result.current.state).toMatchObject({
       status: 'running',
       progress: { stage: 'decode', done: 0, total: 1 },
@@ -78,7 +78,9 @@ describe('useSinglePhoto', () => {
       poolSize: 1,
       budgetBytes: DEFAULT_BUDGET_BYTES / 2,
     });
-    act(() => small.hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() =>
+      small.hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'),
+    );
     await flush();
     expect(small.factory.singles[0].sent[0]).toMatchObject({
       longEdge: 1024,
@@ -88,7 +90,7 @@ describe('useSinglePhoto', () => {
 
   it('reports a person-free photo as a failure with the stage it stopped at', async () => {
     const { hook } = setup(singleHandler(false));
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     await flush();
     expect(hook.result.current.state).toEqual({
       status: 'failed',
@@ -99,7 +101,7 @@ describe('useSinglePhoto', () => {
 
   it('cancels a run in flight: back to idle, the worker ended, no failure shown', async () => {
     const { hook, factory } = setup(singleHandler(true));
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     act(() => hook.result.current.reset());
     await flush();
     expect(hook.result.current.state).toEqual({ status: 'idle' });
@@ -108,12 +110,12 @@ describe('useSinglePhoto', () => {
 
   it('frees the worker of a result on reset and when it unmounts', async () => {
     const { hook, factory } = setup(singleHandler(true));
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     await flush();
     act(() => hook.result.current.reset());
     expect(factory.singles[0].terminated).toBe(true);
 
-    act(() => hook.result.current.start(new File(['x'], 'b.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'b.jpg'), 'thorough'));
     await flush();
     hook.unmount();
     expect(factory.singles[1].terminated).toBe(true);
@@ -121,9 +123,9 @@ describe('useSinglePhoto', () => {
 
   it('starting again discards the run before it', async () => {
     const { hook, factory } = setup(singleHandler(true));
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     await flush();
-    act(() => hook.result.current.start(new File(['x'], 'b.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'b.jpg'), 'thorough'));
     expect(factory.singles[0].terminated).toBe(true);
     await flush();
     expect(hook.result.current.state.status).toBe('ready');
@@ -139,7 +141,7 @@ describe('useSinglePhoto', () => {
     hook.rerender({
       device: { poolSize: 1, budgetBytes: DEFAULT_BUDGET_BYTES / 4 },
     });
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     await flush();
     expect(factory.singles[0].sent[0]).toMatchObject({
       longEdge: 1024,
@@ -154,7 +156,7 @@ describe('useSinglePhoto', () => {
       initialProps: { workers: first },
     });
     hook.rerender({ workers: second });
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     await flush();
     expect(first.singles).toHaveLength(0);
     expect(second.singles).toHaveLength(1);
@@ -186,7 +188,7 @@ describe('useSinglePhoto', () => {
       });
     };
     const { hook } = setup(handler);
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     await flush();
     expect(hook.result.current.state).toEqual({
       status: 'running',
@@ -199,7 +201,7 @@ describe('useSinglePhoto', () => {
 
   it('frees the worker when it unmounts mid-run', async () => {
     const { hook, factory } = setup(() => new Promise<never>(() => {}));
-    act(() => hook.result.current.start(new File(['x'], 'a.jpg')));
+    act(() => hook.result.current.start(new File(['x'], 'a.jpg'), 'fast'));
     hook.unmount();
     expect(factory.singles[0].terminated).toBe(true);
   });

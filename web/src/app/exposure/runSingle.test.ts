@@ -66,6 +66,7 @@ function setup(found: boolean, renderNeverAnswers = false) {
       workers,
       longEdge: 1600,
       assetBase: 'https://example.test/ml',
+      detail: 'fast',
       onProgress: (p) => progress.push(p),
       signal,
     });
@@ -89,7 +90,12 @@ describe('runSinglePhoto', () => {
     const { workers, run } = setup(true);
     const result = await run();
     expect([result.width, result.height]).toEqual([8, 6]);
-    const params = { effect: 'smoke', strength: 0.3, angle: 10 } as const;
+    const params = {
+      effect: 'smoke',
+      strength: 0.3,
+      angle: 10,
+      grow: 0,
+    } as const;
     expect((await result.render(params)).data[0]).toBe(7);
     expect((await result.renderReference()).data[0]).toBe(9);
     expect(workers.singles[0].sent.map((m) => m.type)).toEqual([
@@ -139,7 +145,7 @@ describe('runSinglePhoto', () => {
   it('numbers its requests 1, 2, 3 in the order they are sent', async () => {
     const { workers, run } = setup(true);
     const result = await run();
-    await result.render({ effect: 'motion', strength: 0.5, angle: 0 });
+    await result.render({ effect: 'motion', strength: 0.5, angle: 0, grow: 0 });
     await result.renderReference();
     expect(workers.singles[0].sent.map((m) => m.id)).toEqual([1, 2, 3]);
   });
@@ -178,6 +184,7 @@ describe('runSinglePhoto', () => {
       effect: 'motion',
       strength: 0.5,
       angle: 0,
+      grow: 0,
     });
     controller.abort();
     await expect(pending).rejects.toThrow('cancelled');

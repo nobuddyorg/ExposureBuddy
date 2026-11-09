@@ -122,6 +122,19 @@ export default function SingleResult({
                 render.setParams({ ...params, strength: value / PERCENT })
               }
             />
+            <ParamSlider
+              testId="grow-slider"
+              label={t('single.grow')}
+              help={t('single.grow_help')}
+              infoLabel={t('result.info', { name: t('single.grow') })}
+              unit="%"
+              value={Math.round(params.grow * PERCENT)}
+              max={PERCENT}
+              disabled={compare.comparing}
+              onChange={(value) =>
+                render.setParams({ ...params, grow: value / PERCENT })
+              }
+            />
             {hasDirection && (
               <ParamSlider
                 testId="angle-slider"

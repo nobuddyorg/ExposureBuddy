@@ -11,6 +11,7 @@ import {
 } from './effects.test-support';
 import {
   featherRadius,
+  growRadius,
   prepareScene,
   reachPixels,
   renderScene,
@@ -41,6 +42,7 @@ const render = (params: Partial<EffectParams>) =>
     effect: 'motion',
     strength: 1,
     angle: 0,
+    grow: 0,
     ...params,
   });
 
@@ -112,6 +114,15 @@ describe('reachPixels', () => {
   });
 });
 
+describe('growRadius', () => {
+  it('is nothing at 0 and 1 % of the long edge at full growth, scaled by it', () => {
+    expect(growRadius(0, { width: 1600, height: 900 })).toBe(0);
+    expect(growRadius(1, { width: 1600, height: 900 })).toBe(16);
+    expect(growRadius(1, { width: 900, height: 1600 })).toBe(16);
+    expect(growRadius(0.5, { width: 1600, height: 900 })).toBe(8);
+  });
+});
+
 describe('renderScene', () => {
   it('keeps the people and the scene at strength 0, whatever the effect', () => {
     for (const effect of EFFECTS) {
@@ -179,7 +190,7 @@ describe('renderScene', () => {
         fc.double({ min: 0, max: 1, noNaN: true }),
         fc.integer({ min: 0, max: 359 }),
         (effect, strength, angle) => {
-          const out = renderScene(scene, { effect, strength, angle });
+          const out = renderScene(scene, { effect, strength, angle, grow: 0 });
           expect([out.width, out.height]).toEqual([100, 60]);
           const margin = Math.ceil(reachPixels(strength, scene.plate) * 2);
           const left = scene.bounds.x - margin;
@@ -246,6 +257,7 @@ describe('renderScene, golden digests', () => {
       effect,
       strength: 0.8,
       angle: 30,
+      grow: 0,
     });
     expect(digestOf(out.data)).toBe(expected);
   });

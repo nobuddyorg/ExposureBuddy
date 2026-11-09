@@ -52,6 +52,10 @@
     "single_title": "Only one photo?",
     "single_body": "Turn the people in it into motion blur, a smear, liquid or smoke. The rest of the scene stays sharp.",
     "single_note": "People are found on this device. The first time, a detection model of about 17 MB is downloaded once and kept for offline use.",
+    "single_detail": "Detection",
+    "single_detail_fast": "Fast",
+    "single_detail_thorough": "Thorough",
+    "single_detail_help": "Thorough also searches small sections of the photo for people far away: about 40 seconds on a laptop, longer on a phone.",
     "single_action": "Turn people into ghosts"
   },
   "progress": {
@@ -187,6 +191,8 @@
     "effect_smoke_help": "People dissolve into drifting smoke, with the scene showing through.",
     "strength": "Strength",
     "strength_help": "How far the effect reaches",
+    "grow": "Outline",
+    "grow_help": "Widens the cut-out around the people, for edges the detection left out; the picture behind them is filled in again",
     "angle": "Direction",
     "angle_help": "Direction of the blur or smear in degrees: 0 is to the right, 90 is down",
     "alt": "Photo with the people turned into ghosts"

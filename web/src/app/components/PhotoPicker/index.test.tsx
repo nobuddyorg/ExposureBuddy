@@ -448,7 +448,17 @@ describe('PhotoPicker, single-photo mode', () => {
     await userEvent.click(
       within(card).getByRole('button', { name: 'Turn people into ghosts' }),
     );
-    expect(props.onSinglePhoto).toHaveBeenCalledTimes(1);
+    expect(props.onSinglePhoto).toHaveBeenCalledExactlyOnceWith('thorough');
+  });
+
+  it('offers the detection as thorough first and starts as fast when that is chosen', async () => {
+    const props = renderPicker({ photos: picked(['a.jpg']), reference: 0 });
+    const select = screen.getByTestId('detail-select');
+    expect(select).toHaveValue('thorough');
+    expect(select).toHaveAccessibleName('Detection');
+    await userEvent.selectOptions(select, 'fast');
+    await userEvent.click(screen.getByTestId('single-photo'));
+    expect(props.onSinglePhoto).toHaveBeenCalledExactlyOnceWith('fast');
   });
 
   it('describes the download of the model on the button', () => {

@@ -30,13 +30,17 @@ type Outcome = 'result' | 'error' | 'unsupported';
  * The last must leave nothing downloaded, and Chromium, whose workers have WebGL, must never end on it.
  * (A probe on the page cannot tell: WebKit has offscreen WebGL on the main thread and none in a worker.)
  */
-async function startDetection(app: App, page: Page): Promise<Outcome> {
+async function startDetection(
+  app: App,
+  page: Page,
+  detail: 'fast' | 'thorough' = 'fast',
+): Promise<Outcome> {
   const engine = page.context().browser()?.browserType().name();
   const mlRequests: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/ml/')) mlRequests.push(request.url());
   });
-  await app.picker.do.singlePhoto();
+  await app.picker.do.singlePhoto(detail);
   await expect(app.result.locators.canvas.or(app.pipelineError())).toBeVisible({
     timeout: SINGLE_TIMEOUT,
   });
@@ -58,8 +62,12 @@ async function startDetection(app: App, page: Page): Promise<Outcome> {
 }
 
 /** Runs the detection on a photo with a person: true when it found them, false where the browser clearly says it cannot look. */
-async function findsThePerson(app: App, page: Page): Promise<boolean> {
-  const outcome = await startDetection(app, page);
+async function findsThePerson(
+  app: App,
+  page: Page,
+  detail: 'fast' | 'thorough' = 'fast',
+): Promise<boolean> {
+  const outcome = await startDetection(app, page, detail);
   expect(
     outcome,
     'the person is found, or the browser says it cannot look',
@@ -93,7 +101,7 @@ test.describe('one photo, no burst', () => {
     // A burst needs two photos; the single-photo mode is what one photo gets instead, and a second photo brings the burst back.
     await expect(app.picker.locators.buttons.combine).toHaveCount(0);
 
-    if (!(await findsThePerson(app, page))) return;
+    if (!(await findsThePerson(app, page, 'thorough'))) return;
     await expect(app.result.locators.canvas).toBeVisible();
     await expect(app.result.locators.stats).toHaveText('640 × 480 px');
 
@@ -106,6 +114,13 @@ test.describe('one photo, no burst', () => {
     await app.result.do.setStrength(1);
     await app.result.do.selectEffect('smear');
     await expect(app.result.locators.angle).toBeVisible();
+
+    // A wider outline takes more of the edges with the people, so the picture changes; back at 0 it is the first one again.
+    const narrow = await app.result.do.canvasDigest();
+    await app.result.do.setGrow(1);
+    expect(await app.result.do.canvasDigest()).not.toBe(narrow);
+    await app.result.do.setGrow(0);
+    expect(await app.result.do.canvasDigest()).toBe(narrow);
 
     // The people are the only thing that changed: the corner of the photo is the street, untouched.
     const effect = await app.result.do.canvasPixels();

@@ -32,6 +32,7 @@ export const MUTATE_TARGETS = [
   'src/app/vision/effects/displace.ts',
   'src/app/vision/effects/render.ts',
   'src/app/vision/effects/shapes.ts',
+  'src/app/vision/effects/tiles.ts',
   'src/app/vision/indices.ts',
   'src/app/vision/pipeline/budget.ts',
   'src/app/vision/pipeline/deviceBudget.ts',

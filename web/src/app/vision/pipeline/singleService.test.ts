@@ -1,12 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { EFFECTS } from '../effects/effectParams';
-import { prepareScene, renderScene } from '../effects/render';
+import { dilateMask } from '../effects/mask';
+import { growRadius, prepareScene, renderScene } from '../effects/render';
 import {
   rectMask,
   solidImage,
   withRect,
 } from '../effects/effects.test-support';
+import type { DetectionDetail } from '../effects/tiles';
 import type { GrayImage, RgbaImage } from '../types';
 import type { SingleStage, SingleWorkerResponse } from './singleProtocol';
 import {
@@ -24,19 +26,29 @@ const PREPARE = {
   file: FILE,
   longEdge: 1600,
   assetBase: 'https://example.test/ml',
+  detail: 'fast',
 } as const;
 
 function setup(mask: GrayImage) {
   const progress: SingleWorkerResponse[] = [];
-  const calls: { longEdge: number; assetBase: string; file: Blob }[] = [];
+  const calls: {
+    longEdge: number;
+    assetBase: string;
+    detail?: DetectionDetail;
+    file: Blob;
+  }[] = [];
   const steps: SingleSteps = {
     decode: async (file, longEdge) => {
       calls.push({ longEdge, assetBase: '', file });
       return photo;
     },
-    segmentPeople: async (image: RgbaImage, { assetBase, onProgress }) => {
+    segmentPeople: async (
+      image: RgbaImage,
+      { assetBase, detail, onProgress },
+    ) => {
       expect(image).toBe(photo);
       calls[0].assetBase = assetBase;
+      calls[0].detail = detail;
       onProgress('model', 5, 10);
       onProgress('detect', 0, 1);
       return mask;
@@ -52,12 +64,22 @@ function setup(mask: GrayImage) {
 const stagesOf = (messages: SingleWorkerResponse[]): SingleStage[] =>
   messages.flatMap((m) => (m.type === 'single-progress' ? [m.stage] : []));
 
+vi.mock('../effects/render', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../effects/render')>();
+  return { ...original, prepareScene: vi.fn(original.prepareScene) };
+});
+
 describe('createSingleService', () => {
-  it('decodes the photo to the asked size and segments it from the asked folder', async () => {
+  it('decodes the photo to the asked size and segments it from the asked folder, as thoroughly as asked', async () => {
     const { service, calls } = setup(rectMask(60, 40, PERSON));
     await service(PREPARE);
     expect(calls).toEqual([
-      { longEdge: 1600, assetBase: 'https://example.test/ml', file: FILE },
+      {
+        longEdge: 1600,
+        assetBase: 'https://example.test/ml',
+        detail: 'fast',
+        file: FILE,
+      },
     ]);
   });
 
@@ -109,7 +131,7 @@ describe('createSingleService', () => {
       service({
         type: 'single-render',
         id: 2,
-        params: { effect: 'motion', strength: 0.5, angle: 0 },
+        params: { effect: 'motion', strength: 0.5, angle: 0, grow: 0 },
       }),
     ).rejects.toThrow('No photo with people has been prepared.');
   });
@@ -155,7 +177,12 @@ describe('createSingleService', () => {
   it('forgets an earlier photo when a new one finds nobody', async () => {
     const found = setup(rectMask(60, 40, PERSON));
     await found.service(PREPARE);
-    const params = { effect: 'smear', strength: 0.4, angle: 20 } as const;
+    const params = {
+      effect: 'smear',
+      strength: 0.4,
+      angle: 20,
+      grow: 0,
+    } as const;
     await expect(
       found.service({ type: 'single-render', id: 2, params }),
     ).resolves.toBeDefined();
@@ -173,7 +200,7 @@ describe('createSingleService', () => {
       const { response, transfer } = await service({
         type: 'single-render',
         id: 5,
-        params: { effect, strength: 0.6, angle: 30 },
+        params: { effect, strength: 0.6, angle: 30, grow: 0 },
       });
       if (response.type !== 'single-rendered') throw new Error('not rendered');
       expect(response.id).toBe(5);
@@ -187,7 +214,12 @@ describe('createSingleService', () => {
     const mask = rectMask(60, 40, PERSON);
     const { service } = setup(mask);
     await service(PREPARE);
-    const params = { effect: 'smear', strength: 0.7, angle: 20 } as const;
+    const params = {
+      effect: 'smear',
+      strength: 0.7,
+      angle: 20,
+      grow: 0,
+    } as const;
     const { response } = await service({
       type: 'single-render',
       id: 2,
@@ -198,6 +230,81 @@ describe('createSingleService', () => {
     if (!scene) throw new Error('the scene should have a person');
     expect(response.image.data).toEqual(renderScene(scene, params).data);
     expect(response.image.data).not.toEqual(photo.data);
+  });
+
+  it('rebuilds the scene from a grown mask when the outline grows, and returns to the first one when it shrinks back', async () => {
+    const mask = rectMask(60, 40, PERSON);
+    const { service } = setup(mask);
+    await service(PREPARE);
+    const params = {
+      effect: 'smear',
+      strength: 0.7,
+      angle: 20,
+      grow: 0,
+    } as const;
+    const render = async (grow: number) => {
+      const { response } = await service({
+        type: 'single-render',
+        id: 2,
+        params: { ...params, grow },
+      });
+      if (response.type !== 'single-rendered') throw new Error('not rendered');
+      return response.image.data;
+    };
+    const plain = await render(0);
+    const grown = await render(1);
+    const grownScene = prepareScene(
+      photo,
+      dilateMask(mask, growRadius(1, photo)),
+    );
+    if (!grownScene) throw new Error('the scene should have a person');
+    expect(grown).toEqual(renderScene(grownScene, { ...params, grow: 1 }).data);
+    expect(grown).not.toEqual(plain);
+    expect(await render(0)).toEqual(plain);
+  });
+
+  it('builds the scene once per outline width, not once per render', async () => {
+    const { service } = setup(rectMask(60, 40, PERSON));
+    await service(PREPARE);
+    const base = {
+      effect: 'smear',
+      strength: 0.7,
+      angle: 20,
+      grow: 0,
+    } as const;
+    const calls = () => vi.mocked(prepareScene).mock.calls.length;
+    const before = calls();
+    for (const grow of [0, 0, 1, 1, 1]) {
+      await service({
+        type: 'single-render',
+        id: 2,
+        params: { ...base, grow },
+      });
+    }
+    expect(calls() - before).toBe(1);
+  });
+
+  it('keeps the scene it has when a grown mask yields none', async () => {
+    const { service } = setup(rectMask(60, 40, PERSON));
+    await service(PREPARE);
+    const base = {
+      effect: 'smear',
+      strength: 0.7,
+      angle: 20,
+      grow: 0,
+    } as const;
+    const render = async (grow: number) => {
+      const { response } = await service({
+        type: 'single-render',
+        id: 2,
+        params: { ...base, grow },
+      });
+      if (response.type !== 'single-rendered') throw new Error('not rendered');
+      return response.image.data;
+    };
+    const plain = await render(0);
+    vi.mocked(prepareScene).mockReturnValueOnce(null);
+    expect(await render(1)).toEqual(plain);
   });
 
   it('renders the original untouched, as a copy that leaves the photo in place for the next render', async () => {
