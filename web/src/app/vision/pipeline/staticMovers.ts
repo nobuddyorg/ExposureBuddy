@@ -12,6 +12,12 @@ const RGBA = 4;
  */
 export const STATIC_LEVEL = 18;
 
+/**
+ * A still area whose pixels change less than this is a statue or a relief (never blurred, however the people who stand about are treated);
+ * measured on the 14-frame series of a Gothic facade: its statues 5.9 to 12.1, walking people 33 and up.
+ */
+export const STATUE_LEVEL = 14;
+
 /** Areas of fewer pixels than this are not judged: their average says too little. */
 export const MIN_JUDGED_AREA = 200;
 
@@ -51,6 +57,22 @@ export function withoutStaticAreas(
       area.reduce((sum, pixel) => sum + deviation[pixel], 0) / area.length;
     if (mean >= level) continue;
     for (const pixel of area) data[pixel] = 0;
+  }
+  return { width: mask.width, height: mask.height, data };
+}
+
+/** The areas of `mask` that stand about like people do: judged, still, but with a little more life in them than a statue has. */
+export function standingAreas(
+  mask: GrayImage,
+  deviation: Float32Array,
+): GrayImage {
+  const data = new Uint8Array(mask.data.length);
+  for (const area of areasOf(mask)) {
+    if (area.length < MIN_JUDGED_AREA) continue;
+    const mean =
+      area.reduce((sum, pixel) => sum + deviation[pixel], 0) / area.length;
+    if (mean < STATUE_LEVEL || mean >= STATIC_LEVEL) continue;
+    for (const pixel of area) data[pixel] = mask.data[pixel];
   }
   return { width: mask.width, height: mask.height, data };
 }

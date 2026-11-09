@@ -200,21 +200,36 @@ describe('createSingleService, movers', () => {
       ]);
     });
 
-    it('blurs what the model found but does not change between the frames only when asked to', async () => {
+    it('blurs people who stand about, when asked to, and never a statue that does not change at all', async () => {
       const still = [0, 1].map(() =>
         rectMask(100, 50, { x: 10, y: 10, width: 20, height: 10 }),
       );
-      const covered = async (standingBlur: number) => {
-        const { service } = setup(decoded, still);
-        const { response } = await service(
+      const covered = async (secondLevel: number, standingBlur: number) => {
+        const imageOf = (file: Blob) =>
+          solidImage(
+            100,
+            50,
+            file === FIRST
+              ? [100, 100, 100]
+              : [secondLevel, secondLevel, secondLevel],
+          );
+        const steps: SingleSteps = {
+          decode: async (file) => imageOf(file),
+          decodeAt: async (file) => imageOf(file),
+          segmentPeople: async () => still[0],
+          segmentMovers: async () => still,
+        };
+        const { response } = await createSingleService(steps, () => {})(
           movers({ working, trail: { standingBlur } }),
         );
         if (response.type !== 'movers-masked')
           throw new Error('wrong response');
         return response.trail?.sum.coverage.some((value) => value > 0);
       };
-      expect(await covered(0)).toBe(false);
-      expect(await covered(0.05)).toBe(true);
+      // A statue: both frames agree. A person who shifts a little: the frames differ by 32 levels, a deviation of 16.
+      expect(await covered(100, 0.05)).toBe(false);
+      expect(await covered(132, 0)).toBe(false);
+      expect(await covered(132, 0.05)).toBe(true);
     });
 
     it('moves the sums out of the worker with the masks', async () => {

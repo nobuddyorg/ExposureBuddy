@@ -1,5 +1,5 @@
 import { identityHomography, scaleHomography } from '../geometry/homography';
-import { dilateMask, maskCoverage, maskWithout } from '../effects/mask';
+import { dilateMask, maskCoverage } from '../effects/mask';
 import {
   growRadius,
   prepareScene,
@@ -13,7 +13,11 @@ import { warpRgba } from '../warp/warp';
 import type { GrayImage, Homography, RgbaImage, Size } from '../types';
 import { ALIGNMENT_LONG_EDGE } from './budget';
 import { spreadOut } from './blurFrames';
-import { temporalDeviation, withoutStaticAreas } from './staticMovers';
+import {
+  standingAreas,
+  temporalDeviation,
+  withoutStaticAreas,
+} from './staticMovers';
 import { emptySmearSum } from '../effects/smear';
 import { addTrailFrame, MAX_TRAIL_FRAMES } from './trail';
 import { trackAreas } from './trackAreas';
@@ -227,10 +231,8 @@ export function createSingleService(
       ),
     );
     const masks = moved.map((mask) => withoutStaticAreas(mask, deviation));
-    // What the model found but does not change between the frames: people who stand about, which the trails may blur.
-    const standing = moved.map((mask, index) =>
-      maskWithout(mask, masks[index]),
-    );
+    // Still, but livelier than a statue: people who stand about, which the trails may blur; statues are left alone.
+    const standing = moved.map((mask) => standingAreas(mask, deviation));
     const trail = await smearedTrails(
       request,
       { moving: masks, standing },

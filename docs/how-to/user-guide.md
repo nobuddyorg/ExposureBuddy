@@ -30,8 +30,9 @@ needs no model: what moves stays as a faint ghost. **Blur** looks for them in
 every photo, follows each one from photo to photo and draws it as a streak along
 the way it went, as a real long exposure would, from a few photos at full size.
 Under Blur, **Standing people** decides what happens to people who stay put:
-_Unchanged_, _Blur a little_ or _Blur a lot_ (a statue the model takes for a
-person is blurred too). **Search** is how hard they are looked for: _Fast_
+_Unchanged_, _Blur a little_ or _Blur a lot_. Statues and reliefs that the
+model takes for people are never blurred; someone who stands perfectly
+still is treated like one. **Search** is how hard they are looked for: _Fast_
 misses small, far-away people, _Thorough_ takes several times longer. The first
 use downloads the model (about 17 MB) once; everything runs on your device.
 Expect a minute or more for a dozen photos, longer on a phone.
