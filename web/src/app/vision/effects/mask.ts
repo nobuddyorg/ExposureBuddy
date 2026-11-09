@@ -73,6 +73,41 @@ export function dilateMask(mask: GrayImage, radius: number): GrayImage {
   return { width, height, data: grown };
 }
 
+/** `mask` stretched to `size` with bilinear interpolation, so a coarse mask gets soft edges at the size it is used at. */
+export function resizeMask(mask: GrayImage, size: Size): GrayImage {
+  const data = new Uint8Array(size.width * size.height);
+  const stepX = mask.width / size.width;
+  const stepY = mask.height / size.height;
+  for (const y of indices(size.height)) {
+    const sourceY = Math.min(
+      mask.height - 1,
+      Math.max(0, (y + 0.5) * stepY - 0.5),
+    );
+    const top = Math.floor(sourceY);
+    const bottom = Math.min(mask.height - 1, top + 1);
+    const fractionY = sourceY - top;
+    for (const x of indices(size.width)) {
+      const sourceX = Math.min(
+        mask.width - 1,
+        Math.max(0, (x + 0.5) * stepX - 0.5),
+      );
+      const left = Math.floor(sourceX);
+      const right = Math.min(mask.width - 1, left + 1);
+      const fractionX = sourceX - left;
+      const upper =
+        mask.data[top * mask.width + left] * (1 - fractionX) +
+        mask.data[top * mask.width + right] * fractionX;
+      const lower =
+        mask.data[bottom * mask.width + left] * (1 - fractionX) +
+        mask.data[bottom * mask.width + right] * fractionX;
+      data[y * size.width + x] = Math.round(
+        upper * (1 - fractionY) + lower * fractionY,
+      );
+    }
+  }
+  return { ...size, data };
+}
+
 /** Softens the edge of `mask` over about `radius` pixels: two box blurs, which approximate a Gaussian. */
 export function featherMask(mask: GrayImage, radius: number): GrayImage {
   return boxBlurGray(boxBlurGray(mask, radius), radius);

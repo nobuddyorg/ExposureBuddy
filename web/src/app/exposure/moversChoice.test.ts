@@ -1,18 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
-import { MOVERS_CHOICES, moversDetail } from './moversChoice';
+import {
+  DETECTION_DETAILS_IN_ORDER,
+  MOVERS_MODES,
+  moversOf,
+} from './moversChoice';
 
-describe('moversDetail', () => {
-  it('is nothing when moving things are kept', () => {
-    expect(moversDetail('off')).toBeUndefined();
+describe('moversOf', () => {
+  it('is nothing when moving things are kept, whatever the detail', () => {
+    expect(moversOf({ mode: 'off', detail: 'thorough' })).toBeUndefined();
   });
 
-  it('is the detection itself otherwise', () => {
-    expect(moversDetail('fast')).toBe('fast');
-    expect(moversDetail('thorough')).toBe('thorough');
+  it('keeps the look and the detail otherwise', () => {
+    expect(moversOf({ mode: 'remove', detail: 'fast' })).toEqual({
+      look: 'remove',
+      detail: 'fast',
+    });
+    expect(moversOf({ mode: 'blur', detail: 'thorough' })).toEqual({
+      look: 'blur',
+      detail: 'thorough',
+    });
   });
 
-  it('offers off first, so the default costs nothing', () => {
-    expect(MOVERS_CHOICES).toEqual(['off', 'fast', 'thorough']);
+  it('lists off first, so the default costs nothing, and fast before thorough', () => {
+    expect(MOVERS_MODES).toEqual(['off', 'remove', 'blur']);
+    expect(DETECTION_DETAILS_IN_ORDER).toEqual(['fast', 'thorough']);
   });
 });

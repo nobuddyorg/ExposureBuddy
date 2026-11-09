@@ -134,6 +134,12 @@ export type StackWorkerRequest =
       /** Where something that moves is in that frame, laid over the reference (any size): 255 on it. */
       readonly mask: GrayImage;
     }
+  | {
+      readonly type: 'set-mean';
+      readonly id: number;
+      /** The burst's long exposure at the working size, in place of the mean the stack made; after the last strip is stacked. */
+      readonly image: RgbaImage;
+    }
   | { readonly type: 'crop'; readonly id: number }
   | {
       readonly type: 'stack-rows';

@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_BUDGET_BYTES } from '../vision/pipeline/budget';
+import { BURST_BLUR } from '../vision/pipeline/blurMovers';
 import type { WorkerMessage } from '../vision/pipeline/protocol';
 import type { DeviceProfile } from './deviceProfile';
 import {
@@ -147,7 +148,10 @@ describe('useExposure', () => {
     const { result } = renderHook(() => useExposure(factory, device(2)));
     act(() =>
       result.current.start(
-        { ...burst([file('ok'), file('ok')]), movers: 'fast' },
+        {
+          ...burst([file('ok'), file('ok')]),
+          movers: { look: 'remove', detail: 'fast' },
+        },
         'low',
       ),
     );
@@ -156,6 +160,37 @@ describe('useExposure', () => {
       type: 'movers-masks',
       detail: 'fast',
       assetBase: `${window.location.origin}/ml`,
+    });
+  });
+
+  it('asks for the effect on the movers when the look is blur', async () => {
+    const single: FakeHandler = (request) => ({
+      response: {
+        type: 'movers-masked',
+        id: request.id,
+        masks: (request.items as unknown[]).map(() => ({
+          width: 1,
+          height: 1,
+          data: new Uint8Array(1),
+        })),
+      } as unknown as WorkerMessage,
+      transfer: [],
+    });
+    const factory = createFakeFactory(alignHandler(), stackHandler, single);
+    const { result } = renderHook(() => useExposure(factory, device(2)));
+    act(() =>
+      result.current.start(
+        {
+          ...burst([file('ok'), file('ok')]),
+          movers: { look: 'blur', detail: 'thorough' },
+        },
+        'low',
+      ),
+    );
+    await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
+    expect(factory.singles[0].sent[0]).toMatchObject({
+      detail: 'thorough',
+      blur: BURST_BLUR,
     });
   });
 

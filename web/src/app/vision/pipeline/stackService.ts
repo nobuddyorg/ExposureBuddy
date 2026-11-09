@@ -37,6 +37,9 @@ export function createStackService(
       case 'add-mask':
         session.addMask(request.index, request.mask);
         return served({ type: 'added', id });
+      case 'set-mean':
+        session.setMean(request.image);
+        return served({ type: 'added', id });
       case 'crop':
         return served({ type: 'cropped', id, ...session.crop() });
       case 'stack-rows':

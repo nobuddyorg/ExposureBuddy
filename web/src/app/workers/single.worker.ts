@@ -1,4 +1,4 @@
-import { decodeFitting } from '../exposure/decode';
+import { decodeAt, decodeFitting } from '../exposure/decode';
 import { allowOnlyOwnOrigin } from '../exposure/ml/ownOriginOnly';
 import { segmentMovers, segmentPeople } from '../exposure/ml/personSegmenter';
 import { workerScope } from '../exposure/workerScope';
@@ -13,7 +13,7 @@ const scope = workerScope();
 serveRequests(
   scope,
   createSingleService(
-    { decode: decodeFitting, segmentPeople, segmentMovers },
+    { decode: decodeFitting, decodeAt, segmentPeople, segmentMovers },
     (message) => scope.postMessage(message),
   ),
 );

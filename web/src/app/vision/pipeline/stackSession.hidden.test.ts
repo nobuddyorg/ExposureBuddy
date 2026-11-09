@@ -126,4 +126,24 @@ describe('createStackSession, masks', () => {
     const session = burst();
     expect(medianAt(session)).toEqual(medianAt(burst()));
   });
+
+  it('shows the replaced long exposure, cropped to what every frame covers', () => {
+    const session = burst();
+    session.crop();
+    session.stackRows(ALL_ROWS);
+    const long: RgbaImage = {
+      ...SIZE,
+      data: Uint8ClampedArray.from({ length: 64 }, (_, i) =>
+        i % 4 === 3 ? 255 : 77,
+      ),
+    };
+    session.setMean(long);
+    const everything: CompositeParams = { ...MEDIAN, ghostStrength: 1 };
+    expect(Array.from(session.render(everything).data.subarray(0, 3))).toEqual([
+      77, 77, 77,
+    ]);
+    expect(Array.from(session.render(MEDIAN).data.subarray(0, 3))).not.toEqual([
+      77, 77, 77,
+    ]);
+  });
 });

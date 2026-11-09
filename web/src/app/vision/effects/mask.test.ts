@@ -8,6 +8,7 @@ import {
   maskBounds,
   maskCoverage,
   maskFromAnyCategory,
+  resizeMask,
   maskFromCategories,
 } from './mask';
 import { grayOf, rectMask } from './effects.test-support';
@@ -184,5 +185,50 @@ describe('growRect', () => {
       width: 10,
       height: 10,
     });
+  });
+});
+
+describe('resizeMask', () => {
+  it('keeps a mask as it is at its own size', () => {
+    const mask = grayOf(3, 2, [0, 255, 10, 40, 200, 255]);
+    expect(resizeMask(mask, { width: 3, height: 2 })).toEqual(mask);
+  });
+
+  it('keeps a flat mask flat at any size', () => {
+    const flat = resizeMask(grayOf(2, 2, [255, 255, 255, 255]), {
+      width: 7,
+      height: 5,
+    });
+    expect(flat.data.every((value) => value === 255)).toBe(true);
+    expect([flat.width, flat.height]).toEqual([7, 5]);
+  });
+
+  it('puts a soft step between two areas instead of a hard one', () => {
+    const stretched = resizeMask(grayOf(2, 1, [0, 255]), {
+      width: 8,
+      height: 1,
+    });
+    const values = [...stretched.data];
+    expect(values[0]).toBe(0);
+    expect(values[7]).toBe(255);
+    expect(
+      values.every((value, index) => index === 0 || value >= values[index - 1]),
+    ).toBe(true);
+    expect(values.some((value) => value > 0 && value < 255)).toBe(true);
+  });
+
+  it('keeps the position of an area: a block in the left half stays on the left', () => {
+    const block = grayOf(4, 1, [255, 255, 0, 0]);
+    const wide = resizeMask(block, { width: 16, height: 1 });
+    expect(wide.data[2]).toBe(255);
+    expect(wide.data[13]).toBe(0);
+  });
+
+  it('shrinks, too, to the average of what a pixel covers', () => {
+    const small = resizeMask(grayOf(4, 4, new Array(16).fill(255)), {
+      width: 2,
+      height: 2,
+    });
+    expect([...small.data]).toEqual([255, 255, 255, 255]);
   });
 });

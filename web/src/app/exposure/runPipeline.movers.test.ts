@@ -194,4 +194,59 @@ describe('runPipeline with movers', () => {
         error.failure.kind === 'detection_unsupported',
     );
   });
+
+  describe('with the blur', () => {
+    const BLUR = {
+      effect: 'motion',
+      strength: 0.5,
+      angle: 0,
+      grow: 0,
+    } as const;
+    const blurredImage = rgba(8, 6, 3);
+    const withBlur: FakeHandler = (request, post) => {
+      const served = single(request, post) as {
+        response: WorkerMessage;
+        transfer: ArrayBuffer[];
+      };
+      return {
+        response: {
+          ...served.response,
+          blurred: blurredImage,
+        } as WorkerMessage,
+        transfer: [],
+      };
+    };
+
+    it('passes the effect to the single-photo worker', async () => {
+      const { workers, result } = start(
+        { movers: { ...MOVERS, blur: BLUR } },
+        withBlur,
+      );
+      await result;
+      expect(workers.singles[0].sent[0]).toMatchObject({ blur: BLUR });
+    });
+
+    it("puts the blurred frames' mean in place of the stack's own after the last strip", async () => {
+      const { workers, result } = start(
+        { movers: { ...MOVERS, blur: BLUR } },
+        withBlur,
+      );
+      await result;
+      const sent = workers.stacks[0].sent;
+      const mean = sent.findIndex((request) => request.type === 'set-mean');
+      expect(mean).toBeGreaterThan(
+        sent.findLastIndex((request) => request.type === 'stack-rows'),
+      );
+      expect(sent[mean].image).toBe(blurredImage);
+    });
+
+    it('sends no set-mean and no effect when only the background is cleaned', async () => {
+      const { workers, result } = start({ movers: MOVERS });
+      await result;
+      expect(workers.singles[0].sent[0]).not.toHaveProperty('blur');
+      expect(
+        workers.stacks[0].sent.some((request) => request.type === 'set-mean'),
+      ).toBe(false);
+    });
+  });
 });

@@ -6,6 +6,7 @@ import {
 } from '../vision/pipeline/budget';
 import { blurredFrames } from '../vision/pipeline/blurred';
 import { identityHomography } from '../vision/geometry/homography';
+import type { EffectParams } from '../vision/effects/effectParams';
 import type { DetectionDetail } from '../vision/effects/tiles';
 import type { SingleWorkerResponse } from '../vision/pipeline/singleProtocol';
 import type {
@@ -45,6 +46,8 @@ interface PipelineOptions {
     /** Absolute URL of the folder the model and the Wasm runtime are served from. */
     readonly assetBase: string;
     readonly detail: DetectionDetail;
+    /** When set, a few frames also get this effect on their movers at full size and their mean becomes the long exposure, instead of a plain average. */
+    readonly blur?: EffectParams;
   };
 }
 
@@ -258,6 +261,7 @@ export async function runPipeline(
           working,
           assetBase: movers.assetBase,
           detail: movers.detail,
+          ...(movers.blur && { blur: movers.blur }),
         },
         {
           signal,
@@ -278,6 +282,7 @@ export async function runPipeline(
           { transfer: transferablesOf({ mask }), signal },
         );
       }
+      return masks.blurred;
     } finally {
       signal?.removeEventListener('abort', stop);
       finder.terminate();
@@ -346,9 +351,10 @@ export async function runPipeline(
     if (alignedCount < 2)
       throw new PipelineError({ kind: 'too_few_aligned', count: alignedCount });
 
+    let blurred: RgbaImage | undefined;
     if (options.movers) {
       emit('movers', 0, alignedCount);
-      await findMovers(options.movers, working);
+      blurred = await findMovers(options.movers, working);
     }
 
     const summary = await request<Cropped>(
@@ -382,6 +388,13 @@ export async function runPipeline(
       );
       unitsDone += 1;
     }
+    // After the last strip: stacking writes the plain mean, which the blurred frames' mean replaces.
+    if (blurred)
+      await request(
+        stack,
+        { type: 'set-mean', id: nextId(), image: blurred },
+        { transfer: transferablesOf({ image: blurred }), signal },
+      );
     emit('compositing', 0, 1);
 
     return {

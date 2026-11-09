@@ -19,7 +19,7 @@ import {
   singleDiagnosticReport,
 } from './exposure/diagnostics';
 import { isPipelineSupported } from './exposure/support';
-import { moversDetail, type MoversChoice } from './exposure/moversChoice';
+import { moversOf, type MoversChoice } from './exposure/moversChoice';
 import { useExposure } from './exposure/useExposure';
 import { usePickedPhotos } from './exposure/usePickedPhotos';
 import { useSinglePhoto } from './exposure/useSinglePhoto';
@@ -64,7 +64,7 @@ export default function Home() {
       {
         files: picked.photos.map((photo) => photo.file),
         reference: picked.reference,
-        movers: moversDetail(movers),
+        movers: moversOf(movers),
       },
       quality,
     );

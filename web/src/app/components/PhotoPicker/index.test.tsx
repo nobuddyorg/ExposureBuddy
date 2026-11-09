@@ -206,14 +206,20 @@ describe('PhotoPicker, with photos', () => {
     expect(screen.queryByText('Add at least 2 photos')).toBeNull();
 
     await user.click(combine);
-    expect(onCombine).toHaveBeenLastCalledWith('standard', 'off');
+    expect(onCombine).toHaveBeenLastCalledWith('standard', {
+      mode: 'off',
+      detail: 'fast',
+    });
 
     await user.selectOptions(screen.getByTestId('quality-select'), 'high');
     await user.click(combine);
-    expect(onCombine).toHaveBeenLastCalledWith('high', 'off');
+    expect(onCombine).toHaveBeenLastCalledWith('high', {
+      mode: 'off',
+      detail: 'fast',
+    });
   });
 
-  it('offers to leave out what moves, off at first, and passes the choice with the quality', async () => {
+  it('offers to deal with what moves, off at first, and passes the choice with the quality', async () => {
     const user = userEvent.setup();
     const { onCombine } = renderPicker({ photos: picked(['a.jpg', 'b.jpg']) });
     const select = screen.getByRole('combobox', { name: 'Moving things' });
@@ -223,14 +229,30 @@ describe('PhotoPicker, with photos', () => {
       within(select)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Keep', 'Remove, fast', 'Remove, thorough']);
+    ).toEqual(['Keep', 'Remove', 'Blur']);
     expect(select).toHaveAccessibleDescription(
-      expect.stringContaining('left out of the background'),
+      expect.stringContaining('soft trail'),
     );
+    // Nothing is searched for while the moving things are kept, so there is nothing to say how hard.
+    expect(screen.queryByTestId('movers-detail-select')).toBeNull();
 
-    await user.selectOptions(select, 'thorough');
+    await user.selectOptions(select, 'blur');
+    const detail = screen.getByRole('combobox', { name: 'Search' });
+    expect(detail).toHaveValue('fast');
+    expect(
+      within(detail)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Fast', 'Thorough']);
+    await user.selectOptions(detail, 'thorough');
     await user.click(screen.getByTestId('combine'));
-    expect(onCombine).toHaveBeenLastCalledWith('standard', 'thorough');
+    expect(onCombine).toHaveBeenLastCalledWith('standard', {
+      mode: 'blur',
+      detail: 'thorough',
+    });
+
+    await user.selectOptions(select, 'off');
+    expect(screen.queryByTestId('movers-detail-select')).toBeNull();
   });
 
   it('labels the quality select with its four options', () => {

@@ -167,3 +167,27 @@ Accepted risk: `extract-zip`, unresolved upstream, four levels under `@lhci/cli`
 Everything `next build` loads (`tailwindcss`, `@tailwindcss/postcss`, `typescript`) is in `dependencies`, and `setup-web` installs with `--ignore-scripts`, so a package that only reaches the CI runner stays a smaller risk than one that reaches every visitor's browser.
 
 **Do not run `npm audit fix` here**, not even without `--force`: it reshuffles unrelated transitive versions. A from-scratch `rm -rf node_modules package-lock.json && npm install` re-resolves the whole tree against current advisories and can produce a worse baseline than the committed lockfile. Add a targeted `overrides` entry and run `npm install`.
+
+## Why the movers of a burst are masked small, applied large, and never promised away
+
+A burst's median shows a person wherever one stands in most frames, which on a
+crowded square is most of the foreground. The segmenter finds the movers in
+every frame (people, vehicles and animals; a parked car is in all frames, so it
+stays), and the median is taken over the frames that do not show one. Masks are
+computed at the alignment size (960 px long edge): the model sees 257 px
+sections anyway, and the search is the expensive part. They are moved onto the
+reference, grown by 1.2 % of the long edge (the model's outline stops short of
+hair, shoes and soft edges, which showed as silhouettes without the margin), and
+used at any size by stretching, because the blur that follows hides the coarse
+edge. Measured on a 14-frame series of a crowded square (862 × 1511,
+headless Chromium on a cloud machine): the empty foreground comes out clean in
+about 100 s with `fast`; where somebody stands in all 14 frames nothing of the
+ground behind them was ever seen, so those pixels are filled from their
+surroundings, which leaves smooth patches. No setting makes a standing crowd
+disappear, and the picker says so. That is why `Blur` exists: a soft trail
+needs no ground behind anyone, and the faces are blurred before frames are
+combined. Prototype on the same series: six frames at 2252 × 4000, the effect
+at about 40 s per frame in Node. Rejected: a model-free motion mask (a crowd
+that stands in most frames *is* the median, so it finds nothing there), and
+filling holes with texture from other frames (those pixels show people).
+

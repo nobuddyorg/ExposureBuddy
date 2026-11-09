@@ -35,6 +35,8 @@ export interface StackSession {
   addFrame: (index: number, frame: AlignedFrame) => void;
   /** Where something moves in frame `index` (or the reference), laid over the reference at any size; once every frame has one, the background leaves them out. */
   addMask: (index: number | 'reference', mask: GrayImage) => void;
+  /** Replaces the long exposure (the mean) with `image`, at the working size; after the rows are stacked, before the first render. */
+  setMean: (image: RgbaImage) => void;
   /** Forgets frame `index` again, so it neither decides the crop nor is stacked; only before `crop()`. */
   dropFrame: (index: number) => void;
   readonly frameCount: number;
@@ -144,6 +146,17 @@ export function createStackSession(): StackSession {
       if (!frames.delete(index))
         throw new Error(`Frame ${index} was never added.`);
       masks.delete(index);
+    },
+    setMean(image) {
+      const current = requireCropped();
+      const { rect } = current;
+      cropped = {
+        ...current,
+        result: {
+          ...current.result,
+          mean: cropBanded(bandedFromRgba(image), rect),
+        },
+      };
     },
     addMask(index, mask) {
       masks.set(index, mask);

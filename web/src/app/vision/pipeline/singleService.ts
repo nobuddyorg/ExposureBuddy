@@ -1,4 +1,4 @@
-import { scaleHomography } from '../geometry/homography';
+import { identityHomography, scaleHomography } from '../geometry/homography';
 import { dilateMask, maskCoverage } from '../effects/mask';
 import {
   growRadius,
@@ -8,8 +8,17 @@ import {
 } from '../effects/render';
 import type { DetectionDetail } from '../effects/tiles';
 import { warpMask } from '../effects/warpMask';
-import type { GrayImage, RgbaImage } from '../types';
+import { toRgba } from '../image/banded';
+import { warpRgba } from '../warp/warp';
+import type { GrayImage, Homography, RgbaImage, Size } from '../types';
 import { ALIGNMENT_LONG_EDGE } from './budget';
+import { spreadOut } from './blurFrames';
+import {
+  addBlurredFrame,
+  averageOf,
+  emptySum,
+  MAX_BLURRED_FRAMES,
+} from './blurMovers';
 import type { Served } from './protocol';
 import { transferablesOf, unexpectedRequest } from './protocol';
 import type {
@@ -27,6 +36,8 @@ export const MOVER_MARGIN_SHARE = 0.012;
 /** The browser-only steps, injected so the service runs in Node under test. */
 export interface SingleSteps {
   decode(file: Blob, longEdge: number): Promise<RgbaImage>;
+  /** The photo at exactly `size`. */
+  decodeAt(file: Blob, size: Size): Promise<RgbaImage>;
   /** The mask of the people in `image`, 255 on a person; reports each stage with its progress as it goes. */
   segmentPeople(
     image: RgbaImage,
@@ -62,6 +73,18 @@ interface Prepared {
   readonly scene: Scene;
   /** The `grow` the scene was built with. */
   readonly grow: number;
+}
+
+/** `image` moved through `homography` onto the reference at `size`; the reference itself (the identity) is not touched. */
+function alignedTo(
+  image: RgbaImage,
+  homography: Homography,
+  size: Size,
+): RgbaImage {
+  const identity = identityHomography();
+  if (homography.every((entry, index) => entry === identity[index]))
+    return image;
+  return toRgba(warpRgba(image, homography, size).image);
 }
 
 /** Answers the single-photo worker's requests: prepares one photo, then renders it with any effect, as often as asked. */
@@ -124,6 +147,28 @@ export function createSingleService(
     });
   };
 
+  // The effect of the burst: a few frames, each decoded and aligned at the working size, their movers blurred, then averaged.
+  const blurredMean = async (
+    request: Extract<SingleWorkerRequest, { type: 'movers-masks' }>,
+    masks: readonly GrayImage[],
+    onFrame: (done: number) => void,
+  ): Promise<RgbaImage | undefined> => {
+    const { blur, items, working } = request;
+    if (!blur) return undefined;
+    const chosen = spreadOut(
+      items.map((_, index) => index),
+      MAX_BLURRED_FRAMES,
+    );
+    const sum = emptySum(working);
+    for (const [done, index] of chosen.entries()) {
+      const decoded = await steps.decodeAt(items[index].file, working);
+      const image = alignedTo(decoded, items[index].homography, working);
+      addBlurredFrame(sum, { image, mask: masks[index] }, blur);
+      onFrame(done + 1);
+    }
+    return averageOf(sum, chosen.length, working);
+  };
+
   const findMovers = async (
     request: Extract<SingleWorkerRequest, { type: 'movers-masks' }>,
   ) => {
@@ -132,8 +177,12 @@ export function createSingleService(
       ALIGNMENT_LONG_EDGE,
       Math.max(working.width, working.height),
     );
+    const blurredCount = request.blur
+      ? Math.min(items.length, MAX_BLURRED_FRAMES)
+      : 0;
+    const total = items.length + blurredCount;
     const frame = (done: number) =>
-      postProgress({ type: 'movers-progress', id, done, total: items.length });
+      postProgress({ type: 'movers-progress', id, done, total });
     frame(0);
     const images: RgbaImage[] = [];
     for (const item of items)
@@ -158,9 +207,12 @@ export function createSingleService(
         ),
       ),
     );
+    const blurred = await blurredMean(request, masks, (done) =>
+      frame(items.length + done),
+    );
     return served(
-      { type: 'movers-masked', id, masks },
-      transferablesOf({ masks }),
+      { type: 'movers-masked', id, masks, ...(blurred && { blurred }) },
+      transferablesOf({ masks, blurred }),
     );
   };
 

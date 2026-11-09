@@ -3,7 +3,12 @@
 import { useId, useState } from 'react';
 
 import type { DeviceProfile } from '../../exposure/deviceProfile';
-import { MOVERS_CHOICES, type MoversChoice } from '../../exposure/moversChoice';
+import {
+  DETECTION_DETAILS_IN_ORDER,
+  MOVERS_MODES,
+  type MoversChoice,
+  type MoversMode,
+} from '../../exposure/moversChoice';
 import { MIN_PHOTOS } from '../../exposure/pickedPhotos';
 import type { ReferenceSize } from '../../exposure/useReferenceSize';
 import { useI18n } from '../../i18n/useI18n';
@@ -11,6 +16,7 @@ import {
   estimateOutput,
   type OutputQuality,
 } from '../../vision/pipeline/budget';
+import type { DetectionDetail } from '../../vision/effects/tiles';
 import { buttonClasses } from '../ui/buttonClasses';
 import { cardClasses } from '../ui/cardClasses';
 import { fieldClasses, labelClasses } from '../ui/fieldClasses';
@@ -34,9 +40,11 @@ export function CombineControls({
 }: CombineControlsProps) {
   const { t, tCount } = useI18n();
   const [quality, setQuality] = useState<OutputQuality>('standard');
-  const [movers, setMovers] = useState<MoversChoice>('off');
+  const [mode, setMode] = useState<MoversMode>('off');
+  const [detail, setDetail] = useState<DetectionDetail>('fast');
   const selectId = useId();
   const moversId = useId();
+  const detailId = useId();
   const reasonId = useId();
   const sizeId = useId();
   const tooFew = count < MIN_PHOTOS;
@@ -71,10 +79,14 @@ export function CombineControls({
     { value: 'original', label: t('picker.quality_original') },
   ];
 
-  const moversNames: Record<MoversChoice, string> = {
+  const modeNames: Record<MoversMode, string> = {
     off: t('picker.movers_off'),
-    fast: t('picker.movers_fast'),
-    thorough: t('picker.movers_thorough'),
+    remove: t('picker.movers_remove'),
+    blur: t('picker.movers_blur'),
+  };
+  const detailNames: Record<DetectionDetail, string> = {
+    fast: t('picker.movers_detail_fast'),
+    thorough: t('picker.movers_detail_thorough'),
   };
 
   return (
@@ -116,20 +128,40 @@ export function CombineControls({
       >
         {t('picker.movers')}
       </label>
-      <select
-        id={moversId}
-        data-testid="movers-select"
-        value={movers}
-        aria-describedby={`${moversId}-help`}
-        onChange={(event) => setMovers(event.target.value as MoversChoice)}
-        className={fieldClasses('sm:col-start-1 sm:row-start-5')}
-      >
-        {MOVERS_CHOICES.map((choice) => (
-          <option key={choice} value={choice}>
-            {moversNames[choice]}
-          </option>
-        ))}
-      </select>
+      <div className="flex gap-2 sm:col-start-1 sm:row-start-5">
+        <select
+          id={moversId}
+          data-testid="movers-select"
+          value={mode}
+          aria-describedby={`${moversId}-help`}
+          onChange={(event) => setMode(event.target.value as MoversMode)}
+          className={fieldClasses('flex-1')}
+        >
+          {MOVERS_MODES.map((value) => (
+            <option key={value} value={value}>
+              {modeNames[value]}
+            </option>
+          ))}
+        </select>
+        {mode !== 'off' && (
+          <select
+            id={detailId}
+            data-testid="movers-detail-select"
+            aria-label={t('picker.movers_detail')}
+            value={detail}
+            onChange={(event) =>
+              setDetail(event.target.value as DetectionDetail)
+            }
+            className={fieldClasses('flex-1')}
+          >
+            {DETECTION_DETAILS_IN_ORDER.map((value) => (
+              <option key={value} value={value}>
+                {detailNames[value]}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
       <p
         id={`${moversId}-help`}
         className="mt-1.5 text-xs text-muted-foreground sm:col-start-1 sm:row-start-6"
@@ -141,7 +173,7 @@ export function CombineControls({
         data-testid="combine"
         disabled={tooFew || unsupported}
         aria-describedby={tooFew ? reasonId : undefined}
-        onClick={() => onCombine(quality, movers)}
+        onClick={() => onCombine(quality, { mode, detail })}
         className={buttonClasses({
           className: 'mt-4 w-full sm:col-start-2 sm:row-start-2 sm:mt-0',
         })}

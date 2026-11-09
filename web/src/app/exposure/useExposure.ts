@@ -8,12 +8,13 @@ import {
   type RefObject,
 } from 'react';
 
-import type { DetectionDetail } from '../vision/effects/tiles';
 import type { OutputQuality } from '../vision/pipeline/budget';
 import type { DeviceProfile } from './deviceProfile';
 import type { FailedRun } from './diagnostics';
 import { toPipelineFailure } from './failure';
 import { pageAssetBase } from './ml/assetBase';
+import type { BurstMovers } from './moversChoice';
+import { BURST_BLUR } from '../vision/pipeline/blurMovers';
 import {
   runPipeline,
   type ExposureResult,
@@ -31,8 +32,8 @@ type ExposureState =
 export interface Burst {
   readonly files: readonly File[];
   readonly reference: number;
-  /** When set, people, vehicles and animals are searched for in every frame at this detail and left out of the background. */
-  readonly movers?: DetectionDetail;
+  /** When set, people, vehicles and animals are searched for in every frame and left out of the background or turned into a soft trail. */
+  readonly movers?: BurstMovers;
 }
 
 export interface ExposureController {
@@ -88,7 +89,11 @@ export function useExposure(
           quality,
           poolSize: device.poolSize,
           budgetBytes: device.budgetBytes,
-          movers: movers && { assetBase: pageAssetBase(), detail: movers },
+          movers: movers && {
+            assetBase: pageAssetBase(),
+            detail: movers.detail,
+            ...(movers.look === 'blur' && { blur: BURST_BLUR }),
+          },
         },
         workers,
         signal: run.controller.signal,

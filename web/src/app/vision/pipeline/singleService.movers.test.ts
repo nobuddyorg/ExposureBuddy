@@ -53,6 +53,10 @@ function setup(decoded: RgbaImage, found: GrayImage[]) {
       seen.push({ longEdge, file });
       return decoded;
     },
+    decodeAt: async (file, size) => {
+      seen.push({ longEdge: -size.width, file });
+      return decoded;
+    },
     segmentPeople: async () =>
       rectMask(1, 1, { x: 0, y: 0, width: 1, height: 1 }),
     segmentMovers: async (images, { assetBase, detail, onFrame }) => {
@@ -147,5 +151,61 @@ describe('createSingleService, movers', () => {
     if (response.type !== 'movers-masked') throw new Error('wrong response');
     expect(transfer).toHaveLength(2);
     expect(transfer).toContain(response.masks[0].data.buffer);
+  });
+
+  describe('with the blur asked for', () => {
+    const working = { width: 100, height: 50 };
+    const blur = {
+      effect: 'motion',
+      strength: 0.5,
+      angle: 0,
+      grow: 0,
+    } as const;
+
+    it('answers with the mean of the frames with their movers blurred, at the working size', async () => {
+      const { service } = setup(decoded, found);
+      const { response } = await service(movers({ working, blur }));
+      if (response.type !== 'movers-masked') throw new Error('wrong response');
+      expect(response.blurred).toMatchObject({ width: 100, height: 50 });
+      expect(response.blurred?.data).toHaveLength(100 * 50 * 4);
+    });
+
+    it('decodes each chosen frame at exactly the working size', async () => {
+      const { service, seen } = setup(decoded, found);
+      await service(movers({ working, blur }));
+      const exact = seen.filter((call) => call.longEdge === -100);
+      expect(exact.map((call) => call.file)).toEqual([FIRST, SECOND]);
+    });
+
+    it('counts the blurred frames in the progress, after the searched ones', async () => {
+      const { service, progress } = setup(decoded, found);
+      await service(movers({ working, blur }));
+      expect(
+        progress.map((m) =>
+          m.type === 'movers-progress' ? [m.done, m.total] : [],
+        ),
+      ).toEqual([
+        [0, 4],
+        [1, 4],
+        [2, 4],
+        [3, 4],
+        [4, 4],
+      ]);
+    });
+
+    it('moves the blurred image out of the worker with the masks', async () => {
+      const { service } = setup(decoded, found);
+      const { transfer, response } = await service(movers({ working, blur }));
+      if (response.type !== 'movers-masked') throw new Error('wrong response');
+      expect(transfer).toContain(response.blurred?.data.buffer);
+      expect(transfer).toHaveLength(3);
+    });
+
+    it('answers without a blurred image when none was asked for', async () => {
+      const { service } = setup(decoded, found);
+      const { response } = await service(movers({ working }));
+      if (response.type !== 'movers-masked') throw new Error('wrong response');
+      expect('blurred' in response).toBe(false);
+    });
   });
 });

@@ -53,6 +53,7 @@ function setup(mask: GrayImage) {
       onProgress('detect', 0, 1);
       return mask;
     },
+    decodeAt: async () => photo,
     segmentMovers: async () => [],
   };
   return {
@@ -167,6 +168,7 @@ describe('createSingleService', () => {
           decode: async () => small,
           segmentPeople: async () =>
             rectMask(100, 50, { x: 0, y: 0, width, height: 1 }),
+          decodeAt: async () => small,
           segmentMovers: async () => [],
         },
         () => {},
