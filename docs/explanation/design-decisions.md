@@ -213,3 +213,24 @@ inputs through a bilinear reference warp that lives in the test support; the
 production warp has a pin of its own. Not done: a local (mesh) refinement of the
 alignment, since the residual after the homography was under one pixel at the
 alignment size in every block measured.
+
+## Why the long exposure is smoothed only as far as the burst's own noise says
+
+A burst averages noise down by the square root of its frame count, so a night
+burst of nine frames still carries about a third of one frame's grain, and a
+daylight burst carries almost none. While the frames are stacked, `stackRows`
+samples the median absolute deviation across the frames at one pixel in 32
+(green channel only); the typical value is the noise of one frame, and
+`stackedNoise` turns it into the noise the stacked result keeps (divided by the
+root of the frame count, times 1.25 for the median). It does not come from the
+picture itself, because a Laplacian estimate takes texture for noise: on a
+textured facade it reports more noise than a night burst has. From 1.5 levels on,
+the first render smooths the median background and the mean once with a guided
+filter (flat areas become their local mean, edges and texture above
+1.5 × the noise stay); below that the picture is left exactly as stacked, so a
+clean burst loses nothing. The other three background modes are not smoothed:
+each extra layer costs seconds at full size. On the synthetic burst (noise sigma
+2, 12 and 28 per frame, ten frames): residual noise 0.6, 2.9 and 7.0 levels, and
+the median against the truth goes from 42.9 dB (unchanged, skipped), 36.2 to
+37.5 dB and 30.1 to 33.2 dB. Not measured on a real night burst yet.
+

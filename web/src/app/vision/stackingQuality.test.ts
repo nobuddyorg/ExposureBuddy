@@ -10,10 +10,17 @@ import { bandedFromRgba, toRgba } from './image/banded';
 import { alignToReference, analyseReference } from './pipeline/alignment';
 import { seededRandom } from './golden.test-support';
 import { composite } from './stack/composite';
+import { DENOISE_FROM, denoiseBanded, stackedNoise } from './stack/denoise';
 import { defaultCompositeParams } from './stack/compositeParams';
 import { fullCoverageRect } from './stack/stack';
 import { fullSpans, stackFrames } from './stack/synthetic.test-support';
-import type { AlignedFrame, Homography, Rect, RgbaImage } from './types';
+import type {
+  AlignedFrame,
+  Homography,
+  Rect,
+  RgbaImage,
+  StackResult,
+} from './types';
 import { warpRgba } from './warp/warp';
 
 // The stacking-quality benchmark: a synthetic burst with a known answer, run through today's align and stack kernels.
@@ -155,6 +162,9 @@ interface Measurement {
   readonly psnr: { readonly median: number; readonly mean: number };
   /** PSNR of the median over the pixels the mover crossed: ghosts left in the "empty" scene show up here. */
   readonly moverPathPsnr: number;
+  /** The noise the stack left, in levels, and the median's PSNR after the smoothing that noise decides on. */
+  readonly residualNoise: number;
+  readonly denoisedPsnr: number;
 }
 
 function measure(light: Light): Measurement {
@@ -187,9 +197,13 @@ function measure(light: Light): Measurement {
     aligned.map((frame) => frame.spans),
     SIZE,
   );
-  const stack = stackFrames(aligned, { rect: crop });
+  const noise = new Uint32Array(256);
+  const stack = stackFrames(aligned, { rect: crop, noise });
   const clean = toRgba(warpRgba(scene, referenceShake, SIZE).image);
-  const render = (background: 'median' | 'mean'): RgbaImage => {
+  const render = (
+    background: 'median' | 'mean',
+    source: StackResult = stack,
+  ): RgbaImage => {
     const params = {
       ...defaultCompositeParams({ frameCount: aligned.length, longEdge: 320 }),
       background: 'median' as const,
@@ -197,7 +211,7 @@ function measure(light: Light): Measurement {
       ghostBlur: 0,
       glow: 0,
     };
-    const cropped = composite(stack, params);
+    const cropped = composite(source, params);
     // Back to full-frame coordinates, so one rectangle indexes both images.
     const full = {
       ...SIZE,
@@ -215,6 +229,17 @@ function measure(light: Light): Measurement {
     return full;
   };
   const median = render('median');
+  const noiseLevel = stackedNoise(noise, aligned.length);
+  const smoothed: StackResult = {
+    ...stack,
+    backgrounds: {
+      ...stack.backgrounds,
+      median:
+        noiseLevel < DENOISE_FROM
+          ? stack.backgrounds.median
+          : denoiseBanded(stack.backgrounds.median, noiseLevel),
+    },
+  };
   const path: Rect = {
     x: Math.max(crop.x, moverRect(0).x),
     y: MOVER_ROW,
@@ -233,6 +258,8 @@ function measure(light: Light): Measurement {
       mean: psnr(render('mean'), clean, crop),
     },
     moverPathPsnr: psnr(median, clean, path),
+    residualNoise: noiseLevel,
+    denoisedPsnr: psnr(render('median', smoothed), clean, crop),
   };
 }
 
@@ -247,6 +274,8 @@ describe('stacking quality on a synthetic burst', () => {
       'median PSNR (dB)': Number(m.psnr.median.toFixed(2)),
       'mean PSNR (dB)': Number(m.psnr.mean.toFixed(2)),
       'mover path PSNR (dB)': Number(m.moverPathPsnr.toFixed(2)),
+      'residual noise (levels)': Number(m.residualNoise.toFixed(2)),
+      'denoised median PSNR (dB)': Number(m.denoisedPsnr.toFixed(2)),
     }));
     console.table(rows);
     expect(rows).toHaveLength(3);
@@ -272,5 +301,16 @@ describe('stacking quality on a synthetic burst', () => {
     expect(dark.aligned).toBe(FRAME_COUNT - 1);
     expect(dark.alignmentErrorPx).toBeLessThan(1);
     expect(dark.psnr.median).toBeGreaterThan(29.5);
+  });
+
+  // The smoothing the stack's own noise estimate decides on: by day it is skipped, indoors and at night it adds what the floors say.
+  it('leaves a clean burst exactly as stacked and smooths a noisy one', () => {
+    expect(day.residualNoise).toBeLessThan(DENOISE_FROM);
+    expect(day.denoisedPsnr).toBe(day.psnr.median);
+    expect(dim.residualNoise).toBeGreaterThan(DENOISE_FROM);
+    expect(dim.denoisedPsnr).toBeGreaterThan(dim.psnr.median + 1);
+    expect(dim.denoisedPsnr).toBeGreaterThan(37.2);
+    expect(dark.denoisedPsnr).toBeGreaterThan(dark.psnr.median + 2.5);
+    expect(dark.denoisedPsnr).toBeGreaterThan(32.8);
   });
 });

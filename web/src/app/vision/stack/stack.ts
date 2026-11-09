@@ -50,6 +50,8 @@ interface StackRowsOptions {
   readonly hidden?: readonly GrayImage[];
   /** The size of `rect`; set to 255 where every frame shows a mover, so no sample of the scene was left for the median. */
   readonly holes?: GrayImage;
+  /** Counts, over a sample of the pixels, how often the median absolute deviation of a pixel's values across the frames was 0, 1, 2 … 255 levels: the burst's own noise. */
+  readonly noise?: Uint32Array;
   readonly onProgress?: (fraction: number) => void;
 }
 
@@ -60,7 +62,14 @@ interface StackRowsOptions {
 export function stackRows(
   frames: readonly AlignedFrame[],
   stack: StackResult,
-  { rect, rows, hidden, holes, onProgress = noProgress }: StackRowsOptions,
+  {
+    rect,
+    rows,
+    hidden,
+    holes,
+    noise,
+    onProgress = noProgress,
+  }: StackRowsOptions,
 ): void {
   if (frames.length === 0)
     throw new Error('stackRows needs at least one frame.');
@@ -96,7 +105,7 @@ export function stackRows(
       if (layer.bands[band].length === 0) allocateBand(layer, band);
     });
     for (let y = chunkStart; y < chunkEnd; y += 1)
-      stackRow(work, frames, { y, rect, layers, hidden, holes });
+      stackRow(work, frames, { y, rect, layers, hidden, holes, noise });
     frames.forEach((frame) =>
       releaseBandsAbove(frame.image, rect.y + chunkEnd),
     );
@@ -121,9 +130,10 @@ function stackRow(
     readonly layers: readonly BandedRgb[];
     readonly hidden?: readonly GrayImage[];
     readonly holes?: GrayImage;
+    readonly noise?: Uint32Array;
   },
 ): void {
-  const { y, rect, layers, hidden, holes } = row;
+  const { y, rect, layers, hidden, holes, noise } = row;
   const sourceRows = frames.map((frame) => rowOf(frame.image, rect.y + y));
   const outputs = layers.map((layer) => rowOf(layer, y));
   const maskRows = hidden?.map((mask, frame) =>
@@ -148,6 +158,7 @@ function stackRow(
         },
         channel,
         masked: hidden !== undefined,
+        noise: isNoiseSample(x, y, channel) ? noise : undefined,
       });
     }
   }
@@ -165,6 +176,23 @@ interface Workspace {
   readonly estimates: Uint8Array;
 }
 
+// The green channel of one pixel in 32 (every eighth column of every fourth row) is enough to know how noisy a burst is.
+function isNoiseSample(x: number, y: number, channel: number): boolean {
+  return channel === 1 && (x & 7) === 0 && (y & 3) === 0;
+}
+
+/** The median absolute deviation of `values[0, count)` from `median`, rounded and capped at 255; `scratch` is overwritten. */
+function deviationOf(
+  values: Uint8Array,
+  median: number,
+  scratch: Uint8Array,
+  count: number,
+): number {
+  for (let index = 0; index < count; index += 1)
+    scratch[index] = Math.abs(values[index] - median);
+  return selectMedian(scratch, count);
+}
+
 /** Writes one channel of one pixel into every layer's row, in the order of `layers` in stackRows. */
 function stackSample(
   work: Workspace,
@@ -174,6 +202,7 @@ function stackSample(
     readonly offset: { readonly source: number; readonly target: number };
     readonly channel: number;
     readonly masked: boolean;
+    readonly noise?: Uint32Array;
   },
 ): void {
   const { frameCount, samples, flags, scratch, estimates } = work;
@@ -199,6 +228,7 @@ function stackSample(
     : median;
   meanRow[target] = Math.round(sum / frameCount);
   robustBackgrounds({ values, count: frameCount, median }, scratch, estimates);
+  if (at.noise) at.noise[deviationOf(values, median, scratch, frameCount)] += 1;
   trimmedRow[target] = estimates[0];
   clippedRow[target] = estimates[1];
   modeRow[target] = estimates[2];

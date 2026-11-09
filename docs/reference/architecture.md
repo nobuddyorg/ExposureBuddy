@@ -89,7 +89,7 @@ One burst goes through five stages. Each stage reports progress to the UI as
    an RGB image in bands of 64 rows and, per row, the one run of columns the
    source covers (a warped rectangle is convex, so a row never covers two
    runs). A per-channel gain estimated over the
-   overlap flattens auto-exposure flicker between frames. A frame with too
+   overlap flattens auto-exposure flicker between frames. While stacking, a sample of pixels also records how noisy the burst is (`noise` histogram in `stackRows`); the first render smooths the median background and the mean with a guided filter when the stacked result keeps 1.5 levels of noise or more. A frame with too
    few inliers is **skipped**, not guessed at. Every aligned frame, and the
    reference, also reports its **sharpness** at the alignment size
    (`vision/image/sharpness.ts`: the variance of the 4-neighbour Laplacian

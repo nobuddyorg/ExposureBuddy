@@ -7,6 +7,7 @@ import {
 } from '../image/banded';
 import { fillHole } from '../effects/inpaint';
 import { composite } from '../stack/composite';
+import { DENOISE_FROM, denoiseBanded, stackedNoise } from '../stack/denoise';
 import { applyGain, estimateGain, type Gain } from '../stack/exposure';
 import { emptyStack, fullCoverageRect, stackRows } from '../stack/stack';
 import type {
@@ -78,6 +79,8 @@ export function createStackSession(): StackSession {
   let reference: AlignedFrame | null = null;
   let stripRows = 0;
   const masks = new Map<number | 'reference', GrayImage>();
+  // The burst's own noise, sampled while it is stacked: what decides whether the long exposure is smoothed.
+  const noise = new Uint32Array(256);
   let cropped: Cropped | null = null;
 
   const requireReference = (): AlignedFrame => {
@@ -115,6 +118,28 @@ export function createStackSession(): StackSession {
       result: {
         ...current.result,
         backgrounds: { ...backgrounds, median: bandedFromRgba(filled) },
+      },
+    };
+  };
+
+  // Noise the stack left in the background and the long exposure is smoothed once, at the first render; a clean burst is left as stacked.
+  let denoised = false;
+  const denoiseOnce = (): void => {
+    if (denoised) return;
+    denoised = true;
+    const current = requireCropped();
+    const level = stackedNoise(noise, current.result.frameCount);
+    if (level < DENOISE_FROM) return;
+    const { backgrounds, mean } = current.result;
+    cropped = {
+      ...current,
+      result: {
+        ...current.result,
+        backgrounds: {
+          ...backgrounds,
+          median: denoiseBanded(backgrounds.median, level),
+        },
+        mean: denoiseBanded(mean, level),
       },
     };
   };
@@ -200,6 +225,7 @@ export function createStackSession(): StackSession {
         rows,
         hidden: hiddenMasks(),
         holes: holes ?? undefined,
+        noise,
         onProgress,
       });
     },
@@ -211,6 +237,7 @@ export function createStackSession(): StackSession {
     },
     render(params) {
       fillHoles();
+      denoiseOnce();
       return composite(requireCropped().result, params);
     },
     renderReference() {
