@@ -31,8 +31,8 @@ at least one photo shows the place without them, you see it; where somebody
 stands in every photo, the gap is filled smoothly from its surroundings, so a
 dense, standing crowd leaves soft patches. **Blur** turns them into a soft
 trail instead, from a few photos at full size. The second choice, **Search**,
-is how hard they are looked for: *Fast* misses small, far-away people,
-*Thorough* takes several times longer. The first use downloads the model (about
+is how hard they are looked for: _Fast_ misses small, far-away people,
+_Thorough_ takes several times longer. The first use downloads the model (about
 17 MB) once; everything runs on your device. Expect a minute or more for a
 dozen photos, longer on a phone.
 

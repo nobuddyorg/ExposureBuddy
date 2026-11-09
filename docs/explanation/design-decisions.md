@@ -188,6 +188,5 @@ disappear, and the picker says so. That is why `Blur` exists: a soft trail
 needs no ground behind anyone, and the faces are blurred before frames are
 combined. Prototype on the same series: six frames at 2252 × 4000, the effect
 at about 40 s per frame in Node. Rejected: a model-free motion mask (a crowd
-that stands in most frames *is* the median, so it finds nothing there), and
+that stands in most frames _is_ the median, so it finds nothing there), and
 filling holes with texture from other frames (those pixels show people).
-

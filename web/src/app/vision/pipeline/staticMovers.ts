@@ -33,9 +33,9 @@ export function temporalDeviation(frames: readonly RgbaImage[]): Float32Array {
       frames.forEach((frame, index) => {
         samples[index] = frame.data[pixel * RGBA + channel];
       });
-      const original = Uint8Array.from(samples);
       const median = selectMedian(samples, frames.length);
-      original.forEach((value) => {
+      // The selection only reorders the samples, and the sum does not care about order.
+      samples.forEach((value) => {
         sum += Math.abs(value - median);
       });
     }

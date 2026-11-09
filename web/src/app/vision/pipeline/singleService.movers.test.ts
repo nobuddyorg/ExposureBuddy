@@ -120,9 +120,9 @@ describe('createSingleService, movers', () => {
   });
 
   it('grows every mask by a share of the long edge, at least one pixel', async () => {
-    const wide = solidImage(1000, 500, [10, 10, 10]);
-    const other = solidImage(1000, 500, [240, 10, 10]);
-    const point = rectMask(1000, 500, { x: 500, y: 250, width: 1, height: 1 });
+    const wide = solidImage(200, 100, [10, 10, 10]);
+    const other = solidImage(200, 100, [240, 10, 10]);
+    const point = rectMask(200, 100, { x: 100, y: 50, width: 1, height: 1 });
     // Frames that differ, so that the grown area is judged to move.
     const imageOf = (file: Blob) => (file === FIRST ? wide : other);
     const steps: SingleSteps = {
@@ -132,15 +132,16 @@ describe('createSingleService, movers', () => {
       segmentMovers: async (images) => images.map(() => point),
     };
     const { response } = await createSingleService(steps, () => {})(
-      movers({ working: { width: 1000, height: 500 } }),
+      movers({ working: { width: 200, height: 100 } }),
     );
     if (response.type !== 'movers-masked') throw new Error('wrong response');
-    const radius = Math.round(MOVER_MARGIN_SHARE * 1000);
-    const row = response.masks[0].data.subarray(250 * 1000, 251 * 1000);
-    expect(row[500 - radius]).toBe(255);
-    expect(row[500 - radius - 1]).toBe(0);
-    expect(row[500 + radius]).toBe(255);
-    expect(row[500 + radius + 1]).toBe(0);
+    const radius = Math.max(1, Math.round(MOVER_MARGIN_SHARE * 200));
+    expect(radius).toBe(2);
+    const row = response.masks[0].data.subarray(50 * 200, 51 * 200);
+    expect(row[100 - radius]).toBe(255);
+    expect(row[100 - radius - 1]).toBe(0);
+    expect(row[100 + radius]).toBe(255);
+    expect(row[100 + radius + 1]).toBe(0);
   });
 
   it('reports the photos searched so far, tagged with the request id', async () => {
