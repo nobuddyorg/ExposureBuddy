@@ -204,8 +204,9 @@ With exactly one photo picked, the picker offers a second action beside the
 burst's. `useSinglePhoto` → `runSinglePhoto` starts `single.worker.ts`, which
 runs `createSingleService` over three requests: `single-prepare` (decode to
 a long edge of 1600, or 1024 below the default memory budget; segment with
-DeepLab v3 through MediaPipe on the CPU; reject a mask under 0.2 % of the
-photo; lift the people into a layer and fill the plate behind them),
+DeepLab v3 through MediaPipe on the CPU, over the whole photo and over
+overlapping tiles of it (`effects/tiles.ts`), merging what any tile found;
+reject a mask under 0.2 % of the photo; lift the people into a layer and fill the plate behind them),
 `single-render` (one effect with strength and direction) and
 `single-render-original` (the photo, for compare). Progress goes out as
 `single-progress` with the stage (`decode`, `model`, `detect`, `prepare`);
