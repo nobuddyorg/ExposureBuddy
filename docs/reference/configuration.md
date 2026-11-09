@@ -29,7 +29,7 @@ the service worker's cache).
 | Secret | Used by | Notes |
 | --- | --- | --- |
 | `CODECOV_TOKEN` | `ci.yml` (`build_and_test`) | Optional: the repository's upload token from codecov.io. Without it the upload is best effort and never fails the job; with it, set it as a **Dependabot** secret too, or every Dependabot PR fails `build_and_test`. |
-| `STRYKER_DASHBOARD_API_KEY` | `ci.yml` (`mutation_test`, on `main` only) | Optional; without it Stryker writes a local HTML report only. |
+| `STRYKER_DASHBOARD_API_KEY` | `mutation.yml` (`mutation_test`, on `main` only) | Optional; without it Stryker writes a local HTML report only. |
 
 Nothing else: the deploy needs only the `github-pages` environment's OIDC
 token, which `deploy-pages` mints itself. gitleaks

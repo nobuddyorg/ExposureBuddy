@@ -263,10 +263,12 @@ line (`footer-privacy`) and its link to the privacy page (`privacy-link`).
 typos, gitleaks over the history, zizmor, actionlint, markdownlint), then
 `build_and_test` (build, tsc, prettier, eslint, dependency-cruiser, knip,
 vitest with coverage, Playwright on chromium / mobile / firefox / webkit-mobile
-with e2e coverage), `mutation_test` (Stryker over `mutation-targets.mjs`),
+with e2e coverage),
 `opengrep` (SAST, error severity blocks), `lighthouse` (against the export
 served under its base path) and `zap_baseline` (a passive OWASP ZAP scan of
-the export). A local checkout runs Playwright on Chromium only (desktop and
+the export). `mutation.yml` runs Stryker over `mutation-targets.mjs` apart from
+CI (incremental on a pull request, in full on `main` and weekly), so the
+deploy never waits for it. A local checkout runs Playwright on Chromium only (desktop and
 Pixel 7); Firefox and WebKit need the `CI` or `E2E_ALL_ENGINES` variable and
 the browsers installed. `pages-deploy.yml` builds and publishes `main` once
 CI has passed on it, then runs the Chromium suite against the live site.

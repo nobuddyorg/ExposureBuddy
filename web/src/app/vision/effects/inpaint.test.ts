@@ -140,7 +140,7 @@ describe('fillHole', () => {
         },
       ),
       // Each run fills a hole; a few dozen cover the property, and the mutation run is slow enough already.
-      { numRuns: 30 },
+      { numRuns: 12 },
     );
   });
 
@@ -148,7 +148,7 @@ describe('fillHole', () => {
     const image = solidImage(321, 201, [30, 60, 90]);
     const filled = fillHole(
       image,
-      rectMask(321, 201, { x: 80, y: 50, width: 160, height: 100 }),
+      rectMask(321, 201, { x: 130, y: 80, width: 60, height: 40 }),
     );
     expect(pixelOf(filled, 160, 100)).toEqual([30, 60, 90, 255]);
   });

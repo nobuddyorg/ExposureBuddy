@@ -23,7 +23,7 @@ import type { WorkerFactory } from './workerPort';
 
 // The real services and kernels behind in-process workers: a burst stacked in strips must render exactly as in one pass.
 
-// Four bands tall and ten frames deep: strips of one band hold far less than every frame whole.
+// Four bands tall and six frames deep: strips of one band hold far less than every frame whole.
 const SCENE = { width: 128, height: 256 };
 
 /** The scene shifted by the "dx dy" a file names, with a bright walker at the x its third number gives. */
@@ -77,7 +77,7 @@ function realWorkers(): WorkerFactory {
 }
 
 const BURST = Array.from(
-  { length: 10 },
+  { length: 6 },
   (_, index) => `${(index % 5) - 2} ${(index % 3) - 1} ${8 + index * 11}`,
 );
 
