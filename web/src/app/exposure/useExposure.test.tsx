@@ -149,7 +149,7 @@ describe('useExposure', () => {
       result.current.start(
         {
           ...burst([file('ok'), file('ok')]),
-          movers: { look: 'remove', detail: 'fast', standingBlur: 0 },
+          movers: { detail: 'fast', standingBlur: 0 },
         },
         'low',
       ),
@@ -162,7 +162,7 @@ describe('useExposure', () => {
     });
   });
 
-  it('asks for the trails when the look is trail', async () => {
+  it('asks for the trails with the standing blur chosen', async () => {
     const single: FakeHandler = (request) => ({
       response: {
         type: 'movers-masked',
@@ -181,7 +181,7 @@ describe('useExposure', () => {
       result.current.start(
         {
           ...burst([file('ok'), file('ok')]),
-          movers: { look: 'trail', detail: 'thorough', standingBlur: 0.04 },
+          movers: { detail: 'thorough', standingBlur: 0.04 },
         },
         'low',
       ),

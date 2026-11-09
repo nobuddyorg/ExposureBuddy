@@ -10,8 +10,8 @@ const FRAME_COUNT = 12;
 const MOVERS_TIMEOUT = 240_000;
 
 test.describe('what moves between the shots', () => {
-  for (const mode of ['remove', 'trail'] as const) {
-    test(`is off at first, and a burst run with ${mode} on still ends in a result or says clearly that the browser cannot look`, async ({
+  for (const mode of ['classic', 'blur'] as const) {
+    test(`is off at first, and a burst run with the ${mode} look still ends in a result or says clearly that the browser cannot look`, async ({
       on,
       page,
     }) => {
@@ -20,7 +20,7 @@ test.describe('what moves between the shots', () => {
       await app.picker.do.open();
       await app.picker.do.addPhotos(listBurst(BURST));
       await expect(app.picker.locators.thumbnails).toHaveCount(FRAME_COUNT);
-      await expect(app.picker.locators.movers).toHaveValue('off');
+      await expect(app.picker.locators.movers).toHaveValue('classic');
 
       await app.picker.do.selectQuality('low');
       await app.picker.do.selectMovers(mode);
@@ -42,7 +42,7 @@ test.describe('what moves between the shots', () => {
       );
       await expect(app.result.locators.canvas).toBeVisible();
       // A trail result speaks of people and trail length; blur has no place in it, and a plain clean-up keeps the usual sliders.
-      const trailed = mode === 'trail';
+      const trailed = mode === 'blur';
       await expect(app.result.locators.sliders.trail).toHaveCount(
         trailed ? 1 : 0,
       );

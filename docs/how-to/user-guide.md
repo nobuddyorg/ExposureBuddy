@@ -25,16 +25,16 @@ same in every photo and something in it has to move.
 ## Deal with people and vehicles in a burst
 
 Under the size choice, **Moving things** decides what happens to people,
-vehicles and animals that pass between the shots. **Keep** (the default) leaves
-the burst as it is. **Remove** leaves them out of the background: wherever
-at least one photo shows the place without them, you see it; where somebody
-stands in every photo, the gap is filled smoothly from its surroundings, so a
-dense, standing crowd leaves soft patches. **Trail** draws their movement
-as streaks instead, from a few photos at full size. The second choice, **Search**,
-is how hard they are looked for: _Fast_ misses small, far-away people,
-_Thorough_ takes several times longer. The first use downloads the model (about
-17 MB) once; everything runs on your device. Expect a minute or more for a
-dozen photos, longer on a phone.
+vehicles and animals that pass between the shots. **Classic** (the default)
+needs no model: what moves stays as a faint ghost. **Blur** looks for them in
+every photo, follows each one from photo to photo and draws it as a streak along
+the way it went, as a real long exposure would, from a few photos at full size.
+Under Blur, **Standing people** decides what happens to people who stay put:
+_Unchanged_, _Blur a little_ or _Blur a lot_ (a statue the model takes for a
+person is blurred too). **Search** is how hard they are looked for: _Fast_
+misses small, far-away people, _Thorough_ takes several times longer. The first
+use downloads the model (about 17 MB) once; everything runs on your device.
+Expect a minute or more for a dozen photos, longer on a phone.
 
 ## Turn the people in one photo into ghosts
 
@@ -143,7 +143,7 @@ four are computed, so you can switch between them and compare:
 - **Most common value** is the value most photos agree on, which copes better
   with someone standing still.
 
-Three sliders then re-render the result live (after **Trail**, see below):
+Three sliders then re-render the result live (after **Blur**, see below):
 
 - **Ghosts** sets how visible moving things stay. At zero they vanish and
   you get the empty scene; at full strength the result is the plain average
@@ -152,7 +152,7 @@ Three sliders then re-render the result live (after **Trail**, see below):
 - **Glow** adds a bloom to bright moving things, such as headlights, for
   light trails.
 
-Choosing **Trail**, people, vehicles and animals are
+Choosing **Blur**, people, vehicles and animals are
 followed from photo to photo and drawn as streaks along the way they went, as a
 real long exposure would draw them. Choose what happens to people who stand
 about: **Unchanged**, **Blur a little** or **Blur a lot**. The result then has

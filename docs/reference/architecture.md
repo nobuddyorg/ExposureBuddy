@@ -216,8 +216,8 @@ fit and the checks are shared with the corner-based alignment (`alignFromPairs`)
 
 ### Moving things in a burst
 
-The picker's **Moving things** setting (`Keep`, `Remove`, `Trail`, and how hard to
-search; with `Trail` also what becomes of people who stand about) starts one more worker, the single-photo worker, after the frames are
+The picker's **Moving things** setting (`Classic`, `Blur`, and how hard to
+search; with `Blur` also what becomes of people who stand about) starts one more worker, the single-photo worker, after the frames are
 aligned. Its `movers-masks` request carries every aligned frame's file and
 transform; it decodes each at the alignment size, finds people, vehicles and
 animals (the Pascal VOC classes `person`, `car`, `bus`, `motorbike`, `bicycle`,
@@ -228,8 +228,8 @@ the long edge. The coordinator hands the masks to the stack worker
 (`add-mask`, by burst index or `reference`). Once every frame has one,
 `stackRows` takes the background median over the frames that show no mover at
 a pixel; where every frame does, the pixel is a hole that the session fills
-from the colours around it (`effects/inpaint.ts`) at the first render. With
-`Trail`, the same request also takes up to eight frames evenly spread over the
+from the colours around it (`effects/inpaint.ts`) at the first render. The same request
+takes up to eight frames evenly spread over the
 burst (`pipeline/blurFrames.ts`), follows each mover from one sample to the next
 by the centre of its mask area (`pipeline/trackAreas.ts`: nearest plausible
 pair first, a step of at most 40 % of the long edge, an area that changes by

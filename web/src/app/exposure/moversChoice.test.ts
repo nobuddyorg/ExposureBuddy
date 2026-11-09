@@ -9,27 +9,23 @@ import {
 } from './moversChoice';
 
 describe('moversOf', () => {
-  it('is nothing when moving things are kept, whatever the rest', () => {
+  it('is nothing for the classic look, whatever the rest', () => {
     expect(
-      moversOf({ mode: 'off', detail: 'thorough', standing: 'strong' }),
+      moversOf({ mode: 'classic', detail: 'thorough', standing: 'strong' }),
     ).toBeUndefined();
   });
 
-  it('keeps the look and the detail otherwise, and turns the standing choice into a share of the long edge', () => {
+  it('keeps the detail for the blur, and turns the standing choice into a share of the long edge', () => {
     expect(
-      moversOf({ mode: 'remove', detail: 'fast', standing: 'keep' }),
-    ).toEqual({ look: 'remove', detail: 'fast', standingBlur: 0 });
+      moversOf({ mode: 'blur', detail: 'thorough', standing: 'strong' }),
+    ).toEqual({ detail: 'thorough', standingBlur: STANDING_BLUR.strong });
     expect(
-      moversOf({ mode: 'trail', detail: 'thorough', standing: 'strong' }),
-    ).toEqual({
-      look: 'trail',
-      detail: 'thorough',
-      standingBlur: STANDING_BLUR.strong,
-    });
+      moversOf({ mode: 'blur', detail: 'fast', standing: 'keep' }),
+    ).toEqual({ detail: 'fast', standingBlur: 0 });
   });
 
-  it('lists off first, so the default costs nothing, and fast before thorough', () => {
-    expect(MOVERS_MODES).toEqual(['off', 'remove', 'trail']);
+  it('lists the classic look first, so the default costs nothing, and fast before thorough', () => {
+    expect(MOVERS_MODES).toEqual(['classic', 'blur']);
     expect(DETECTION_DETAILS_IN_ORDER).toEqual(['fast', 'thorough']);
   });
 

@@ -1,9 +1,9 @@
 import type { DetectionDetail } from '../vision/effects/tiles';
 
-/** What happens to what moves between the shots: nothing, a background without it, or its movement drawn as a trail along its path. */
-export type MoversMode = 'off' | 'remove' | 'trail';
+/** What happens to what moves between the shots: the classic ghosts, or its movement drawn as a blur along its path. */
+export type MoversMode = 'classic' | 'blur';
 
-export const MOVERS_MODES: readonly MoversMode[] = ['off', 'remove', 'trail'];
+export const MOVERS_MODES: readonly MoversMode[] = ['classic', 'blur'];
 
 export const DETECTION_DETAILS_IN_ORDER: readonly DetectionDetail[] = [
   'fast',
@@ -33,20 +33,18 @@ export interface MoversChoice {
   readonly standing: StandingPeople;
 }
 
-/** What a burst is started with: set only when something is done about the movers. */
+/** What a burst is started with: set only for the blur, the one mode that looks for movers. */
 export interface BurstMovers {
-  readonly look: 'remove' | 'trail';
   readonly detail: DetectionDetail;
   /** How far people who stand about are blurred, as a share of the long edge; 0 leaves them. */
   readonly standingBlur: number;
 }
 
-/** The movers a burst runs with, or nothing for `off`. */
+/** The movers a burst runs with, or nothing for the classic look. */
 export function moversOf(choice: MoversChoice): BurstMovers | undefined {
-  return choice.mode === 'off'
+  return choice.mode === 'classic'
     ? undefined
     : {
-        look: choice.mode,
         detail: choice.detail,
         standingBlur: STANDING_BLUR[choice.standing],
       };

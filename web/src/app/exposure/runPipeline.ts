@@ -52,8 +52,8 @@ interface PipelineOptions {
     /** Absolute URL of the folder the model and the Wasm runtime are served from. */
     readonly assetBase: string;
     readonly detail: DetectionDetail;
-    /** When set, a few frames also get their movers smeared along the way they went, and the long exposure shows those trails instead of ghost copies. */
-    readonly trail?: TrailSettings;
+    /** A few frames get their movers smeared along the way they went, and the long exposure shows those trails instead of ghost copies. */
+    readonly trail: TrailSettings;
   };
 }
 

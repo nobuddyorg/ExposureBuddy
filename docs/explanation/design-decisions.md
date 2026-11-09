@@ -184,11 +184,11 @@ headless Chromium on a cloud machine): the empty foreground comes out clean in
 about 100 s with `fast`; where somebody stands in all 14 frames nothing of the
 ground behind them was ever seen, so those pixels are filled from their
 surroundings, which leaves smooth patches. No setting makes a standing crowd
-disappear, and the picker says so. That is why `Trail` exists: a trail
+disappear, and the picker says so. That is why `Blur` exists: a trail
 needs no ground behind anyone, and faces are smeared before frames are
-combined. It replaced an earlier `Blur`, which gave each frame the single-photo
+combined. It replaced an earlier blur, which gave each frame the single-photo
 motion effect at a fixed strength and direction: it cost about 40 s per frame at
-2252 × 4000 in Node and drew no direction from the movement. `Trail` follows
+2252 × 4000 in Node and drew no direction from the movement. `Blur` follows
 each mover from one sampled frame to the next and streaks it along that step, so
 the direction and the length come from where the person went, and the smear costs
 a stamp per pixel under the mask and per pixel of the step, not an effect pass.

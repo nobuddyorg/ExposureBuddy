@@ -18,9 +18,11 @@ const FEATURES = {
   keypoints: [],
   descriptors: new Uint32Array(0),
 };
+const TRAIL = { standingBlur: 0.02 };
 const MOVERS = {
   assetBase: 'https://example.test/ml',
   detail: 'fast',
+  trail: TRAIL,
 } as const;
 
 const align: FakeHandler = async (request) => {
@@ -220,7 +222,6 @@ describe('runPipeline with movers', () => {
   });
 
   describe('with the trails', () => {
-    const TRAIL = { standingBlur: 0.02 };
     const trailSum = emptySmearSum({ width: 8, height: 6 });
     const withTrail: FakeHandler = (request, post) => {
       const served = single(request, post) as {
@@ -237,19 +238,13 @@ describe('runPipeline with movers', () => {
     };
 
     it('passes the trail settings to the single-photo worker', async () => {
-      const { workers, result } = start(
-        { movers: { ...MOVERS, trail: TRAIL } },
-        withTrail,
-      );
+      const { workers, result } = start({ movers: MOVERS }, withTrail);
       await result;
       expect(workers.singles[0].sent[0]).toMatchObject({ trail: TRAIL });
     });
 
     it('hands the smeared movers to the stack after the last strip', async () => {
-      const { workers, result } = start(
-        { movers: { ...MOVERS, trail: TRAIL } },
-        withTrail,
-      );
+      const { workers, result } = start({ movers: MOVERS }, withTrail);
       await result;
       const sent = workers.stacks[0].sent;
       const set = sent.findIndex((request) => request.type === 'set-trail');
@@ -260,21 +255,12 @@ describe('runPipeline with movers', () => {
     });
 
     it('tells the result its movers are drawn as trails, and only then', async () => {
-      const trailed = start({ movers: { ...MOVERS, trail: TRAIL } }, withTrail);
+      const trailed = start({ movers: MOVERS }, withTrail);
       expect((await trailed.result).trailedMovers).toBe(true);
       expect((await start({ movers: MOVERS }).result).trailedMovers).toBe(
         false,
       );
       expect((await start({}).result).trailedMovers).toBe(false);
-    });
-
-    it('sends no trail when only the background is cleaned', async () => {
-      const { workers, result } = start({ movers: MOVERS });
-      await result;
-      expect(workers.singles[0].sent[0]).not.toHaveProperty('trail');
-      expect(
-        workers.stacks[0].sent.some((request) => request.type === 'set-trail'),
-      ).toBe(false);
     });
   });
 });

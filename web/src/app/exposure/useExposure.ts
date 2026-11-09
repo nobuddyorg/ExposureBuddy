@@ -92,9 +92,7 @@ export function useExposure(
           movers: movers && {
             assetBase: pageAssetBase(),
             detail: movers.detail,
-            ...(movers.look === 'trail' && {
-              trail: { standingBlur: movers.standingBlur },
-            }),
+            trail: { standingBlur: movers.standingBlur },
           },
         },
         workers,

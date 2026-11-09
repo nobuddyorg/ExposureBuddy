@@ -42,7 +42,7 @@ export function CombineControls({
 }: CombineControlsProps) {
   const { t, tCount } = useI18n();
   const [quality, setQuality] = useState<OutputQuality>('standard');
-  const [mode, setMode] = useState<MoversMode>('off');
+  const [mode, setMode] = useState<MoversMode>('classic');
   const [detail, setDetail] = useState<DetectionDetail>('fast');
   const [standing, setStanding] = useState<StandingPeople>('keep');
   const selectId = useId();
@@ -84,9 +84,8 @@ export function CombineControls({
   ];
 
   const modeNames: Record<MoversMode, string> = {
-    off: t('picker.movers_off'),
-    remove: t('picker.movers_remove'),
-    trail: t('picker.movers_trail'),
+    classic: t('picker.movers_classic'),
+    blur: t('picker.movers_blur'),
   };
   const standingNames: Record<StandingPeople, string> = {
     keep: t('picker.standing_keep'),
@@ -152,7 +151,7 @@ export function CombineControls({
             </option>
           ))}
         </select>
-        {mode !== 'off' && (
+        {mode !== 'classic' && (
           <select
             id={detailId}
             data-testid="movers-detail-select"
@@ -171,7 +170,7 @@ export function CombineControls({
           </select>
         )}
       </div>
-      {mode === 'trail' && (
+      {mode === 'blur' && (
         <div className="mt-2 sm:col-start-1 sm:row-start-6">
           <label htmlFor={standingId} className={labelClasses('mb-1.5')}>
             {t('picker.standing')}
