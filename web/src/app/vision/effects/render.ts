@@ -50,6 +50,17 @@ export function prepareScene(image: RgbaImage, mask: GrayImage): Scene | null {
   return { plate: behind, people: liftLayer(image, coverage), bounds };
 }
 
+/** The mask grows by up to this share of the long edge at full `grow`. */
+const GROW_SHARE = 0.01;
+
+/** How many pixels a `grow` of 0–1 widens the mask by. */
+export function growRadius(
+  grow: number,
+  image: { width: number; height: number },
+): number {
+  return Math.round(grow * longEdgeOf(image) * GROW_SHARE);
+}
+
 /** How far the effect reaches from the people, in pixels. */
 export function reachPixels(
   strength: number,

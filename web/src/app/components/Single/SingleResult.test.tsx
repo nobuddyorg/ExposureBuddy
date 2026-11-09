@@ -80,6 +80,19 @@ describe('SingleResult', () => {
     );
   });
 
+  it('starts with the mask as the model drew it and re-renders when the outline grows', async () => {
+    const { renderEffect } = renderSingle();
+    const slider = screen.getByTestId('grow-slider');
+    expect(slider).toHaveValue('0');
+    fireEvent.change(slider, { target: { value: '40' } });
+    await waitFor(() =>
+      expect(renderEffect).toHaveBeenLastCalledWith({
+        ...DEFAULT_EFFECT_PARAMS,
+        grow: 0.4,
+      }),
+    );
+  });
+
   it('offers a direction for motion blur and smear only', async () => {
     const { renderEffect } = renderSingle();
     expect(screen.getByTestId('angle-slider')).toBeVisible();
@@ -124,6 +137,7 @@ describe('SingleResult', () => {
       'One of the original photos',
     );
     expect(screen.getByTestId('strength-slider')).toBeDisabled();
+    expect(screen.getByTestId('grow-slider')).toBeDisabled();
     expect(screen.getByTestId('effect-select')).toBeDisabled();
     expect(screen.getByTestId('download')).toBeDisabled();
   });

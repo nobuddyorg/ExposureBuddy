@@ -187,6 +187,8 @@
     "effect_smoke_help": "People dissolve into drifting smoke, with the scene showing through.",
     "strength": "Strength",
     "strength_help": "How far the effect reaches",
+    "grow": "Outline",
+    "grow_help": "Widens the cut-out around the people, for edges the detection left out; the picture behind them is filled in again",
     "angle": "Direction",
     "angle_help": "Direction of the blur or smear in degrees: 0 is to the right, 90 is down",
     "alt": "Photo with the people turned into ghosts"

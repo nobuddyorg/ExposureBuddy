@@ -187,6 +187,8 @@
     "effect_smoke_help": "Menschen lösen sich in ziehenden Rauch auf, durch den die Szene scheint.",
     "strength": "Stärke",
     "strength_help": "Wie weit der Effekt reicht",
+    "grow": "Umriss",
+    "grow_help": "Weitet den Ausschnitt um die Personen, für Ränder, die die Erkennung ausgelassen hat; das Bild dahinter wird neu aufgefüllt",
     "angle": "Richtung",
     "angle_help": "Richtung der Unschärfe oder des Wischers in Grad: 0 ist nach rechts, 90 nach unten",
     "alt": "Foto, auf dem die Menschen zu Geistern geworden sind"

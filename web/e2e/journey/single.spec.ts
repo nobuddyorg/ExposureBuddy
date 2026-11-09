@@ -107,6 +107,13 @@ test.describe('one photo, no burst', () => {
     await app.result.do.selectEffect('smear');
     await expect(app.result.locators.angle).toBeVisible();
 
+    // A wider outline takes more of the edges with the people, so the picture changes; back at 0 it is the first one again.
+    const narrow = await app.result.do.canvasDigest();
+    await app.result.do.setGrow(1);
+    expect(await app.result.do.canvasDigest()).not.toBe(narrow);
+    await app.result.do.setGrow(0);
+    expect(await app.result.do.canvasDigest()).toBe(narrow);
+
     // The people are the only thing that changed: the corner of the photo is the street, untouched.
     const effect = await app.result.do.canvasPixels();
     const beforeCompare = await app.result.do.canvasDigest();

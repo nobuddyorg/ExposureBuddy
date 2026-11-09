@@ -5,7 +5,9 @@ import type { RgbaImage } from '../../vision/types';
 import { maskFromCategories } from '../../vision/effects/mask';
 import {
   cropImage,
-  mergeTileMask,
+  addTileVotes,
+  agreedMask,
+  emptyVotes,
   segmentationTiles,
 } from '../../vision/effects/tiles';
 import type { SingleSteps } from '../../vision/pipeline/singleService';
@@ -66,19 +68,16 @@ export const segmentPeople: SingleSteps['segmentPeople'] = async (
       const person = segmenter.getLabels().indexOf(PERSON_LABEL);
       if (person < 0) throw new Error('The model does not know people.');
       const tiles = segmentationTiles(image);
-      const mask = {
-        ...image,
-        data: new Uint8Array(image.width * image.height),
-      };
+      const votes = emptyVotes(image);
       // One pass over a downscaled photo loses everyone small or far away, so the model also sees every tile at its own size.
       for (const [index, tile] of tiles.entries()) {
         onProgress('detect', index, tiles.length);
         const part = cropImage(image, tile);
         const categories = await segmentCategories(segmenter, part);
-        mergeTileMask(mask, maskFromCategories(categories, part, person), tile);
+        addTileVotes(votes, maskFromCategories(categories, part, person), tile);
       }
       onProgress('detect', tiles.length, tiles.length);
-      return mask;
+      return agreedMask(votes);
     } finally {
       segmenter.close();
     }

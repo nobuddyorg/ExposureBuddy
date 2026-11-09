@@ -1,10 +1,12 @@
 import { indices } from '../indices';
 import type { GrayImage, Rect, RgbaImage, Size } from '../types';
 
+const HALF = 128;
+
 /** The segmenter sees every region at this side length, so a region smaller than it is only enlarged, never resolved better. */
 export const MODEL_SIDE = 256;
-/** A tile is this share of the photo's shorter side: small enough that a person in the crowd fills a few model pixels, large enough to keep whole bodies. */
-const TILE_SHARE = 0.3;
+/** Tile sizes as shares of the photo's shorter side: large tiles keep whole bodies solid, small ones resolve people far away; 0.2 and below found statues and left holes. */
+const TILE_SHARES = [0.5, 0.3];
 
 /** Start positions along one axis that cover `length` (longer than `window`) with windows of `window`, half a window apart, the last flush with the end. */
 function starts(length: number, window: number): number[] {
@@ -14,18 +16,27 @@ function starts(length: number, window: number): number[] {
   );
 }
 
-/** The whole photo first, then overlapping square tiles over it; a photo no larger than one tile is just the whole. */
+/** The whole photo first, then overlapping square tiles of every size over it; sizes no smaller than the photo's shorter side are left out. */
 export function segmentationTiles(size: Size): Rect[] {
-  const side = Math.max(
-    MODEL_SIDE,
-    Math.round(Math.min(size.width, size.height) * TILE_SHARE),
+  const shorter = Math.min(size.width, size.height);
+  const sides = new Set(
+    TILE_SHARES.map((share) =>
+      Math.max(MODEL_SIDE, Math.round(shorter * share)),
+    ),
   );
-  const whole = { x: 0, y: 0, ...size };
-  if (side >= Math.min(size.width, size.height)) return [whole];
-  const tiles = starts(size.height, side).flatMap((y) =>
-    starts(size.width, side).map((x) => ({ x, y, width: side, height: side })),
-  );
-  return [whole, ...tiles];
+  const tiles = [...sides]
+    .filter((side) => side < shorter)
+    .flatMap((side) =>
+      starts(size.height, side).flatMap((y) =>
+        starts(size.width, side).map((x) => ({
+          x,
+          y,
+          width: side,
+          height: side,
+        })),
+      ),
+    );
+  return [{ x: 0, y: 0, ...size }, ...tiles];
 }
 
 /** The pixels of `image` inside `rect`, as an image of their own. */
@@ -41,19 +52,48 @@ export function cropImage(image: RgbaImage, rect: Rect): RgbaImage {
   return { width: rect.width, height: rect.height, data };
 }
 
-/** Raises `target` to at least `part` wherever the tile at `origin` has people: a person any tile found stays found. */
-export function mergeTileMask(
-  target: GrayImage,
+/** How often each pixel was seen by a tile, and how often as a person. */
+export interface TileVotes {
+  readonly width: number;
+  readonly height: number;
+  readonly seen: Uint8Array;
+  readonly people: Uint8Array;
+}
+
+/** A pixel is a person when this share of the tiles that saw it say so: a statue one tile takes for a person is outvoted, a small person only the small tiles find is kept. */
+const AGREEMENT = 0.25;
+
+export function emptyVotes(size: Size): TileVotes {
+  const count = size.width * size.height;
+  return {
+    ...size,
+    seen: new Uint8Array(count),
+    people: new Uint8Array(count),
+  };
+}
+
+/** Counts the tile at `origin`, whose mask is `part`: every pixel it covers was seen, and the set ones were seen as people. */
+export function addTileVotes(
+  votes: TileVotes,
   part: GrayImage,
   origin: Rect,
 ): void {
   for (const row of indices(part.height)) {
     for (const column of indices(part.width)) {
-      const at = (origin.y + row) * target.width + origin.x + column;
-      target.data[at] = Math.max(
-        target.data[at],
-        part.data[row * part.width + column],
-      );
+      const at = (origin.y + row) * votes.width + origin.x + column;
+      votes.seen[at] += 1;
+      if (part.data[row * part.width + column] >= HALF) votes.people[at] += 1;
     }
   }
+}
+
+/** 255 where enough of the tiles that saw a pixel found a person there, 0 elsewhere. */
+export function agreedMask(votes: TileVotes): GrayImage {
+  return {
+    width: votes.width,
+    height: votes.height,
+    data: Uint8Array.from(votes.seen, (seen, at) =>
+      votes.people[at] > 0 && votes.people[at] >= seen * AGREEMENT ? 255 : 0,
+    ),
+  };
 }

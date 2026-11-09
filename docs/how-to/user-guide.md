@@ -34,7 +34,9 @@ sharp.
   offline.
 - **On the result screen**, pick the effect and set its strength. Motion blur
   and smear also take a direction in degrees (0 is to the right, 90 is
-  down); a smear trails behind the movement.
+  down); a smear trails behind the movement. The outline slider widens the
+  cut-out around the people: use it when the detection left out an edge or
+  a hand; the picture behind them is filled in again each time.
 - **Compare** works as for a burst: hold the picture or press the compare
   button to see the original.
 - **If nobody is found** you get a message that says so, never the photo

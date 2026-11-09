@@ -23,6 +23,7 @@ interface Result {
     selectEffect(effect: Effect): Promise<void>;
     selectBackground(mode: Background): Promise<void>;
     setSlider(slider: Slider, fraction: number): Promise<void>;
+    setGrow(fraction: number): Promise<void>;
     setStrength(fraction: number): Promise<void>;
     startOver(): Promise<void>;
     toggleCompare(): Promise<void>;
@@ -40,6 +41,7 @@ interface Result {
     background: Locator;
     canvas: Locator;
     effect: Locator;
+    grow: Locator;
     skipped: Locator;
     blurred: Locator;
     sliders: Record<Slider, Locator>;
@@ -108,6 +110,7 @@ export function initResult(page: Page): Result {
       glow: page.getByTestId('glow-slider'),
     },
     stats: page.getByTestId('result-stats'),
+    grow: page.getByTestId('grow-slider'),
     strength: page.getByTestId('strength-slider'),
     trails: page.getByTestId('trails-toggle'),
   };
@@ -182,6 +185,13 @@ export function initResult(page: Page): Result {
       await interactions.openControls();
       const before = await canvasDigest(locators.canvas);
       const changed = await setRangeValue(locators.strength, fraction);
+      if (changed) await waitForRender(before);
+    },
+    // `fraction` is 0–1 of the outline slider's range; returns once the canvas shows the grown mask.
+    setGrow: async (fraction: number) => {
+      await interactions.openControls();
+      const before = await canvasDigest(locators.canvas);
+      const changed = await setRangeValue(locators.grow, fraction);
       if (changed) await waitForRender(before);
     },
     // Modes can render identical pixels on a simple scene, so wait for the canvas to hold still instead of to change.
