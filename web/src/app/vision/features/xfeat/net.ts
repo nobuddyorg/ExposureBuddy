@@ -92,23 +92,30 @@ function accumulate(
   const { layer, weightBase, width, height } = conv;
   const { kernel, stride, padding } = layer;
   const source = channel * input.width * input.height;
-  for (const ky of indices(kernel)) {
-    for (const kx of indices(kernel)) {
+  for (let ky = 0; ky < kernel; ky += 1) {
+    for (let kx = 0; kx < kernel; kx += 1) {
       const weight = layer.weights[weightBase + ky * kernel + kx];
       if (weight === 0) continue;
-      for (const y of indices(height)) {
+      // The columns whose source column lies inside the image: x · stride + kx − padding in [0, width).
+      const first = Math.max(0, Math.ceil((padding - kx) / stride));
+      const last = Math.min(
+        width - 1,
+        Math.floor((input.width - 1 + padding - kx) / stride),
+      );
+      const shift = kx - padding;
+      for (let y = 0; y < height; y += 1) {
         const sy = y * stride + ky - padding;
         if (sy < 0 || sy >= input.height) continue;
-        const row = source + sy * input.width;
-        // The columns whose source column lies inside the image: x · stride + kx − padding in [0, width).
-        const first = Math.max(0, Math.ceil((padding - kx) / stride));
-        const last = Math.min(
-          width - 1,
-          Math.floor((input.width - 1 + padding - kx) / stride),
-        );
-        for (let x = first; x <= last; x += 1)
-          target[y * width + x] +=
-            weight * input.data[row + x * stride + kx - padding];
+        const row = source + sy * input.width + shift;
+        const out = y * width;
+        const values = input.data;
+        if (stride === 1) {
+          for (let x = first; x <= last; x += 1)
+            target[out + x] += weight * values[row + x];
+        } else {
+          for (let x = first; x <= last; x += 1)
+            target[out + x] += weight * values[row + x * stride];
+        }
       }
     }
   }
@@ -121,7 +128,66 @@ function activate(plane: Float32Array, layer: ConvLayer): void {
   }
 }
 
+/** `input` with `padding` zeros around every plane. */
+function padded(input: Planes, padding: number): Planes {
+  const width = input.width + 2 * padding;
+  const height = input.height + 2 * padding;
+  const data = new Float32Array(input.channels * width * height);
+  for (const channel of indices(input.channels))
+    for (const y of indices(input.height))
+      data.set(
+        input.data.subarray(
+          (channel * input.height + y) * input.width,
+          (channel * input.height + y + 1) * input.width,
+        ),
+        (channel * height + y + padding) * width + padding,
+      );
+  return { channels: input.channels, width, height, data };
+}
+
+/**
+ * A stride-1 convolution that keeps the size: every (kernel row, kernel column) is one shifted multiply-add over the whole padded plane in
+ * one long loop, and the columns that wrapped around the padding are dropped afterwards.
+ */
+function convolveSame(input: Planes, layer: ConvLayer): Planes {
+  const { kernel, padding } = layer;
+  const { width, height } = input;
+  const wide = padded(input, padding);
+  const plane = wide.width * wide.height;
+  const length = (height - 1) * wide.width + width;
+  const data = new Float32Array(layer.cout * width * height);
+  const accumulator = new Float32Array(height * wide.width);
+  for (const out of indices(layer.cout)) {
+    accumulator.fill(layer.bias[out]);
+    for (let channel = 0; channel < layer.cin; channel += 1) {
+      const weightBase = (out * layer.cin + channel) * kernel * kernel;
+      for (let ky = 0; ky < kernel; ky += 1) {
+        for (let kx = 0; kx < kernel; kx += 1) {
+          const weight = layer.weights[weightBase + ky * kernel + kx];
+          if (weight === 0) continue;
+          const source = channel * plane + ky * wide.width + kx;
+          const values = wide.data;
+          for (let i = 0; i < length; i += 1)
+            accumulator[i] += weight * values[source + i];
+        }
+      }
+    }
+    for (const y of indices(height))
+      data.set(
+        accumulator.subarray(y * wide.width, y * wide.width + width),
+        (out * height + y) * width,
+      );
+    activate(
+      data.subarray(out * width * height, (out + 1) * width * height),
+      layer,
+    );
+  }
+  return { channels: layer.cout, width, height, data };
+}
+
 function convolve(input: Planes, layer: ConvLayer): Planes {
+  if (layer.stride === 1 && 2 * layer.padding === layer.kernel - 1)
+    return convolveSame(input, layer);
   const { kernel, stride, padding } = layer;
   const width = Math.floor((input.width + 2 * padding - kernel) / stride) + 1;
   const height = Math.floor((input.height + 2 * padding - kernel) / stride) + 1;

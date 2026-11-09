@@ -15,6 +15,7 @@ import type {
   Point,
   RansacResult,
   RgbaImage,
+  Size,
 } from '../types';
 import { kernelForNoise, warpRgba, type WarpKernel } from '../warp/warp';
 import { ALIGNMENT_LONG_EDGE } from './budget';
@@ -74,7 +75,7 @@ export function analyseReference(image: RgbaImage): ReferenceAnalysis {
   };
 }
 
-type HomographyEstimator = (
+export type HomographyEstimator = (
   source: readonly Point[],
   target: readonly Point[],
 ) => RansacResult | null;
@@ -107,28 +108,50 @@ export function alignToReference(
     return skipped(matches.length, 0);
   }
 
-  const source = matches.map((match) => features.keypoints[match.queryIndex]);
-  const target = matches.map((match) => reference.keypoints[match.trainIndex]);
+  return alignFromPairs(
+    { image, gray, size: reference, estimate },
+    {
+      source: matches.map((match) => features.keypoints[match.queryIndex]),
+      target: matches.map((match) => reference.keypoints[match.trainIndex]),
+    },
+  );
+}
+
+/**
+ * Fits a homography to `pairs` (frame point, reference point, at the alignment size `size`) and warps `image` with it; skipped when
+ * the fit explains too few of the pairs or is not a sane camera move.
+ */
+export function alignFromPairs(
+  frame: {
+    readonly image: RgbaImage;
+    readonly gray: GrayImage;
+    readonly size: Size;
+    readonly estimate: HomographyEstimator;
+  },
+  pairs: {
+    readonly source: readonly Point[];
+    readonly target: readonly Point[];
+  },
+): AlignOutcome {
+  const { image, gray, size, estimate } = frame;
+  const { source, target } = pairs;
   const fit = estimate(source, target);
-  if (!fit) return skipped(matches.length, 0);
+  if (!fit) return skipped(source.length, 0);
 
   if (
-    !explainsEnough(fit.inlierCount, matches.length) ||
-    !isSaneHomography(fit.homography, reference)
+    !explainsEnough(fit.inlierCount, source.length) ||
+    !isSaneHomography(fit.homography, size)
   ) {
-    return skipped(matches.length, fit.inlierCount);
+    return skipped(source.length, fit.inlierCount);
   }
 
   const kernel = kernelForNoise(noiseLevel(gray));
-  const toWorking = scaleHomography(
-    fit.homography,
-    image.width / reference.width,
-  );
+  const toWorking = scaleHomography(fit.homography, image.width / size.width);
   return {
     kind: 'aligned',
     frame: warpRgba(image, toWorking, image, kernel),
     homography: toWorking,
-    matches: matches.length,
+    matches: source.length,
     inliers: fit.inlierCount,
     sharpness: sharpness(gray),
     kernel,
