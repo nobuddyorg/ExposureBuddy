@@ -128,4 +128,24 @@ describe('stackFrames with people masks', () => {
       stackFrames(crowd(standing), { rect: RECT, hidden: [noOne] }),
     ).toThrow(RangeError);
   });
+
+  it('marks as holes the pixels where every frame shows someone, and only those', () => {
+    const everyone = [0, 1, 2, 3, 4];
+    const holes: GrayImage = { ...SIZE, data: new Uint8Array(64) };
+    const allMasks = everyone.map(() => personMask(SIZE, PERSON_AT));
+    stackFrames(crowd(everyone), { rect: RECT, hidden: allMasks, holes });
+    const marked = [...holes.data.entries()]
+      .filter(([, value]) => value === 255)
+      .map(([index]) => [index % 8, Math.floor(index / 8)]);
+    const expected: number[][] = [];
+    for (let y = 2; y < 5; y += 1)
+      for (let x = 2; x < 5; x += 1) expected.push([x, y]);
+    expect(marked).toEqual(expected);
+  });
+
+  it('marks no hole where one frame is clear', () => {
+    const holes: GrayImage = { ...SIZE, data: new Uint8Array(64) };
+    stackFrames(crowd([0, 1, 2]), { rect: RECT, hidden: masks(), holes });
+    expect(holes.data.every((value) => value === 0)).toBe(true);
+  });
 });

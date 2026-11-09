@@ -21,6 +21,9 @@ import type {
 /** Fewer people pixels than this share of the photo are taken for noise in the segmenter's output, not for a person. */
 export const MIN_PERSON_COVERAGE = 0.002;
 
+/** How far a mover's mask is grown, as a share of the photo's long edge: the model's outline stops short of hair, shoes and soft edges. */
+export const MOVER_MARGIN_SHARE = 0.012;
+
 /** The browser-only steps, injected so the service runs in Node under test. */
 export interface SingleSteps {
   decode(file: Blob, longEdge: number): Promise<RgbaImage>;
@@ -141,11 +144,17 @@ export function createSingleService(
       onFrame: frame,
     });
     const masks = found.map((mask, index) =>
-      warpMask(
-        mask,
-        scaleHomography(
-          items[index].homography,
-          images[index].width / working.width,
+      dilateMask(
+        warpMask(
+          mask,
+          scaleHomography(
+            items[index].homography,
+            images[index].width / working.width,
+          ),
+        ),
+        Math.max(
+          1,
+          Math.round(MOVER_MARGIN_SHARE * Math.max(mask.width, mask.height)),
         ),
       ),
     );

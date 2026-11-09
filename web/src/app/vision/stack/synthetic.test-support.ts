@@ -97,6 +97,7 @@ export function stackFrames(
   options: {
     readonly rect: Rect;
     readonly hidden?: readonly GrayImage[];
+    readonly holes?: GrayImage;
     readonly onProgress?: (fraction: number) => void;
   },
 ): StackResult {

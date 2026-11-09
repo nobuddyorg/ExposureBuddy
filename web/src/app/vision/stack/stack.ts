@@ -21,6 +21,7 @@ const RGB = 3;
 const OPAQUE = 255;
 const PROGRESS_STEP = 0.02;
 const HIDDEN_FROM = 128;
+const HOLE = 255;
 
 /** An empty result the size of `rect`: every layer's bands unallocated until stackRows reaches them. */
 export function emptyStack(rect: Rect, frameCount: number): StackResult {
@@ -46,6 +47,8 @@ interface StackRowsOptions {
   readonly rows: RowRange;
   /** Per frame, in frame order, a mask of the people in it (any size, 128 and up is a person): the median is taken over the frames that do not show one. */
   readonly hidden?: readonly GrayImage[];
+  /** The size of `rect`; set to 255 where every frame shows a mover, so no sample of the scene was left for the median. */
+  readonly holes?: GrayImage;
   readonly onProgress?: (fraction: number) => void;
 }
 
@@ -56,7 +59,7 @@ interface StackRowsOptions {
 export function stackRows(
   frames: readonly AlignedFrame[],
   stack: StackResult,
-  { rect, rows, hidden, onProgress = noProgress }: StackRowsOptions,
+  { rect, rows, hidden, holes, onProgress = noProgress }: StackRowsOptions,
 ): void {
   if (frames.length === 0)
     throw new Error('stackRows needs at least one frame.');
@@ -109,6 +112,7 @@ export function stackRows(
         const source = (rect.x + x) * RGB;
         const target = x * RGB;
         if (hidden && maskRows) {
+          let visible = 0;
           hidden.forEach((mask, frame) => {
             flags[frame] = isHidden(
               mask,
@@ -117,7 +121,9 @@ export function stackRows(
             )
               ? 1
               : 0;
+            visible += 1 - flags[frame];
           });
+          if (holes && visible === 0) holes.data[y * rect.width + x] = HOLE;
         }
         for (let channel = 0; channel < RGB; channel += 1) {
           const values = channels[channel];

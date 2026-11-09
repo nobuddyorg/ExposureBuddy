@@ -8,7 +8,11 @@ import type {
   SingleWorkerRequest,
   SingleWorkerResponse,
 } from './singleProtocol';
-import { createSingleService, type SingleSteps } from './singleService';
+import {
+  createSingleService,
+  MOVER_MARGIN_SHARE,
+  type SingleSteps,
+} from './singleService';
 
 const translation = (dx: number, dy: number): Homography =>
   Float64Array.from([1, 0, dx, 0, 1, dy, 0, 0, 1]);
@@ -104,9 +108,27 @@ describe('createSingleService, movers', () => {
     const [first, second] = response.masks;
     // The decoded photo is a tenth of the working width, so a shift of 10 working pixels is 1 pixel here.
     expect(first.data[5 * 100 + 10]).toBe(255);
-    expect(second.data[5 * 100 + 10]).toBe(0);
+    // A margin of one pixel on a 100 px photo: the shifted mask starts at x = 11, so x = 10 is its margin and x = 9 is clear.
+    expect(second.data[5 * 100 + 9]).toBe(0);
+    expect(second.data[5 * 100 + 10]).toBe(255);
     expect(second.data[5 * 100 + 11]).toBe(255);
     expect(response.id).toBe(4);
+  });
+
+  it('grows every mask by a share of the long edge, at least one pixel', async () => {
+    const wide = solidImage(1000, 500, [10, 10, 10]);
+    const point = rectMask(1000, 500, { x: 500, y: 250, width: 1, height: 1 });
+    const { service } = setup(wide, [point, point]);
+    const { response } = await service(
+      movers({ working: { width: 1000, height: 500 } }),
+    );
+    if (response.type !== 'movers-masked') throw new Error('wrong response');
+    const radius = Math.round(MOVER_MARGIN_SHARE * 1000);
+    const row = response.masks[0].data.subarray(250 * 1000, 251 * 1000);
+    expect(row[500 - radius]).toBe(255);
+    expect(row[500 - radius - 1]).toBe(0);
+    expect(row[500 + radius]).toBe(255);
+    expect(row[500 + radius + 1]).toBe(0);
   });
 
   it('reports the photos searched so far, tagged with the request id', async () => {

@@ -103,4 +103,27 @@ describe('createStackSession, masks', () => {
     const next = burst();
     expect(medianAt(next)).not.toEqual([...SCENE]);
   });
+
+  it('fills a pixel every frame shows a mover on from the colours around it', () => {
+    const session = createStackSession();
+    session.addReference(reference(), 4);
+    session.addFrame(1, frame(PERSON));
+    // Every frame is hidden in the same pixel; the rest of the picture is clear.
+    const oneSpot: GrayImage = { ...SIZE, data: new Uint8Array(16) };
+    oneSpot.data[1 * 4 + 1] = 255;
+    session.addMask('reference', oneSpot);
+    session.addMask(1, oneSpot);
+    session.crop();
+    session.stackRows(ALL_ROWS);
+    const image = session.render(MEDIAN);
+    const at = (x: number, y: number) =>
+      Array.from(image.data.subarray((y * 4 + x) * 4, (y * 4 + x) * 4 + 3));
+    // The neighbours are the plain two-frame median; the hole takes their colour, not a mix of person and scene.
+    expect(at(1, 1)).toEqual(at(2, 1));
+  });
+
+  it('leaves the median alone when no masks were given', () => {
+    const session = burst();
+    expect(medianAt(session)).toEqual(medianAt(burst()));
+  });
 });
