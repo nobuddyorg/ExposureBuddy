@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_BUDGET_BYTES } from '../vision/pipeline/budget';
+import type { WorkerMessage } from '../vision/pipeline/protocol';
 import type { DeviceProfile } from './deviceProfile';
 import {
   createFakeFactory,
@@ -127,6 +128,43 @@ describe('useExposure', () => {
     expect(state.result).toMatchObject({ alignedCount: 3, totalCount: 3 });
     // A pool of 3, capped by the two frames to align.
     expect(factory.aligners).toHaveLength(2);
+  });
+
+  it("searches for movers in every frame, from the page's own model folder, when the burst asks for it", async () => {
+    const single: FakeHandler = (request) => ({
+      response: {
+        type: 'movers-masked',
+        id: request.id,
+        masks: (request.items as unknown[]).map(() => ({
+          width: 1,
+          height: 1,
+          data: new Uint8Array(1),
+        })),
+      } as unknown as WorkerMessage,
+      transfer: [],
+    });
+    const factory = createFakeFactory(alignHandler(), stackHandler, single);
+    const { result } = renderHook(() => useExposure(factory, device(2)));
+    act(() =>
+      result.current.start(
+        { ...burst([file('ok'), file('ok')]), movers: 'fast' },
+        'low',
+      ),
+    );
+    await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
+    expect(factory.singles[0].sent[0]).toMatchObject({
+      type: 'movers-masks',
+      detail: 'fast',
+      assetBase: `${window.location.origin}/ml`,
+    });
+  });
+
+  it('starts no movers search for a burst that does not ask', async () => {
+    const factory = createFakeFactory(alignHandler(), stackHandler);
+    const { result } = renderHook(() => useExposure(factory, device(2)));
+    act(() => result.current.start(burst([file('ok'), file('ok')]), 'low'));
+    await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
+    expect(factory.singles).toHaveLength(0);
   });
 
   it('hands the device budget and pool size to the pipeline', async () => {

@@ -206,11 +206,31 @@ describe('PhotoPicker, with photos', () => {
     expect(screen.queryByText('Add at least 2 photos')).toBeNull();
 
     await user.click(combine);
-    expect(onCombine).toHaveBeenLastCalledWith('standard');
+    expect(onCombine).toHaveBeenLastCalledWith('standard', 'off');
 
     await user.selectOptions(screen.getByTestId('quality-select'), 'high');
     await user.click(combine);
-    expect(onCombine).toHaveBeenLastCalledWith('high');
+    expect(onCombine).toHaveBeenLastCalledWith('high', 'off');
+  });
+
+  it('offers to leave out what moves, off at first, and passes the choice with the quality', async () => {
+    const user = userEvent.setup();
+    const { onCombine } = renderPicker({ photos: picked(['a.jpg', 'b.jpg']) });
+    const select = screen.getByRole('combobox', { name: 'Moving things' });
+    expect(select).toHaveAttribute('data-testid', 'movers-select');
+    expect(select).toHaveValue('off');
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Keep', 'Remove, fast', 'Remove, thorough']);
+    expect(select).toHaveAccessibleDescription(
+      expect.stringContaining('left out of the background'),
+    );
+
+    await user.selectOptions(select, 'thorough');
+    await user.click(screen.getByTestId('combine'));
+    expect(onCombine).toHaveBeenLastCalledWith('standard', 'thorough');
   });
 
   it('labels the quality select with its four options', () => {

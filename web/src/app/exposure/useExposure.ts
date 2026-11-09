@@ -8,10 +8,12 @@ import {
   type RefObject,
 } from 'react';
 
+import type { DetectionDetail } from '../vision/effects/tiles';
 import type { OutputQuality } from '../vision/pipeline/budget';
 import type { DeviceProfile } from './deviceProfile';
 import type { FailedRun } from './diagnostics';
 import { toPipelineFailure } from './failure';
+import { pageAssetBase } from './ml/assetBase';
 import {
   runPipeline,
   type ExposureResult,
@@ -29,6 +31,8 @@ type ExposureState =
 export interface Burst {
   readonly files: readonly File[];
   readonly reference: number;
+  /** When set, people, vehicles and animals are searched for in every frame at this detail and left out of the background. */
+  readonly movers?: DetectionDetail;
 }
 
 export interface ExposureController {
@@ -70,7 +74,7 @@ export function useExposure(
   useEffect(() => () => disposeRun(activeRun), []);
 
   const start = useCallback(
-    ({ files, reference }: Burst, quality: OutputQuality) => {
+    ({ files, reference, movers }: Burst, quality: OutputQuality) => {
       disposeRun(activeRun);
       const run: Run = { controller: new AbortController(), result: null };
       activeRun.current = run;
@@ -84,6 +88,7 @@ export function useExposure(
           quality,
           poolSize: device.poolSize,
           budgetBytes: device.budgetBytes,
+          movers: movers && { assetBase: pageAssetBase(), detail: movers },
         },
         workers,
         signal: run.controller.signal,

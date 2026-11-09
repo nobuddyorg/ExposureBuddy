@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 
 import type { DeviceProfile } from '../../exposure/deviceProfile';
+import { MOVERS_CHOICES, type MoversChoice } from '../../exposure/moversChoice';
 import { MIN_PHOTOS } from '../../exposure/pickedPhotos';
 import type { ReferenceSize } from '../../exposure/useReferenceSize';
 import { useI18n } from '../../i18n/useI18n';
@@ -20,7 +21,7 @@ export interface CombineControlsProps {
   /** The size of the photo the pipeline aligns to, for the result-size line. */
   referenceSize: ReferenceSize;
   device: DeviceProfile;
-  onCombine: (quality: OutputQuality) => void;
+  onCombine: (quality: OutputQuality, movers: MoversChoice) => void;
 }
 
 /** The output size choice and the one primary action; disabled, with the reason, until the burst is big enough. */
@@ -33,7 +34,9 @@ export function CombineControls({
 }: CombineControlsProps) {
   const { t, tCount } = useI18n();
   const [quality, setQuality] = useState<OutputQuality>('standard');
+  const [movers, setMovers] = useState<MoversChoice>('off');
   const selectId = useId();
+  const moversId = useId();
   const reasonId = useId();
   const sizeId = useId();
   const tooFew = count < MIN_PHOTOS;
@@ -68,6 +71,12 @@ export function CombineControls({
     { value: 'original', label: t('picker.quality_original') },
   ];
 
+  const moversNames: Record<MoversChoice, string> = {
+    off: t('picker.movers_off'),
+    fast: t('picker.movers_fast'),
+    thorough: t('picker.movers_thorough'),
+  };
+
   return (
     // A grid, so the button lines up with the select and both hint lines share the row below.
     <div
@@ -101,12 +110,38 @@ export function CombineControls({
       >
         {sizeLine()}
       </p>
+      <label
+        htmlFor={moversId}
+        className={labelClasses('mb-1.5 mt-4 sm:col-start-1 sm:row-start-4')}
+      >
+        {t('picker.movers')}
+      </label>
+      <select
+        id={moversId}
+        data-testid="movers-select"
+        value={movers}
+        aria-describedby={`${moversId}-help`}
+        onChange={(event) => setMovers(event.target.value as MoversChoice)}
+        className={fieldClasses('sm:col-start-1 sm:row-start-5')}
+      >
+        {MOVERS_CHOICES.map((choice) => (
+          <option key={choice} value={choice}>
+            {moversNames[choice]}
+          </option>
+        ))}
+      </select>
+      <p
+        id={`${moversId}-help`}
+        className="mt-1.5 text-xs text-muted-foreground sm:col-start-1 sm:row-start-6"
+      >
+        {t('picker.movers_help')}
+      </p>
       <button
         type="button"
         data-testid="combine"
         disabled={tooFew || unsupported}
         aria-describedby={tooFew ? reasonId : undefined}
-        onClick={() => onCombine(quality)}
+        onClick={() => onCombine(quality, movers)}
         className={buttonClasses({
           className: 'mt-4 w-full sm:col-start-2 sm:row-start-2 sm:mt-0',
         })}

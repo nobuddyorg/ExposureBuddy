@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 type Quality = 'low' | 'standard' | 'high' | 'original';
 type Detail = 'fast' | 'thorough';
+type Movers = 'off' | Detail;
 
 interface Picker {
   (): Locator;
@@ -13,6 +14,7 @@ interface Picker {
     open(): Promise<void>;
     singlePhoto(detail?: Detail): Promise<void>;
     removePhoto(index: number): Promise<void>;
+    selectMovers(movers: Movers): Promise<void>;
     selectQuality(quality: Quality): Promise<void>;
     thumbnailNaturalWidth(index: number): Promise<number>;
   };
@@ -27,6 +29,7 @@ interface Picker {
     detail: Locator;
     dropzone: Locator;
     input: Locator;
+    movers: Locator;
     notice: Locator;
     quality: Locator;
     referenceTile: Locator;
@@ -52,6 +55,7 @@ export function initPicker(page: Page): Picker {
     detail: page.getByTestId('detail-select'),
     dropzone: page.getByTestId('photo-dropzone'),
     input: page.getByTestId('photo-input'),
+    movers: page.getByTestId('movers-select'),
     notice: page.getByTestId('picker-notice'),
     quality: page.getByTestId('quality-select'),
     referenceTile: page
@@ -87,6 +91,9 @@ export function initPicker(page: Page): Picker {
     },
     removePhoto: async (index: number) => {
       await locators.tiles.nth(index).getByTestId('remove-photo').click();
+    },
+    selectMovers: async (movers: Movers) => {
+      await locators.movers.selectOption(movers);
     },
     selectQuality: async (quality: Quality) => {
       await locators.quality.selectOption(quality);
