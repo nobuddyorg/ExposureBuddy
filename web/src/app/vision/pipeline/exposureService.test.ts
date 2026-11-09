@@ -31,7 +31,7 @@ const STACK_REQUESTS: readonly WorkerRequest['type'][] = [
   'add-frame',
   'drop-frame',
   'add-mask',
-  'set-mean',
+  'set-trail',
   'crop',
   'stack-rows',
   'add-rows',

@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 type Quality = 'low' | 'standard' | 'high' | 'original';
 type Detail = 'fast' | 'thorough';
-type Movers = 'off' | 'remove' | 'blur';
+type Movers = 'off' | 'remove' | 'trail';
 
 interface Picker {
   (): Locator;

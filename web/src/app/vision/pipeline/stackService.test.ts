@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { emptySmearSum } from '../effects/smear';
 import { flatFrame } from '../stack/synthetic.test-support';
 import type { StackWorkerResponse } from './protocol';
 import type { StackSession } from './stackSession';
@@ -26,7 +27,7 @@ function fakeSession() {
     addFrame: vi.fn(() => session.calls.push('frame')),
     dropFrame: vi.fn(() => session.calls.push('drop')),
     addMask: vi.fn(() => session.calls.push('mask')),
-    setMean: vi.fn(() => session.calls.push('mean')),
+    setTrail: vi.fn(() => session.calls.push('trail')),
     crop: vi.fn(() => SUMMARY),
     stackRows: vi.fn((_rows, onProgress?: (fraction: number) => void) => {
       onProgress?.(0.5);
@@ -60,11 +61,11 @@ describe('createStackService', () => {
     ).resolves.toEqual({ response: { type: 'added', id: 3 }, transfer: [] });
     expect(session.addMask).toHaveBeenCalledWith('reference', mask);
 
-    const long = image(8);
+    const sum = emptySmearSum({ width: 2, height: 2 });
     await expect(
-      serve({ type: 'set-mean', id: 6, image: long }),
+      serve({ type: 'set-trail', id: 6, sum, frames: 3 }),
     ).resolves.toEqual({ response: { type: 'added', id: 6 }, transfer: [] });
-    expect(session.setMean).toHaveBeenCalledWith(long);
+    expect(session.setTrail).toHaveBeenCalledWith(sum, 3);
 
     const frame = flatFrame({ width: 2, height: 1 }, [2, 2, 2]);
     await expect(

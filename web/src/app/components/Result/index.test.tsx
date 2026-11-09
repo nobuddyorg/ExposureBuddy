@@ -157,6 +157,7 @@ describe('Result: sliders', () => {
         ghostBlur: 0,
         glow: 0.25,
         trails: false,
+        trail: 1,
       }),
     );
     fireEvent.change(screen.getByTestId('blur-slider'), {
@@ -172,9 +173,36 @@ describe('Result: sliders', () => {
         ghostBlur: 16,
         glow: 0.8,
         trails: false,
+        trail: 1,
       }),
     );
     expect(render).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('Result: sliders for trailed movers', () => {
+  it('speaks of people and trail length, with no blur and no light trails', () => {
+    renderResult(fakeResult({ trailedMovers: true }));
+    expect(screen.getByRole('slider', { name: 'People' })).toHaveValue('100');
+    expect(screen.getByRole('slider', { name: 'Trail length' })).toHaveValue(
+      '100',
+    );
+    expect(screen.getByRole('slider', { name: 'Glow' })).toHaveValue('0');
+    expect(screen.queryByTestId('blur-slider')).toBeNull();
+    expect(screen.queryByRole('switch', { name: 'Light trails' })).toBeNull();
+  });
+
+  it('re-renders with the trail length the slider shows', async () => {
+    const render = vi.fn(async () => rgbaImage(4, 3));
+    renderResult(fakeResult({ render, trailedMovers: true }));
+    fireEvent.change(screen.getByTestId('trail-slider'), {
+      target: { value: '30' },
+    });
+    await waitFor(() =>
+      expect(render).toHaveBeenLastCalledWith(
+        expect.objectContaining({ trail: 0.3, ghostStrength: 1 }),
+      ),
+    );
   });
 });
 
@@ -192,6 +220,7 @@ describe('Result: light trails', () => {
       expect(render).toHaveBeenLastCalledWith({
         ...FAKE_RESULT_DEFAULTS,
         trails: true,
+        trail: 1,
       }),
     );
     fireEvent.change(screen.getByTestId('ghost-slider'), {
@@ -202,6 +231,7 @@ describe('Result: light trails', () => {
         ...FAKE_RESULT_DEFAULTS,
         ghostStrength: 1,
         trails: true,
+        trail: 1,
       }),
     );
     await user.click(toggle);
@@ -210,6 +240,7 @@ describe('Result: light trails', () => {
         ...FAKE_RESULT_DEFAULTS,
         ghostStrength: 1,
         trails: false,
+        trail: 1,
       }),
     );
   });

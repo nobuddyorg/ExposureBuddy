@@ -7,6 +7,7 @@ import {
   growRect,
   maskBounds,
   maskCoverage,
+  maskWithout,
   maskFromAnyCategory,
   resizeMask,
   maskFromCategories,
@@ -230,5 +231,19 @@ describe('resizeMask', () => {
       height: 2,
     });
     expect([...small.data]).toEqual([255, 255, 255, 255]);
+  });
+});
+
+describe('maskWithout', () => {
+  it('drops the pixels the other mask sets from half strength and keeps the rest as they are', () => {
+    const mask = { width: 4, height: 1, data: Uint8Array.of(255, 200, 90, 0) };
+    const removed = {
+      width: 4,
+      height: 1,
+      data: Uint8Array.of(0, 255, 127, 128),
+    };
+    expect(Array.from(maskWithout(mask, removed).data)).toEqual([
+      255, 0, 90, 0,
+    ]);
   });
 });

@@ -98,6 +98,14 @@ describe('clampCompositeParams', () => {
     ).toBe(2);
   });
 
+  it('clamps the trail length to [0, 1] and replaces NaN with a full trail', () => {
+    const base = { ...DEFAULT_COMPOSITE_PARAMS };
+    expect(clampCompositeParams({ ...base, trail: 3 }).trail).toBe(1);
+    expect(clampCompositeParams({ ...base, trail: -1 }).trail).toBe(0);
+    expect(clampCompositeParams({ ...base, trail: 0.4 }).trail).toBe(0.4);
+    expect(clampCompositeParams({ ...base, trail: NaN }).trail).toBe(1);
+  });
+
   it('keeps light trails on only for a true switch', () => {
     const base = { ...DEFAULT_COMPOSITE_PARAMS };
     expect(clampCompositeParams({ ...base, trails: true }).trails).toBe(true);

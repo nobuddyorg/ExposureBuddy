@@ -209,6 +209,7 @@ describe('PhotoPicker, with photos', () => {
     expect(onCombine).toHaveBeenLastCalledWith('standard', {
       mode: 'off',
       detail: 'fast',
+      standing: 'keep',
     });
 
     await user.selectOptions(screen.getByTestId('quality-select'), 'high');
@@ -216,6 +217,7 @@ describe('PhotoPicker, with photos', () => {
     expect(onCombine).toHaveBeenLastCalledWith('high', {
       mode: 'off',
       detail: 'fast',
+      standing: 'keep',
     });
   });
 
@@ -229,14 +231,14 @@ describe('PhotoPicker, with photos', () => {
       within(select)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Keep', 'Remove', 'Blur']);
+    ).toEqual(['Keep', 'Remove', 'Trail']);
     expect(select).toHaveAccessibleDescription(
-      expect.stringContaining('soft trail'),
+      expect.stringContaining('streak along the way'),
     );
     // Nothing is searched for while the moving things are kept, so there is nothing to say how hard.
     expect(screen.queryByTestId('movers-detail-select')).toBeNull();
 
-    await user.selectOptions(select, 'blur');
+    await user.selectOptions(select, 'trail');
     const detail = screen.getByRole('combobox', { name: 'Search' });
     expect(detail).toHaveValue('fast');
     expect(
@@ -245,12 +247,24 @@ describe('PhotoPicker, with photos', () => {
         .map((option) => option.textContent),
     ).toEqual(['Fast', 'Thorough']);
     await user.selectOptions(detail, 'thorough');
+    const standing = screen.getByRole('combobox', { name: 'Standing people' });
+    expect(standing).toHaveValue('keep');
+    expect(
+      within(standing)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Unchanged', 'Blur a little', 'Blur a lot']);
+    await user.selectOptions(standing, 'soft');
     await user.click(screen.getByTestId('combine'));
     expect(onCombine).toHaveBeenLastCalledWith('standard', {
-      mode: 'blur',
+      mode: 'trail',
       detail: 'thorough',
+      standing: 'soft',
     });
 
+    // Only a trail has anything to do with people who stand about.
+    await user.selectOptions(select, 'remove');
+    expect(screen.queryByTestId('standing-select')).toBeNull();
     await user.selectOptions(select, 'off');
     expect(screen.queryByTestId('movers-detail-select')).toBeNull();
   });

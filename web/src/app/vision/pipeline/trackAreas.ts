@@ -2,7 +2,7 @@ import { indices } from '../indices';
 import type { GrayImage } from '../types';
 import { areasOf } from './areas';
 
-export interface Point {
+interface Point {
   readonly x: number;
   readonly y: number;
 }
@@ -23,7 +23,7 @@ export const MIN_TRACKED_AREA = 40;
 /** The farthest a mover is taken to travel between two samples, as a share of the mask's long edge. */
 export const MAX_STEP_SHARE = 0.4;
 /** The most an area may grow or shrink between two samples and still be the same mover. */
-export const MAX_AREA_RATIO = 3;
+const MAX_AREA_RATIO = 3;
 /** A mover that travelled less than this share of the long edge between two samples is standing. */
 export const STANDING_SHARE = 0.006;
 

@@ -17,7 +17,7 @@ export function fakeResult(
     frames: [],
     alignedCount: 5,
     totalCount: 6,
-    blurredMovers: false,
+    trailedMovers: false,
     render: vi.fn(async () => rgbaImage(4, 3, 100)),
     renderReference: vi.fn(async () => rgbaImage(4, 3, 200)),
     dispose: vi.fn(),

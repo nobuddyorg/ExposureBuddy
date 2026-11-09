@@ -10,7 +10,7 @@ const FRAME_COUNT = 12;
 const MOVERS_TIMEOUT = 240_000;
 
 test.describe('what moves between the shots', () => {
-  for (const mode of ['remove', 'blur'] as const) {
+  for (const mode of ['remove', 'trail'] as const) {
     test(`is off at first, and a burst run with ${mode} on still ends in a result or says clearly that the browser cannot look`, async ({
       on,
       page,
@@ -41,6 +41,14 @@ test.describe('what moves between the shots', () => {
         String(FRAME_COUNT),
       );
       await expect(app.result.locators.canvas).toBeVisible();
+      // A trail result speaks of people and trail length; blur has no place in it, and a plain clean-up keeps the usual sliders.
+      const trailed = mode === 'trail';
+      await expect(app.result.locators.sliders.trail).toHaveCount(
+        trailed ? 1 : 0,
+      );
+      await expect(app.result.locators.sliders.blur).toHaveCount(
+        trailed ? 0 : 1,
+      );
     });
   }
 });

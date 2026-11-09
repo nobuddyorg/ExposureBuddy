@@ -7,7 +7,7 @@ import {
 
 import type { DecodedPng } from '../png';
 
-type Slider = 'ghost' | 'blur' | 'glow';
+type Slider = 'ghost' | 'blur' | 'glow' | 'people' | 'trail';
 type Background = 'median' | 'trimmed' | 'clipped' | 'mode';
 type Effect = 'motion' | 'smear' | 'liquid' | 'smoke';
 
@@ -108,6 +108,8 @@ export function initResult(page: Page): Result {
       ghost: page.getByTestId('ghost-slider'),
       blur: page.getByTestId('blur-slider'),
       glow: page.getByTestId('glow-slider'),
+      people: page.getByTestId('people-slider'),
+      trail: page.getByTestId('trail-slider'),
     },
     stats: page.getByTestId('result-stats'),
     grow: page.getByTestId('grow-slider'),

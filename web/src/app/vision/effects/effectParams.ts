@@ -18,11 +18,3 @@ export const DEFAULT_EFFECT_PARAMS: EffectParams = {
   angle: 0,
   grow: 0,
 };
-
-/** What the movers of a burst are turned into: a soft sweep to the side, which a handful of frames average into a trail. */
-export const BURST_BLUR: EffectParams = {
-  effect: 'motion',
-  strength: 0.5,
-  angle: 0,
-  grow: 0,
-};

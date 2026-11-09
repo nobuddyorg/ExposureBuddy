@@ -12,6 +12,7 @@ import type {
   GrayImage,
   RgbaImage,
 } from '../types';
+import { emptySmearSum } from '../effects/smear';
 import { createStackSession } from './stackSession';
 
 const SIZE = { width: 4, height: 4 };
@@ -128,23 +129,22 @@ describe('createStackSession, masks', () => {
     expect(medianAt(session)).toEqual(medianAt(burst()));
   });
 
-  it('shows the replaced long exposure, cropped to what every frame covers', () => {
+  it('draws the trails over the long exposure, cropped to what every frame covers, as far as the trail slider says', () => {
     const session = burst();
     session.crop();
     session.stackRows(ALL_ROWS);
-    const long: RgbaImage = {
-      ...SIZE,
-      data: Uint8ClampedArray.from({ length: 64 }, (_, i) =>
-        i % 4 === 3 ? 255 : 77,
-      ),
+    const sum = emptySmearSum(SIZE);
+    sum.coverage.fill(1);
+    sum.colour.fill(77);
+    session.setTrail(sum, 1);
+    const everything: CompositeParams = {
+      ...MEDIAN,
+      ghostStrength: 1,
+      trail: 1,
     };
-    session.setMean(long);
-    const everything: CompositeParams = { ...MEDIAN, ghostStrength: 1 };
-    expect(Array.from(session.render(everything).data.subarray(0, 3))).toEqual([
-      77, 77, 77,
-    ]);
-    expect(Array.from(session.render(MEDIAN).data.subarray(0, 3))).not.toEqual([
-      77, 77, 77,
-    ]);
+    const first = (params: CompositeParams) =>
+      Array.from(session.render(params).data.subarray(0, 3));
+    expect(first(everything)).toEqual([77, 77, 77]);
+    expect(first({ ...everything, trail: 0 })).not.toEqual([77, 77, 77]);
   });
 });
