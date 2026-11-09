@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { SHARP_KERNEL, SOFT_KERNEL } from '../vision/warp/warp';
 import { DEFAULT_BUDGET_BYTES } from '../vision/pipeline/budget';
 import type {
   Served,
@@ -89,6 +90,7 @@ function alignHandler(): FakeHandler {
         matches: 120,
         inliers: 90,
         sharpness: verdict === 'blur' ? SOFT : CRISP,
+        kernel: verdict === 'noisy' ? SOFT_KERNEL : SHARP_KERNEL,
       },
       transfer: [image.data.buffer],
     };
@@ -498,6 +500,28 @@ describe('runPipeline', () => {
     expect(warped).toHaveLength(3);
     for (const message of warped)
       expect(await (message.file as Blob).text()).toBe('ok');
+  });
+
+  it('warps a strip with the kernel the frame was first aligned with', async () => {
+    const { factory, result } = run(['noisy', 'ok', 'ok'], {
+      workers: createFakeFactory(stripAlignHandler(3), stackHandler()),
+    });
+    await result;
+    const warped = factory.aligners
+      .flatMap((port) => port.sent)
+      .filter((message) => message.type === 'warp-rows');
+    const kernels = await Promise.all(
+      warped.map(async (message) => [
+        await (message.file as Blob).text(),
+        message.kernel,
+      ]),
+    );
+    expect(kernels).toEqual(
+      expect.arrayContaining([
+        ['noisy', SOFT_KERNEL],
+        ['ok', SHARP_KERNEL],
+      ]),
+    );
   });
 
   it('keeps a blurred reference and judges the others against it', async () => {

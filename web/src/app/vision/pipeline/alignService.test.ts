@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { rowOf } from '../image/banded';
 import { shiftGray, texturedScene } from '../features/synthetic.test-support';
 import type { AlignWorkerResponse, Decoders } from './protocol';
+import { SOFT_KERNEL } from '../warp/warp';
 import { createAlignService } from './alignService';
 import type { Size } from '../types';
 import { toRgba } from './images.test-support';
@@ -212,6 +213,7 @@ describe('createAlignService', () => {
       file: blob('shifted'),
       target: SCENE,
       homography: aligned.homography,
+      kernel: aligned.kernel,
       rows,
     });
     expect(response).toMatchObject({ type: 'warped-rows', id: 8 });
@@ -241,6 +243,7 @@ describe('createAlignService', () => {
       type: 'warp-rows' as const,
       target: SCENE,
       homography: Float64Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+      kernel: SOFT_KERNEL,
       rows: { start: 0, end: 64 },
     };
     await expect(

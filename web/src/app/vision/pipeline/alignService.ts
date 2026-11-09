@@ -86,6 +86,7 @@ export function createAlignService(
         matches,
         inliers,
         sharpness: outcome.sharpness,
+        kernel: outcome.kernel,
       },
       transfer: transferablesOf(outcome.frame),
     };
@@ -106,10 +107,12 @@ export function createAlignService(
       }
       throw error;
     }
-    const frame = warpRgba(image, request.homography, {
-      ...request.target,
-      rows: request.rows,
-    });
+    const frame = warpRgba(
+      image,
+      request.homography,
+      { ...request.target, rows: request.rows },
+      request.kernel,
+    );
     return {
       response: { type: 'warped-rows', id: request.id, frame },
       transfer: transferablesOf(frame),

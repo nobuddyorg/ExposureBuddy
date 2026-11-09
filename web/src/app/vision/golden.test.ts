@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   GOLDEN,
   GOLDEN_HOMOGRAPHIES,
+  bilinearWarpRgba,
   GOLDEN_TARGET,
   digest,
   noiseRgba,
@@ -44,10 +45,11 @@ function layerDigest(image: BandedRgb): number {
   return hash.value();
 }
 
-function warpedFrames(): AlignedFrame[] {
+// The stack, gain and composite digests start from frames warped the way they were recorded; the production warp has its own pin.
+function warpedFrames(warp = bilinearWarpRgba): AlignedFrame[] {
   const source = noiseRgba(41, 33, 1);
   return GOLDEN_HOMOGRAPHIES.map((homography) =>
-    warpRgba(source, homography, GOLDEN_TARGET),
+    warp(source, homography, GOLDEN_TARGET),
   );
 }
 
@@ -132,6 +134,20 @@ describe('the rewritten kernels against the digests of the originals', () => {
     expect(warpedFrames().map((frame) => coveredDigest(frame, true))).toEqual(
       GOLDEN.warp,
     );
+  });
+
+  it('warps with the production kernel to the pinned pixels, over the coverage the bilinear warp had', () => {
+    const sharp = warpedFrames((source, homography, target) =>
+      warpRgba(source, homography, target),
+    );
+    expect(sharp.map((frame) => coveredDigest(frame, true))).toEqual(
+      GOLDEN.warpSharp,
+    );
+    const bilinear = warpedFrames();
+    sharp.forEach((frame, index) => {
+      expect([...frame.spans.start]).toEqual([...bilinear[index].spans.start]);
+      expect([...frame.spans.end]).toEqual([...bilinear[index].spans.end]);
+    });
   });
 
   const reference = bandedFromRgba(

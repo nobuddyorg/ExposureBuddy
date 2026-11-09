@@ -6,6 +6,7 @@ import {
 } from '../vision/pipeline/budget';
 import { blurredFrames } from '../vision/pipeline/blurred';
 import type { EffectParams } from '../vision/effects/effectParams';
+import type { WarpKernel } from '../vision/warp/warp';
 import type { DetectionDetail } from '../vision/effects/tiles';
 import type { SingleWorkerResponse } from '../vision/pipeline/singleProtocol';
 import type {
@@ -127,6 +128,8 @@ export async function runPipeline(
   const frames = files.map((_, index) => pendingReport(index));
   // The transform of every frame that aligned, by burst index: a strip warps with it again.
   const homographies = new Map<number, Homography>();
+  // The sampling kernel each aligned frame was warped with, by burst index: a strip is warped with the same one.
+  const kernels = new Map<number, WarpKernel>();
   // How crisp the reference and every aligned frame are, by burst index: the blurred ones are dropped before the crop.
   const sharpnessByFrame = new Map<number, number>();
   const emit = (stage: PipelineStage, done: number, outOf: number) =>
@@ -197,6 +200,7 @@ export async function runPipeline(
     if (response.type !== 'aligned')
       throw new Error(`Unexpected ${response.type} while aligning.`);
     homographies.set(index, response.homography);
+    kernels.set(index, response.kernel);
     sharpnessByFrame.set(index, response.sharpness);
     await request(
       stack,
@@ -222,6 +226,7 @@ export async function runPipeline(
           file: files[index],
           target,
           homography,
+          kernel: kernels.get(index) as WarpKernel,
           rows,
         },
         { signal },
@@ -348,6 +353,7 @@ export async function runPipeline(
         { signal },
       );
       homographies.delete(index);
+      kernels.delete(index);
       frames[index] = { ...frames[index], status: 'blurred' };
     }
 

@@ -44,7 +44,7 @@ Sparse features are the middle: FAST corners are cheap, the intensity-centroid o
 
 ## Why the middle frame is the reference
 
-Every other frame is warped into the reference's coordinates, so the reference decides the crop and the amount of warping. Camera drift accumulates over a burst; the first frame can be a full drift away from the last, while the middle frame is at most half a drift from either end. Picking it minimises the largest transform any frame needs, which keeps more of every frame inside the crop and keeps the bilinear resampling gentle. It is also a decision the user does not have to make, so the middle frame stays the default. Tapping a thumbnail overrides it, because the reference also decides the framing of the result and the photographer sometimes knows better: the frame that is composed best, or the one without a passer-by in the foreground. The picker shows the reference as a badge on its tile rather than as a separate control, so the default costs nothing to ignore. Removing a photo is the same kind of override: alignment skips what it cannot line up, but a photo that aligns and is still unwanted (motion blur, someone right in front of the lens) needs a person to say so.
+Every other frame is warped into the reference's coordinates, so the reference decides the crop and the amount of warping. Camera drift accumulates over a burst; the first frame can be a full drift away from the last, while the middle frame is at most half a drift from either end. Picking it minimises the largest transform any frame needs, which keeps more of every frame inside the crop and keeps the resampling gentle. It is also a decision the user does not have to make, so the middle frame stays the default. Tapping a thumbnail overrides it, because the reference also decides the framing of the result and the photographer sometimes knows better: the frame that is composed best, or the one without a passer-by in the foreground. The picker shows the reference as a badge on its tile rather than as a separate control, so the default costs nothing to ignore. Removing a photo is the same kind of override: alignment skips what it cannot line up, but a photo that aligns and is still unwanted (motion blur, someone right in front of the lens) needs a person to say so.
 
 ## Why an unalignable frame is skipped, not guessed
 
@@ -190,3 +190,46 @@ combined. Prototype on the same series: six frames at 2252 × 4000, the effect
 at about 40 s per frame in Node. Rejected: a model-free motion mask (a crowd
 that stands in most frames _is_ the median, so it finds nothing there), and
 filling holes with texture from other frames (those pixels show people).
+
+## Why frames are resampled bicubically, sharp or soft by their noise
+
+Bilinear resampling blurs every frame it moves by a fraction of a pixel, and
+all frames but the reference are moved. Measured on a 14-photo series of a
+Gothic facade (alignment size 540 × 960; sharpness as the variance of the
+Laplacian over a facade patch): a frame warped bilinearly keeps 41 % of the
+detail of its own original (3 317 of 8 127), the stack of six keeps 42 % of the
+reference (3 948 of 9 302), which is why a combined burst looked softer than a
+single photo. With Catmull-Rom the warped frame keeps 71 % and the stack 66 %
+(6 115). Catmull-Rom also keeps the noise, and the stacking-quality benchmark
+(synthetic texture with noise at three light levels) scores it 0.2 to 0.5 dB
+lower than bilinear where the noise is high, since there blur is a denoiser. So
+the kernel follows the frame's own noise estimate (`image/noiseLevel.ts`): up to
+3 levels the sharp kernel (Catmull-Rom), above it Mitchell–Netravali (B = C = ⅓,
+about as soft as bilinear without its steps). The choice is made once per frame
+when it is aligned and travels with the transform, so a strip warped again later
+is sampled the same way. Cost, 3 MP in Node: about 0.7 s for either kernel. The
+golden digests of the stack, gain and composite stages keep their recorded
+inputs through a bilinear reference warp that lives in the test support; the
+production warp has a pin of its own. Not done: a local (mesh) refinement of the
+alignment, since the residual after the homography was under one pixel at the
+alignment size in every block measured.
+
+## Why the long exposure is smoothed only as far as the burst's own noise says
+
+A burst averages noise down by the square root of its frame count, so a night
+burst of nine frames still carries about a third of one frame's grain, and a
+daylight burst carries almost none. While the frames are stacked, `stackRows`
+samples the median absolute deviation across the frames at one pixel in 32
+(green channel only); the typical value is the noise of one frame, and
+`stackedNoise` turns it into the noise the stacked result keeps (divided by the
+root of the frame count, times 1.25 for the median). It does not come from the
+picture itself, because a Laplacian estimate takes texture for noise: on a
+textured facade it reports more noise than a night burst has. From 1.5 levels on,
+the first render smooths the median background and the mean once with a guided
+filter (flat areas become their local mean, edges and texture above
+1.5 × the noise stay); below that the picture is left exactly as stacked, so a
+clean burst loses nothing. The other three background modes are not smoothed:
+each extra layer costs seconds at full size. On the synthetic burst (noise sigma
+2, 12 and 28 per frame, ten frames): residual noise 0.6, 2.9 and 7.0 levels, and
+the median against the truth goes from 42.9 dB (unchanged, skipped), 36.2 to
+37.5 dB and 30.1 to 33.2 dB. Not measured on a real night burst yet.
