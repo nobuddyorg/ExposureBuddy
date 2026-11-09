@@ -233,4 +233,3 @@ each extra layer costs seconds at full size. On the synthetic burst (noise sigma
 2, 12 and 28 per frame, ten frames): residual noise 0.6, 2.9 and 7.0 levels, and
 the median against the truth goes from 42.9 dB (unchanged, skipped), 36.2 to
 37.5 dB and 30.1 to 33.2 dB. Not measured on a real night burst yet.
-
