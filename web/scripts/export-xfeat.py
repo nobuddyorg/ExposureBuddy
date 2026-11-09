@@ -48,7 +48,7 @@ class Net(nn.Module):
         feats = self.block_fusion(x3 + x4 + x5)
         return feats, self.keypoint_head(self.unfold(x)), self.heatmap_head(feats)
 
-state = torch.load('xfeat.pt', map_location='cpu', weights_only=True)  # nosemgrep: pickles-in-pytorch -- weights_only=True reads plain tensors, no code runs
+state = torch.load('xfeat.pt', map_location='cpu', weights_only=True)  # nosemgrep: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch -- weights_only=True reads plain tensors, no code runs
 net = Net().eval()
 missing = net.load_state_dict({k: v for k, v in state.items() if not k.startswith('fine_matcher')}, strict=True)
 print('loaded', missing)
