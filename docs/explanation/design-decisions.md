@@ -261,4 +261,3 @@ costs the reference once and then each skipped frame; the phone is not
 measured. On a synthetic textured scene shifted by (6.5, −4.25) px it recovers
 the shift to under a pixel and skips an unrelated or a flat frame. Not measured
 on a real burst ORB gave up on, because the owner's series never needed it.
-
