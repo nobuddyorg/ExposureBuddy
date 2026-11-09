@@ -3,6 +3,7 @@ import { emptyStack, stackRows } from './stack';
 import type {
   AlignedFrame,
   BandedRgb,
+  GrayImage,
   Rect,
   RowSpans,
   Size,
@@ -95,6 +96,7 @@ export function stackFrames(
   frames: readonly AlignedFrame[],
   options: {
     readonly rect: Rect;
+    readonly hidden?: readonly GrayImage[];
     readonly onProgress?: (fraction: number) => void;
   },
 ): StackResult {

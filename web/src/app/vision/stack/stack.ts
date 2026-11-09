@@ -6,6 +6,7 @@ import {
 } from '../image/banded';
 import type {
   AlignedFrame,
+  GrayImage,
   Rect,
   RowRange,
   RowSpans,
@@ -14,10 +15,12 @@ import type {
 } from '../types';
 import { indices } from '../indices';
 import { ROBUST_MODE_COUNT, robustBackgrounds } from './backgrounds';
+import { cleanMedian } from './cleanBackground';
 
 const RGB = 3;
 const OPAQUE = 255;
 const PROGRESS_STEP = 0.02;
+const HIDDEN_FROM = 128;
 
 /** An empty result the size of `rect`: every layer's bands unallocated until stackRows reaches them. */
 export function emptyStack(rect: Rect, frameCount: number): StackResult {
@@ -41,6 +44,8 @@ interface StackRowsOptions {
   readonly rect: Rect;
   /** Which rows of the frames to stack; the part inside `rect` is. */
   readonly rows: RowRange;
+  /** Per frame, in frame order, a mask of the people in it (any size, 128 and up is a person): the median is taken over the frames that do not show one. */
+  readonly hidden?: readonly GrayImage[];
   readonly onProgress?: (fraction: number) => void;
 }
 
@@ -51,10 +56,12 @@ interface StackRowsOptions {
 export function stackRows(
   frames: readonly AlignedFrame[],
   stack: StackResult,
-  { rect, rows, onProgress = noProgress }: StackRowsOptions,
+  { rect, rows, hidden, onProgress = noProgress }: StackRowsOptions,
 ): void {
   if (frames.length === 0)
     throw new Error('stackRows needs at least one frame.');
+  if (hidden && hidden.length !== frames.length)
+    throw new RangeError(`${hidden.length} masks for ${frames.length} frames.`);
   const frameCount = frames.length;
   const { mean, brightest, backgrounds } = stack;
   const layers = [
@@ -70,6 +77,8 @@ export function stackRows(
   const blue = new Uint8Array(frameCount);
   const channels = [red, green, blue];
   const scratch = new Uint8Array(frameCount);
+  const samples = new Uint8Array(frameCount);
+  const flags = new Uint8Array(frameCount);
   const estimates = new Uint8Array(ROBUST_MODE_COUNT);
   const { bandRows } = mean;
   const columns = indices(rect.width);
@@ -93,21 +102,46 @@ export function stackRows(
         meanRow,
         brightestRow,
       ] = layers.map((layer) => rowOf(layer, y));
+      const maskRows = hidden?.map((mask, frame) =>
+        maskRowOffset(mask, frames[frame].image, rect.y + y),
+      );
       for (const x of columns) {
         const source = (rect.x + x) * RGB;
         const target = x * RGB;
+        if (hidden && maskRows) {
+          hidden.forEach((mask, frame) => {
+            flags[frame] = isHidden(
+              mask,
+              maskRows[frame],
+              (rect.x + x + 0.5) / frames[frame].image.width,
+            )
+              ? 1
+              : 0;
+          });
+        }
         for (let channel = 0; channel < RGB; channel += 1) {
           const values = channels[channel];
           let sum = 0;
           let highest = 0;
           for (let frame = 0; frame < frameCount; frame += 1) {
             values[frame] = sourceRows[frame][source + channel];
+            samples[frame] = values[frame];
             sum += values[frame];
             highest = Math.max(highest, values[frame]);
           }
           brightestRow[target + channel] = highest;
           const median = selectMedian(values, frameCount);
-          medianRow[target + channel] = median;
+          medianRow[target + channel] = hidden
+            ? cleanMedian(
+                {
+                  values: samples,
+                  hidden: flags,
+                  count: frameCount,
+                  fallback: median,
+                },
+                scratch,
+              )
+            : median;
           meanRow[target + channel] = Math.round(sum / frameCount);
           robustBackgrounds(
             { values, count: frameCount, median },
@@ -133,6 +167,25 @@ export function stackRows(
 }
 
 function noProgress(): void {}
+
+// Where row `y` of a frame starts in a mask of any size laid over it.
+function maskRowOffset(
+  mask: GrayImage,
+  image: { height: number },
+  y: number,
+): number {
+  return (
+    Math.min(
+      mask.height - 1,
+      Math.floor(((y + 0.5) / image.height) * mask.height),
+    ) * mask.width
+  );
+}
+
+function isHidden(mask: GrayImage, rowOffset: number, across: number): boolean {
+  const column = Math.min(mask.width - 1, Math.floor(across * mask.width));
+  return mask.data[rowOffset + column] >= HIDDEN_FROM;
+}
 
 /** Returns the rounded median of `values[0, count)`, permuting them; an even count averages the two middle values. */
 export function selectMedian(values: Uint8Array, count: number): number {

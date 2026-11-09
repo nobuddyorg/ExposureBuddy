@@ -21,6 +21,7 @@ export const MUTATE_TARGETS = [
   'src/app/vision/stack/exposure.ts',
   'src/app/vision/stack/boxBlur.ts',
   'src/app/vision/stack/backgrounds.ts',
+  'src/app/vision/stack/cleanBackground.ts',
   'src/app/vision/stack/stack.ts',
   'src/app/vision/stack/composite.ts',
   'src/app/vision/stack/compositeParams.ts',
