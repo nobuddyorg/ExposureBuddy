@@ -15,8 +15,8 @@ import {
   type SingleSteps,
 } from './singleService';
 
-const PERSON = { x: 40, y: 20, width: 20, height: 40 };
-const photo = withRect(solidImage(120, 80, [90, 90, 90]), PERSON, [250, 0, 0]);
+const PERSON = { x: 20, y: 10, width: 10, height: 20 };
+const photo = withRect(solidImage(60, 40, [90, 90, 90]), PERSON, [250, 0, 0]);
 const FILE = new Blob(['photo']);
 const PREPARE = {
   type: 'single-prepare',
@@ -54,7 +54,7 @@ const stagesOf = (messages: SingleWorkerResponse[]): SingleStage[] =>
 
 describe('createSingleService', () => {
   it('decodes the photo to the asked size and segments it from the asked folder', async () => {
-    const { service, calls } = setup(rectMask(120, 80, PERSON));
+    const { service, calls } = setup(rectMask(60, 40, PERSON));
     await service(PREPARE);
     expect(calls).toEqual([
       { longEdge: 1600, assetBase: 'https://example.test/ml', file: FILE },
@@ -62,7 +62,7 @@ describe('createSingleService', () => {
   });
 
   it('reports every stage in order, tagged with the request id', async () => {
-    const { service, progress } = setup(rectMask(120, 80, PERSON));
+    const { service, progress } = setup(rectMask(60, 40, PERSON));
     await service({ ...PREPARE, id: 7 });
     expect(stagesOf(progress)).toEqual([
       'decode',
@@ -87,13 +87,13 @@ describe('createSingleService', () => {
   });
 
   it('answers with the size of the photo and that someone was found', async () => {
-    const { service } = setup(rectMask(120, 80, PERSON));
+    const { service } = setup(rectMask(60, 40, PERSON));
     const { response, transfer } = await service(PREPARE);
     expect(response).toEqual({
       type: 'single-prepared',
       id: 1,
-      width: 120,
-      height: 80,
+      width: 60,
+      height: 40,
       found: true,
     });
     expect(transfer).toEqual([]);
@@ -101,10 +101,10 @@ describe('createSingleService', () => {
 
   it('finds nobody in an empty mask, and then has nothing to render', async () => {
     const { service } = setup(
-      rectMask(120, 80, { x: 0, y: 0, width: 0, height: 0 }),
+      rectMask(60, 40, { x: 0, y: 0, width: 0, height: 0 }),
     );
     const { response } = await service(PREPARE);
-    expect(response).toMatchObject({ found: false, width: 120, height: 80 });
+    expect(response).toMatchObject({ found: false, width: 60, height: 40 });
     await expect(
       service({
         type: 'single-render',
@@ -115,22 +115,20 @@ describe('createSingleService', () => {
   });
 
   it('takes a speck of mask for noise, not for a person', async () => {
-    const speck = rectMask(120, 80, { x: 0, y: 0, width: 1, height: 1 });
-    expect(MIN_PERSON_COVERAGE).toBeGreaterThan(1 / (120 * 80));
+    const speck = rectMask(60, 40, { x: 0, y: 0, width: 1, height: 1 });
+    expect(MIN_PERSON_COVERAGE).toBeGreaterThan(1 / (60 * 40));
     const { service } = setup(speck);
     expect((await service(PREPARE)).response).toMatchObject({ found: false });
   });
 
   it('takes a mask of exactly the minimum coverage for a person', async () => {
-    // 120 × 80 = 9600 pixels; 0.2 % of them is 19.2, so 20 pixels are just over and 19 just under.
-    const over = setup(
-      rectMask(120, 80, { x: 10, y: 10, width: 20, height: 1 }),
-    );
+    // 60 × 40 = 2400 pixels; 0.2 % of them is 4.8, so 5 pixels are just over and 4 just under.
+    const over = setup(rectMask(60, 40, { x: 10, y: 10, width: 5, height: 1 }));
     expect((await over.service(PREPARE)).response).toMatchObject({
       found: true,
     });
     const under = setup(
-      rectMask(120, 80, { x: 10, y: 10, width: 19, height: 1 }),
+      rectMask(60, 40, { x: 10, y: 10, width: 4, height: 1 }),
     );
     expect((await under.service(PREPARE)).response).toMatchObject({
       found: false,
@@ -155,13 +153,13 @@ describe('createSingleService', () => {
   });
 
   it('forgets an earlier photo when a new one finds nobody', async () => {
-    const found = setup(rectMask(120, 80, PERSON));
+    const found = setup(rectMask(60, 40, PERSON));
     await found.service(PREPARE);
     const params = { effect: 'smear', strength: 0.4, angle: 20 } as const;
     await expect(
       found.service({ type: 'single-render', id: 2, params }),
     ).resolves.toBeDefined();
-    const empty = setup(rectMask(120, 80, { x: 0, y: 0, width: 0, height: 0 }));
+    const empty = setup(rectMask(60, 40, { x: 0, y: 0, width: 0, height: 0 }));
     await empty.service(PREPARE);
     await expect(
       empty.service({ type: 'single-render', id: 3, params }),
@@ -169,7 +167,7 @@ describe('createSingleService', () => {
   });
 
   it('renders every effect as an opaque photo of the same size and moves it out of the worker', async () => {
-    const { service } = setup(rectMask(120, 80, PERSON));
+    const { service } = setup(rectMask(60, 40, PERSON));
     await service(PREPARE);
     for (const effect of EFFECTS) {
       const { response, transfer } = await service({
@@ -179,14 +177,14 @@ describe('createSingleService', () => {
       });
       if (response.type !== 'single-rendered') throw new Error('not rendered');
       expect(response.id).toBe(5);
-      expect([response.image.width, response.image.height]).toEqual([120, 80]);
+      expect([response.image.width, response.image.height]).toEqual([60, 40]);
       expect(response.image.data[3]).toBe(255);
       expect(transfer).toEqual([response.image.data.buffer]);
     }
   });
 
   it('renders the effect, not the original photo, and exactly what the kernels render', async () => {
-    const mask = rectMask(120, 80, PERSON);
+    const mask = rectMask(60, 40, PERSON);
     const { service } = setup(mask);
     await service(PREPARE);
     const params = { effect: 'smear', strength: 0.7, angle: 20 } as const;
@@ -203,7 +201,7 @@ describe('createSingleService', () => {
   });
 
   it('renders the original untouched, as a copy that leaves the photo in place for the next render', async () => {
-    const { service } = setup(rectMask(120, 80, PERSON));
+    const { service } = setup(rectMask(60, 40, PERSON));
     await service(PREPARE);
     const first = await service({ type: 'single-render-original', id: 3 });
     const second = await service({ type: 'single-render-original', id: 4 });
@@ -218,7 +216,7 @@ describe('createSingleService', () => {
   });
 
   it('refuses a request it does not know', async () => {
-    const { service } = setup(rectMask(120, 80, PERSON));
+    const { service } = setup(rectMask(60, 40, PERSON));
     const unknown = { type: 'align', id: 9 } as unknown as Parameters<
       typeof service
     >[0];

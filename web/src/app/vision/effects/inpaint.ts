@@ -46,14 +46,15 @@ function sampleGrid(image: RgbaImage, hole: GrayImage): Grid {
   return { cell, columns, rows, colors, known };
 }
 
-/** The summed colour of the known cells in the 3 × 3 block around `target` (itself included), and how many there are. */
-function knownNeighbourhood(
+/** Sums the colour of the known cells in the 3 × 3 block around `target` (itself included) into `sum`, and returns how many there are. */
+function sumKnownNeighbourhood(
   grid: Grid,
   target: number,
-): { sum: Float32Array; count: number } {
+  sum: Float32Array,
+): number {
   const column = target % grid.columns;
   const row = Math.floor(target / grid.columns);
-  const sum = new Float32Array(3);
+  sum.fill(0);
   let count = 0;
   for (
     let r = Math.max(0, row - 1);
@@ -72,47 +73,52 @@ function knownNeighbourhood(
         sum[channel] += grid.colors[neighbour * 3 + channel];
     }
   }
-  return { sum, count };
+  return count;
 }
 
 /** Grows the known colours inwards one ring of cells at a time until every cell has one. */
-function fillUnknown(grid: Grid): void {
-  let remaining = grid.known.reduce(
-    (count, known) => count + (known === 0 ? 1 : 0),
-    0,
-  );
-  while (remaining > 0) {
-    const ring: { target: number; mean: Float32Array }[] = [];
-    for (const target of indices(grid.columns * grid.rows)) {
-      if (grid.known[target] === 1) continue;
-      const { sum, count } = knownNeighbourhood(grid, target);
-      if (count > 0) ring.push({ target, mean: sum.map((v) => v / count) });
-    }
+function fillUnknown(grid: Grid, unknown: readonly number[]): void {
+  const sum = new Float32Array(3);
+  let pending = unknown;
+  // A known cell exists, so no cell is further from one than the longer side of the grid; the rounds after the last cell is filled find nothing to do.
+  indices(Math.max(grid.columns, grid.rows)).forEach(() => {
+    const ring = pending.flatMap((target) => {
+      const count = sumKnownNeighbourhood(grid, target, sum);
+      return count > 0 ? [{ target, mean: sum.map((v) => v / count) }] : [];
+    });
     for (const { target, mean } of ring) {
       grid.colors.set(mean, target * 3);
       grid.known[target] = 1;
     }
-    remaining -= ring.length;
-  }
+    pending = pending.filter((target) => grid.known[target] === 0);
+  });
 }
 
 /** Rounds of smoothing over the filled cells: enough for a fill to settle across a hole that spans most of the grid. */
 const RELAX_ROUNDS = 120;
 
-function relaxOnce(grid: Grid, filled: readonly number[]): void {
+function relaxOnce(
+  grid: Grid,
+  filled: readonly number[],
+  settled: Float32Array,
+): void {
+  const sum = new Float32Array(3);
   // Every cell is known by now, so each block holds at least the cell itself.
-  const settled = filled.map((target) => {
-    const { sum, count } = knownNeighbourhood(grid, target);
-    return sum.map((v) => v / count);
+  filled.forEach((target, index) => {
+    const count = sumKnownNeighbourhood(grid, target, sum);
+    sum.forEach((v, channel) => {
+      settled[index * 3 + channel] = v / count;
+    });
   });
   filled.forEach((target, index) =>
-    grid.colors.set(settled[index], target * 3),
+    grid.colors.set(settled.subarray(index * 3, index * 3 + 3), target * 3),
   );
 }
 
 /** Lets every filled cell settle to the mean of its neighbours, known cells fixed: the ring fill alone leaves diamond steps. */
 function relax(grid: Grid, filled: readonly number[]): void {
-  indices(RELAX_ROUNDS).forEach(() => relaxOnce(grid, filled));
+  const settled = new Float32Array(filled.length * 3);
+  indices(RELAX_ROUNDS).forEach(() => relaxOnce(grid, filled, settled));
 }
 
 /** The grid colour at pixel (x, y), interpolated between the four nearest cell centres. */
@@ -141,7 +147,7 @@ export function fillHole(image: RgbaImage, hole: GrayImage): RgbaImage {
   const unknown = indices(grid.columns * grid.rows).filter(
     (target) => grid.known[target] === 0,
   );
-  fillUnknown(grid);
+  fillUnknown(grid, unknown);
   relax(grid, unknown);
   for (const y of indices(image.height)) {
     for (const x of indices(image.width)) {

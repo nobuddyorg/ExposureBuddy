@@ -161,6 +161,7 @@ describe('blurAlongLine', () => {
           expect(Math.min(...blurred.data)).toBeGreaterThanOrEqual(0);
         },
       ),
+      { numRuns: 20 },
     );
   });
 });

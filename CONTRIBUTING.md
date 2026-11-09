@@ -33,6 +33,11 @@ npm run dev          # http://localhost:3000
 (or a custom domain's root), which the e2e suite and Lighthouse reproduce by
 serving the export under that path.
 
+Both `npm run dev` and `npm run build` first copy the MediaPipe Wasm runtime
+from `node_modules` into `web/public/ml/` (`scripts/copy-ml-assets.mjs`,
+git-ignored). The DeepLab model next to it is committed. Both load lazily, only
+for the single-photo mode, and the service worker caches them for offline use.
+
 ## Commit hooks
 
 [prek](https://github.com/j178/prek) runs [`.pre-commit-config.yaml`](.pre-commit-config.yaml)

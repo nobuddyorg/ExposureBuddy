@@ -1,4 +1,4 @@
-import { mergeConfig } from 'vitest/config';
+import { configDefaults, mergeConfig } from 'vitest/config';
 import type { VitestPluginContext } from 'vitest/node';
 
 import baseConfig from './vitest.config.mts';
@@ -28,5 +28,10 @@ export default mergeConfig(baseConfig, {
     reporters: ['dot'],
     // Instrumented kernels run several times slower; the RANSAC-driven alignment tests need more than the 5 s default.
     testTimeout: 15_000,
+    // The benchmark covers every ORB kernel, so each mutant there reran it; it asserts quality floors, not behaviour a mutant must break.
+    exclude: [
+      ...configDefaults.exclude,
+      'src/app/vision/stackingQuality.test.ts',
+    ],
   },
 });
