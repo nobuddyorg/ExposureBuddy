@@ -109,13 +109,8 @@ function accumulate(
         const row = source + sy * input.width + shift;
         const out = y * width;
         const values = input.data;
-        if (stride === 1) {
-          for (let x = first; x <= last; x += 1)
-            target[out + x] += weight * values[row + x];
-        } else {
-          for (let x = first; x <= last; x += 1)
-            target[out + x] += weight * values[row + x * stride];
-        }
+        for (let x = first; x <= last; x += 1)
+          target[out + x] += weight * values[row + x * stride];
       }
     }
   }
@@ -126,6 +121,40 @@ function activate(plane: Float32Array, layer: ConvLayer): void {
     if (layer.relu && plane[pixel] < 0) plane[pixel] = 0;
     if (layer.sigmoid) plane[pixel] = 1 / (1 + Math.exp(-plane[pixel]));
   }
+}
+
+/** accumulator[i] += weight × values[source + i] for the first `length` entries: the inner loop of the convolution. */
+function shiftedAdd(
+  accumulator: Float32Array,
+  values: Float32Array,
+  shift: {
+    readonly weight: number;
+    readonly source: number;
+    readonly length: number;
+  },
+): void {
+  const { weight, source, length } = shift;
+  for (let i = 0; i < length; i += 1)
+    accumulator[i] += weight * values[source + i];
+}
+
+/** Copies the first `width` columns of each row of `accumulator` (rows `wide` long) into plane `out` of `data`. */
+function copyRows(
+  accumulator: Float32Array,
+  data: Float32Array,
+  layout: {
+    readonly wide: number;
+    readonly width: number;
+    readonly height: number;
+    readonly out: number;
+  },
+): void {
+  const { wide, width, height, out } = layout;
+  for (const y of indices(height))
+    data.set(
+      accumulator.subarray(y * wide, y * wide + width),
+      (out * height + y) * width,
+    );
 }
 
 /** `input` with `padding` zeros around every plane. */
@@ -165,18 +194,15 @@ function convolveSame(input: Planes, layer: ConvLayer): Planes {
         for (let kx = 0; kx < kernel; kx += 1) {
           const weight = layer.weights[weightBase + ky * kernel + kx];
           if (weight === 0) continue;
-          const source = channel * plane + ky * wide.width + kx;
-          const values = wide.data;
-          for (let i = 0; i < length; i += 1)
-            accumulator[i] += weight * values[source + i];
+          shiftedAdd(accumulator, wide.data, {
+            weight,
+            source: channel * plane + ky * wide.width + kx,
+            length,
+          });
         }
       }
     }
-    for (const y of indices(height))
-      data.set(
-        accumulator.subarray(y * wide.width, y * wide.width + width),
-        (out * height + y) * width,
-      );
+    copyRows(accumulator, data, { wide: wide.width, width, height, out });
     activate(
       data.subarray(out * width * height, (out + 1) * width * height),
       layer,

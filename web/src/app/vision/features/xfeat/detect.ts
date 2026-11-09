@@ -5,8 +5,8 @@ import { runXFeat, type XFeatWeights } from './net';
 
 const MULTIPLE = 32;
 /** The long edge the network runs at: its cost grows with the area, and an alignment needs a few hundred good points, not the pixels. */
-export const LEARNED_LONG_EDGE = 640;
-export const LEARNED_TOP_K = 1500;
+const LEARNED_LONG_EDGE = 640;
+const LEARNED_TOP_K = 1500;
 
 const down = (value: number): number =>
   Math.max(MULTIPLE, Math.floor(value / MULTIPLE) * MULTIPLE);

@@ -7,7 +7,7 @@ const CELL_PIXELS = CELL * CELL;
 const CHANNELS = 64;
 const NMS_RADIUS = 2;
 /** The probability a pixel must have of being a keypoint to be considered. */
-export const DETECTION_THRESHOLD = 0.05;
+const DETECTION_THRESHOLD = 0.05;
 
 /** What a detection yields: positions in the image, strongest first, with the 64 L2-normalised descriptor values of each in `descriptors`. */
 export interface XFeatKeypoints {
