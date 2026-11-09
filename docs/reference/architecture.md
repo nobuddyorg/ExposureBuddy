@@ -216,8 +216,8 @@ fit and the checks are shared with the corner-based alignment (`alignFromPairs`)
 
 ### Moving things in a burst
 
-The picker's **Moving things** setting (`Keep`, `Remove`, `Blur`, and how hard to
-search) starts one more worker, the single-photo worker, after the frames are
+The picker's **Moving things** setting (`Keep`, `Remove`, `Trail`, and how hard to
+search; with `Trail` also what becomes of people who stand about) starts one more worker, the single-photo worker, after the frames are
 aligned. Its `movers-masks` request carries every aligned frame's file and
 transform; it decodes each at the alignment size, finds people, vehicles and
 animals (the Pascal VOC classes `person`, `car`, `bus`, `motorbike`, `bicycle`,
@@ -229,13 +229,24 @@ the long edge. The coordinator hands the masks to the stack worker
 `stackRows` takes the background median over the frames that show no mover at
 a pixel; where every frame does, the pixel is a hole that the session fills
 from the colours around it (`effects/inpaint.ts`) at the first render. With
-`Blur`, the same request also decodes up to six frames evenly spread over the
-burst (`pipeline/blurFrames.ts`) at the working size, aligns them, blurs their
-movers with the single-photo effect (`pipeline/blurMovers.ts`, the mask stretched
-bilinearly to the full size) and answers with the mean; the coordinator sends it
-after the last strip as `set-mean`, replacing the stack's plain mean, so the
-ghost slider runs from the empty scene to the blurred movers. Progress goes out
-as `movers-progress` (frames searched, then frames blurred).
+`Trail`, the same request also takes up to eight frames evenly spread over the
+burst (`pipeline/blurFrames.ts`), follows each mover from one sample to the next
+by the centre of its mask area (`pipeline/trackAreas.ts`: nearest plausible
+pair first, a step of at most 40 % of the long edge, an area that changes by
+less than three times), decodes and aligns those frames at the working size and
+smears every mover along its step (`effects/smear.ts`): each pixel under the
+mover's soft mask is stamped at every position of the path, so the streak joins
+one sample to the next as a long exposure would. The last sample's movers
+streak back along the way they came. People who stand about (found by the model,
+but unchanged between the frames, or moving less than 0.6 % of the long edge)
+are blurred sideways by the choice in the picker, or left alone. The answer is
+the sums of premultiplied colour and coverage (`pipeline/trail.ts`), moved to
+the coordinator, which sends them to the stack worker after the last strip as
+`set-trail`. The session keeps them and, at every render, redraws the long
+exposure as `background × (1 − coverage) + colour`, mixed with the plain mean by
+the trail slider (`stack/trailMean.ts`), so the background mode and the sliders
+keep working. Progress goes out as `movers-progress` (frames searched, then
+frames smeared).
 
 ## The single-photo mode
 
@@ -271,7 +282,7 @@ device and what the host sees.
 | -------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Picking photos | `PhotoPicker`                                                             | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-tile` (with `data-reference`), `photo-thumb`, `choose-reference`, `remove-photo`, `reference-badge`, `reference-hint`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
 | Combining      | `Progress`                                                                | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel`                                                                                                                                                                                                   |
-| Result         | `Result`                                                                  | `result-canvas`, `result-stats`, `result-skipped`, `result-blurred`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over`                                            |
+| Result         | `Result`                                                                  | `result-canvas`, `result-stats`, `result-skipped`, `result-blurred`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `people-slider`, `trail-slider`, `compare-toggle`, `download`, `share`, `start-over`           |
 | One photo      | `SinglePhotoCard` in the picker, then `SingleProgress` and `SingleResult` | `single-photo-card`, `single-photo`; the progress and result ids above, plus `effect-select`, `strength-slider`, `angle-slider` (`single-result` is the result's root)                                                                                                   |
 | Failed         | `PipelineError`                                                           | `pipeline-error`, `retry`, `copy-diagnostics`, `copy-status`, `diagnostics`, `diagnostics-toggle`, `diagnostics-text`                                                                                                                                                    |
 
