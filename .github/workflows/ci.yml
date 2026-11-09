@@ -179,51 +179,6 @@ jobs:
           coverage-artifact-name: e2e-coverage
           job-status: ${{ job.status }}
 
-  # Scoped to mutation-targets.mjs (stryker.config.mjs): the kernels and the pipeline orchestration, never the rendering layer.
-  mutation_test:
-    needs: [prek, changes]
-    if: needs.changes.outputs.web == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 240
-    defaults:
-      run:
-        working-directory: ./web
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/setup-web
-
-      # Stryker's incremental file; a PR restores main's latest. Keyed on what incremental mode cannot see: dependencies and test config.
-      - name: Restore the incremental mutation report
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: web/reports/stryker-incremental.json
-          key: stryker-incremental-${{ hashFiles('web/package-lock.json', 'web/stryker.config.mjs', 'web/vitest.config.mts', 'web/vitest.mutation.config.mts', 'web/vitest.setup.ts') }}-${{ github.run_id }}
-          restore-keys: stryker-incremental-${{ hashFiles('web/package-lock.json', 'web/stryker.config.mjs', 'web/vitest.config.mts', 'web/vitest.mutation.config.mts', 'web/vitest.setup.ts') }}-
-
-      # Dashboard key only on main, so the published report and badge track one branch.
-      # main reruns every mutant (--force): incremental is blind to modules a target imports, and main's run seeds every PR's cache.
-      - name: Run mutation testing
-        run: npx stryker run ${FULL_RUN:+--force}
-        env:
-          FULL_RUN: ${{ github.ref == 'refs/heads/main' && 'true' || '' }}
-          STRYKER_DASHBOARD_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.STRYKER_DASHBOARD_API_KEY || '' }}
-
-      # Built from reports/mutation/mutation.json (scripts/mutation-summary.mjs); the console log is mostly expected per-mutant failures.
-      - name: Add mutation report to job summary
-        if: always()
-        run: npm run mutation:summary
-
-      - name: Upload mutation report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: mutation-report
-          path: web/reports/mutation
-          retention-days: 30
-
   # Opengrep needs no node_modules, so it is its own job. The scanned tree is web/{src,scripts,e2e}.
   opengrep:
     needs: [prek, changes]

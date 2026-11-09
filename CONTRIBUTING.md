@@ -82,7 +82,7 @@ change touches what it covers:
 
 | Command | Required when you touched | CI job |
 | --- | --- | --- |
-| `npm run test:mutation` | code in a file listed in `web/mutation-targets.mjs` (comments produce no new mutants) | `mutation_test` |
+| `npm run test:mutation` | code in a file listed in `web/mutation-targets.mjs` (comments produce no new mutants) | `mutation_test` (`mutation.yml`) |
 | `opengrep scan --config auto web/src web/scripts web/e2e` | anything under those paths | `opengrep` |
 | `npm run lighthouse` | anything that ships in the bundle | `lighthouse` |
 | OWASP ZAP baseline | the CSP, the frame-busting script, anything rendered into the HTML | `zap_baseline` |

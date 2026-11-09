@@ -7,12 +7,13 @@ covers each check in depth, and everything past the checklist.
 ## Run the checks CI runs, locally
 
 The checklist in [CONTRIBUTING.md](../../CONTRIBUTING.md#before-opening-a-pull-request)
-is CI's `build_and_test` job step for step, plus `mutation_test`. The
+is CI's `build_and_test` job step for step. `mutation.yml` runs
+`mutation_test` on its own, so a slow run never holds up Deploy Pages. The
 tool-dependent jobs — `opengrep`, `lighthouse`, `zap_baseline` — each have a
 section below.
 
-On a pull request, CI's `changes` job skips `build_and_test`, `mutation_test`,
-`opengrep`, `lighthouse` and `zap_baseline` unless `web/**`, `.zap/rules.tsv`,
+On a pull request, CI's `changes` job skips `build_and_test`, `opengrep`,
+`lighthouse` and `zap_baseline` unless `web/**`, `.zap/rules.tsv`,
 `.semgrepignore`, `ci.yml` or a composite action in `.github/actions/`
 changed. Any other path — a workflow, the docs — runs only `prek` on a PR, so
 run the matching checks locally for it. A push to `main` or a dispatch runs
@@ -114,6 +115,10 @@ E2E_COVERAGE=true npm run e2e -- --project=chromium --project=mobile
 ```
 
 ## Run mutation testing
+
+In CI this is `mutation.yml`, separate from `ci.yml`: a pull request gets the
+incremental run, `main` a full one (about 2.5 hours) on every push and weekly.
+Deploy Pages does not wait for it; a failing run on `main` is for a human to fix.
 
 ```bash
 cd web
