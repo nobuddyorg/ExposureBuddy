@@ -5,11 +5,11 @@ import {
   solidImage,
   withRect,
 } from '../effects/effects.test-support';
+import { BURST_BLUR } from '../effects/effectParams';
 import { prepareScene, renderScene } from '../effects/render';
 import {
   addBlurredFrame,
   averageOf,
-  BURST_BLUR,
   emptySum,
   MAX_BLURRED_FRAMES,
 } from './blurMovers';

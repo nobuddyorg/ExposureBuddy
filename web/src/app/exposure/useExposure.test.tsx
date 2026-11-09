@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_BUDGET_BYTES } from '../vision/pipeline/budget';
-import { BURST_BLUR } from '../vision/pipeline/blurMovers';
+import { BURST_BLUR } from '../vision/effects/effectParams';
 import type { WorkerMessage } from '../vision/pipeline/protocol';
 import type { DeviceProfile } from './deviceProfile';
 import {

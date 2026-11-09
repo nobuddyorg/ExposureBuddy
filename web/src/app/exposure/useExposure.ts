@@ -14,7 +14,7 @@ import type { FailedRun } from './diagnostics';
 import { toPipelineFailure } from './failure';
 import { pageAssetBase } from './ml/assetBase';
 import type { BurstMovers } from './moversChoice';
-import { BURST_BLUR } from '../vision/pipeline/blurMovers';
+import { BURST_BLUR } from '../vision/effects/effectParams';
 import {
   runPipeline,
   type ExposureResult,

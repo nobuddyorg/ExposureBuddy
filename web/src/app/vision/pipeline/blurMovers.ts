@@ -6,14 +6,6 @@ import type { GrayImage, RgbaImage, Size } from '../types';
 const CHANNELS = 3;
 const RGBA = 4;
 
-/** What the movers of a burst are turned into: a soft sweep to the side, which a handful of frames average into a trail. */
-export const BURST_BLUR: EffectParams = {
-  effect: 'motion',
-  strength: 0.5,
-  angle: 0,
-  grow: 0,
-};
-
 /** How many frames of a burst get the effect: it runs at full size, and a few frames make the trail as well as many. */
 export const MAX_BLURRED_FRAMES = 6;
 

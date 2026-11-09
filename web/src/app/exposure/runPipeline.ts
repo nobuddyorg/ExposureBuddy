@@ -5,7 +5,6 @@ import {
   type OutputQuality,
 } from '../vision/pipeline/budget';
 import { blurredFrames } from '../vision/pipeline/blurred';
-import { identityHomography } from '../vision/geometry/homography';
 import type { EffectParams } from '../vision/effects/effectParams';
 import type { DetectionDetail } from '../vision/effects/tiles';
 import type { SingleWorkerResponse } from '../vision/pipeline/singleProtocol';
@@ -83,6 +82,9 @@ type ReferenceDecoded = Extract<
 >;
 type Cropped = Extract<StackWorkerResponse, { type: 'cropped' }>;
 type Rendered = Extract<StackWorkerResponse, { type: 'rendered' }>;
+
+/** The reference's own transform; a function so every item gets an array of its own. */
+const IDENTITY = (): Homography => Float64Array.of(1, 0, 0, 0, 1, 0, 0, 0, 1);
 
 function pendingReport(index: number): FrameReport {
   return { index, status: 'pending', matches: 0, inliers: 0 };
@@ -257,7 +259,7 @@ export async function runPipeline(
             file: files[key === 'reference' ? reference : key],
             homography:
               key === 'reference'
-                ? identityHomography()
+                ? IDENTITY()
                 : (homographies.get(key) as Homography),
           })),
           working,
