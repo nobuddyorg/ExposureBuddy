@@ -5,7 +5,8 @@ import {
   type OutputQuality,
 } from '../vision/pipeline/budget';
 import { blurredFrames } from '../vision/pipeline/blurred';
-import type { EffectParams } from '../vision/effects/effectParams';
+import type { SmearSum } from '../vision/effects/smear';
+import type { TrailSettings } from '../vision/pipeline/trail';
 import type { WarpKernel } from '../vision/warp/warp';
 import type { DetectionDetail } from '../vision/effects/tiles';
 import type { SingleWorkerResponse } from '../vision/pipeline/singleProtocol';
@@ -51,8 +52,8 @@ interface PipelineOptions {
     /** Absolute URL of the folder the model and the Wasm runtime are served from. */
     readonly assetBase: string;
     readonly detail: DetectionDetail;
-    /** When set, a few frames also get this effect on their movers at full size and their mean becomes the long exposure, instead of a plain average. */
-    readonly blur?: EffectParams;
+    /** When set, a few frames also get their movers smeared along the way they went, and the long exposure shows those trails instead of ghost copies. */
+    readonly trail?: TrailSettings;
   };
 }
 
@@ -75,11 +76,17 @@ export interface ExposureResult {
   readonly frames: readonly FrameReport[];
   readonly alignedCount: number;
   readonly totalCount: number;
-  /** The long exposure is the mean of frames whose movers were blurred, so the ghost slider belongs at its top. */
-  readonly blurredMovers: boolean;
+  /** The long exposure shows the movers as trails along their paths, so the trail slider belongs in the panel and the ghosts open at full. */
+  readonly trailedMovers: boolean;
   render(params: CompositeParams): Promise<RgbaImage>;
   renderReference(): Promise<RgbaImage>;
   dispose(): void;
+}
+
+/** The smeared movers of the sampled frames, added up. */
+interface TrailSum {
+  readonly sum: SmearSum;
+  readonly frames: number;
 }
 
 type ReferenceDecoded = Extract<
@@ -303,7 +310,7 @@ export async function runPipeline(
           working,
           assetBase: movers.assetBase,
           detail: movers.detail,
-          ...(movers.blur && { blur: movers.blur }),
+          ...(movers.trail && { trail: movers.trail }),
         },
         {
           signal,
@@ -324,7 +331,7 @@ export async function runPipeline(
           { transfer: transferablesOf({ mask }), signal },
         );
       }
-      return masks.blurred;
+      return masks.trail;
     } finally {
       signal?.removeEventListener('abort', stop);
       finder.terminate();
@@ -397,10 +404,10 @@ export async function runPipeline(
     if (alignedCount < 2)
       throw new PipelineError({ kind: 'too_few_aligned', count: alignedCount });
 
-    let blurred: RgbaImage | undefined;
+    let trail: TrailSum | undefined;
     if (options.movers) {
       emit('movers', 0, alignedCount);
-      blurred = await findMovers(options.movers, working);
+      trail = await findMovers(options.movers, working);
     }
 
     const summary = await request<Cropped>(
@@ -434,12 +441,12 @@ export async function runPipeline(
       );
       unitsDone += 1;
     }
-    // After the last strip: stacking writes the plain mean, which the blurred frames' mean replaces.
-    if (blurred)
+    // After the last strip, when the plain mean is stacked: the render draws the trails over it.
+    if (trail)
       await request(
         stack,
-        { type: 'set-mean', id: nextId(), image: blurred },
-        { transfer: transferablesOf({ image: blurred }), signal },
+        { type: 'set-trail', id: nextId(), ...trail },
+        { transfer: transferablesOf(trail), signal },
       );
     emit('compositing', 0, 1);
 
@@ -449,7 +456,7 @@ export async function runPipeline(
       frames,
       alignedCount,
       totalCount: total,
-      blurredMovers: blurred !== undefined,
+      trailedMovers: trail !== undefined,
       render: (params) =>
         request<Rendered>(stack, { type: 'render', id: nextId(), params }).then(
           (rendered) => rendered.image,

@@ -109,6 +109,7 @@ describe('createStackService', () => {
       ghostBlur: 2,
       glow: 0,
       trails: false,
+      trail: 1,
     };
 
     const rendered = await serve({ type: 'render', id: 4, params });
@@ -152,6 +153,7 @@ describe('createStackService', () => {
           ghostBlur: 0,
           glow: 0,
           trails: false,
+          trail: 1,
         },
       }),
     ).rejects.toThrow('nothing stacked');

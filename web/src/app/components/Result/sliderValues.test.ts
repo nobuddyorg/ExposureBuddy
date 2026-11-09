@@ -15,6 +15,7 @@ const CURRENT = {
   ghostBlur: 0,
   glow: 0,
   trails: false,
+  trail: 1,
 };
 
 describe('slider values', () => {
@@ -35,6 +36,7 @@ describe('slider values', () => {
       ghostBlur: 12,
       glow: 1,
       trails: false,
+      trail: 1,
     });
   });
 
@@ -44,7 +46,12 @@ describe('slider values', () => {
         { ghost: 50, blur: 12, glow: 100 },
         { ...CURRENT, background: 'mode', trails: true },
       ),
-    ).toMatchObject({ background: 'mode', trails: true, ghostStrength: 0.5 });
+    ).toMatchObject({
+      background: 'mode',
+      trails: true,
+      trail: 1,
+      ghostStrength: 0.5,
+    });
   });
 
   it('clamps a value past the slider range instead of passing it on', () => {
@@ -56,6 +63,7 @@ describe('slider values', () => {
       ghostBlur: 0,
       glow: 1,
       trails: false,
+      trail: 1,
     });
   });
 

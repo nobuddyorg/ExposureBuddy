@@ -144,6 +144,7 @@ export default function Result({
             onBackgroundChange={(background) =>
               composite.setParams({ ...composite.params, background })
             }
+            trailed={result.trailedMovers}
             trails={composite.params.trails}
             onTrailsChange={(trails) =>
               composite.setParams({ ...composite.params, trails })

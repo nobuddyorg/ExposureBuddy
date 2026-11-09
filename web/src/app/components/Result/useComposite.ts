@@ -28,9 +28,9 @@ export function useComposite(
       frameCount: result.alignedCount,
       longEdge: Math.max(result.width, result.height),
     });
-    // The blurred movers are the picture itself: all of them, as they are, nothing smeared over them again.
-    return result.blurredMovers
-      ? { ...defaults, ghostStrength: 1, ghostBlur: 0, glow: 0 }
+    // The trails are the picture itself: all of them, as they are, nothing smeared over them again.
+    return result.trailedMovers
+      ? { ...defaults, ghostStrength: 1, ghostBlur: 0, glow: 0, trail: 1 }
       : defaults;
   });
   const [image, setImage] = useState<RgbaImage | null>(null);

@@ -145,3 +145,11 @@ export function growRect(rect: Rect, margin: number, bounds: Size): Rect {
   const bottom = Math.min(bounds.height, rect.y + rect.height + margin);
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
+
+/** `mask` without the pixels that are set in `removed` (same size); a pixel counts as set from half strength. */
+export function maskWithout(mask: GrayImage, removed: GrayImage): GrayImage {
+  const data = Uint8Array.from(mask.data, (value, index) =>
+    removed.data[index] >= HALF ? 0 : value,
+  );
+  return { width: mask.width, height: mask.height, data };
+}

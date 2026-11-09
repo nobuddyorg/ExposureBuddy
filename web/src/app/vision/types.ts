@@ -132,6 +132,8 @@ export interface CompositeParams {
   readonly glow: number;
   /** Measure what moved by the brightest value each pixel saw instead of the mean: light trails instead of ghosts. */
   readonly trails: boolean;
+  /** How far the long exposure draws the movers as trails along their paths, from the plain mean (0) to full trails (1); no effect without trails. */
+  readonly trail: number;
 }
 
 /** `pending` until the frame is looked at; `unreadable` when it could not be decoded at all; `blurred` aligned but left out. */

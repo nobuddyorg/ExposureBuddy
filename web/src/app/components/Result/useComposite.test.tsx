@@ -17,6 +17,7 @@ const PARAMS_A = {
   ghostBlur: 1,
   glow: 0.1,
   trails: false,
+  trail: 1,
 };
 const PARAMS_B = {
   background: 'median' as const,
@@ -24,6 +25,7 @@ const PARAMS_B = {
   ghostBlur: 9,
   glow: 0.9,
   trails: false,
+  trail: 1,
 };
 
 // fakeResult: 5 aligned frames, 4 × 3 px.

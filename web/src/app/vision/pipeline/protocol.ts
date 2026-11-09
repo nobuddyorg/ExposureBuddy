@@ -1,3 +1,4 @@
+import type { SmearSum } from '../effects/smear';
 import type { WarpKernel } from '../warp/warp';
 import type {
   AlignedFrame,
@@ -154,10 +155,11 @@ export type StackWorkerRequest =
       readonly mask: GrayImage;
     }
   | {
-      readonly type: 'set-mean';
+      readonly type: 'set-trail';
       readonly id: number;
-      /** The burst's long exposure at the working size, in place of the mean the stack made; after the last strip is stacked. */
-      readonly image: RgbaImage;
+      /** The smeared movers of `frames` sampled frames at the working size; after the last strip is stacked, before the first render. */
+      readonly sum: SmearSum;
+      readonly frames: number;
     }
   | { readonly type: 'crop'; readonly id: number }
   | {

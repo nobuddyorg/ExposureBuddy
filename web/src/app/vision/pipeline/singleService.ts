@@ -1,5 +1,5 @@
 import { identityHomography, scaleHomography } from '../geometry/homography';
-import { dilateMask, maskCoverage } from '../effects/mask';
+import { dilateMask, maskCoverage, maskWithout } from '../effects/mask';
 import {
   growRadius,
   prepareScene,
@@ -14,12 +14,9 @@ import type { GrayImage, Homography, RgbaImage, Size } from '../types';
 import { ALIGNMENT_LONG_EDGE } from './budget';
 import { spreadOut } from './blurFrames';
 import { temporalDeviation, withoutStaticAreas } from './staticMovers';
-import {
-  addBlurredFrame,
-  averageOf,
-  emptySum,
-  MAX_BLURRED_FRAMES,
-} from './blurMovers';
+import { emptySmearSum } from '../effects/smear';
+import { addTrailFrame, MAX_TRAIL_FRAMES } from './trail';
+import { trackAreas } from './trackAreas';
 import type { Served } from './protocol';
 import { transferablesOf, unexpectedRequest } from './protocol';
 import type {
@@ -148,26 +145,37 @@ export function createSingleService(
     });
   };
 
-  // The effect of the burst: a few frames, each decoded and aligned at the working size, their movers blurred, then averaged.
-  const blurredMean = async (
+  // The trails of the burst: a few frames, each decoded and aligned at the working size, their movers smeared along their paths.
+  const smearedTrails = async (
     request: Extract<SingleWorkerRequest, { type: 'movers-masks' }>,
-    masks: readonly GrayImage[],
+    found: {
+      readonly moving: readonly GrayImage[];
+      readonly standing: readonly GrayImage[];
+    },
     onFrame: (done: number) => void,
-  ): Promise<RgbaImage | undefined> => {
-    const { blur, items, working } = request;
-    if (!blur) return undefined;
+  ) => {
+    const { trail, items, working } = request;
+    if (!trail) return undefined;
     const chosen = spreadOut(
       items.map((_, index) => index),
-      MAX_BLURRED_FRAMES,
+      MAX_TRAIL_FRAMES,
     );
-    const sum = emptySum(working);
+    const tracked = trackAreas(chosen.map((index) => found.moving[index]));
+    const sum = emptySmearSum(working);
     for (const [done, index] of chosen.entries()) {
       const decoded = await steps.decodeAt(items[index].file, working);
-      const image = alignedTo(decoded, items[index].homography, working);
-      addBlurredFrame(sum, { image, mask: masks[index] }, blur);
+      addTrailFrame(
+        sum,
+        {
+          image: alignedTo(decoded, items[index].homography, working),
+          moving: tracked[done],
+          standing: found.standing[index],
+        },
+        trail,
+      );
       onFrame(done + 1);
     }
-    return averageOf(sum, chosen.length, working);
+    return { sum, frames: chosen.length };
   };
 
   const findMovers = async (
@@ -178,10 +186,10 @@ export function createSingleService(
       ALIGNMENT_LONG_EDGE,
       Math.max(working.width, working.height),
     );
-    const blurredCount = request.blur
-      ? Math.min(items.length, MAX_BLURRED_FRAMES)
+    const trailCount = request.trail
+      ? Math.min(items.length, MAX_TRAIL_FRAMES)
       : 0;
-    const total = items.length + blurredCount;
+    const total = items.length + trailCount;
     const frame = (done: number) =>
       postProgress({ type: 'movers-progress', id, done, total });
     frame(0);
@@ -219,12 +227,18 @@ export function createSingleService(
       ),
     );
     const masks = moved.map((mask) => withoutStaticAreas(mask, deviation));
-    const blurred = await blurredMean(request, masks, (done) =>
-      frame(items.length + done),
+    // What the model found but does not change between the frames: people who stand about, which the trails may blur.
+    const standing = moved.map((mask, index) =>
+      maskWithout(mask, masks[index]),
+    );
+    const trail = await smearedTrails(
+      request,
+      { moving: masks, standing },
+      (done) => frame(items.length + done),
     );
     return served(
-      { type: 'movers-masked', id, masks, ...(blurred && { blurred }) },
-      transferablesOf({ masks, blurred }),
+      { type: 'movers-masked', id, masks, ...(trail && { trail }) },
+      transferablesOf({ masks, trail }),
     );
   };
 

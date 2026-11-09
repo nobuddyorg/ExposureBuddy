@@ -58,6 +58,7 @@ function params(overrides: Partial<CompositeParams>): CompositeParams {
     ghostBlur: 0,
     glow: 0,
     trails: false,
+    trail: 1,
     ...overrides,
   };
 }
@@ -245,6 +246,7 @@ describe('composite', () => {
             ghostBlur,
             glow,
             trails: false,
+            trail: 1,
           });
           expect(isOpaque(image)).toBe(true);
           rgbPixels(image).forEach((value, index) => {

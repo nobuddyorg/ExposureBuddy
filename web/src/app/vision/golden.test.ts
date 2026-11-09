@@ -60,6 +60,7 @@ const COMPOSITE_PARAMS: CompositeParams[] = [
     ghostBlur: 0,
     glow: 0,
     trails: false,
+    trail: 1,
   },
   {
     background: 'median',
@@ -67,6 +68,7 @@ const COMPOSITE_PARAMS: CompositeParams[] = [
     ghostBlur: 0,
     glow: 0,
     trails: false,
+    trail: 1,
   },
   {
     background: 'trimmed',
@@ -74,6 +76,7 @@ const COMPOSITE_PARAMS: CompositeParams[] = [
     ghostBlur: 3,
     glow: 0.25,
     trails: false,
+    trail: 1,
   },
   {
     background: 'clipped',
@@ -81,6 +84,7 @@ const COMPOSITE_PARAMS: CompositeParams[] = [
     ghostBlur: 7,
     glow: 0.8,
     trails: false,
+    trail: 1,
   },
   {
     background: 'mode',
@@ -88,6 +92,7 @@ const COMPOSITE_PARAMS: CompositeParams[] = [
     ghostBlur: 20,
     glow: 1,
     trails: false,
+    trail: 1,
   },
   {
     background: 'median',
@@ -95,6 +100,7 @@ const COMPOSITE_PARAMS: CompositeParams[] = [
     ghostBlur: 5,
     glow: 0.5,
     trails: false,
+    trail: 1,
   },
 ];
 
@@ -105,6 +111,7 @@ const BIG_PARAMS: CompositeParams[] = [
     ghostBlur: 4,
     glow: 0.25,
     trails: false,
+    trail: 1,
   },
   {
     background: 'mode',
@@ -112,6 +119,7 @@ const BIG_PARAMS: CompositeParams[] = [
     ghostBlur: 60,
     glow: 1,
     trails: false,
+    trail: 1,
   },
   {
     background: 'clipped',
@@ -119,6 +127,7 @@ const BIG_PARAMS: CompositeParams[] = [
     ghostBlur: 128,
     glow: 0.7,
     trails: false,
+    trail: 1,
   },
   {
     background: 'trimmed',
@@ -126,6 +135,7 @@ const BIG_PARAMS: CompositeParams[] = [
     ghostBlur: 1,
     glow: 0,
     trails: false,
+    trail: 1,
   },
 ];
 

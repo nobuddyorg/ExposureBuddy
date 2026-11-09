@@ -7,6 +7,7 @@ export const DEFAULT_COMPOSITE_PARAMS: CompositeParams = {
   ghostBlur: 4,
   glow: 0.25,
   trails: false,
+  trail: 1,
 };
 
 export const MAX_GHOST_BLUR = 128;
@@ -45,6 +46,7 @@ export function defaultCompositeParams({
     ghostBlur: longEdge * BLUR_PER_LONG_EDGE * blurBoost,
     glow: DEFAULT_COMPOSITE_PARAMS.glow,
     trails: DEFAULT_COMPOSITE_PARAMS.trails,
+    trail: DEFAULT_COMPOSITE_PARAMS.trail,
   });
 }
 
@@ -70,6 +72,7 @@ export function clampCompositeParams(params: CompositeParams): CompositeParams {
     glow: clampOrDefault(params.glow, 1, DEFAULT_COMPOSITE_PARAMS.glow),
     // Anything but true, a value from outside included, is ghosts.
     trails: params.trails === true,
+    trail: clampOrDefault(params.trail, 1, DEFAULT_COMPOSITE_PARAMS.trail),
   };
 }
 

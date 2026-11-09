@@ -10,6 +10,9 @@ export interface TrailSettings {
   readonly standingBlur: number;
 }
 
+/** How many frames of a burst get their movers smeared: the streaks bridge the gaps between them, so a few are as good as all. */
+export const MAX_TRAIL_FRAMES = 8;
+
 /** The soft edge of a mover's streak, as a share of the long edge. */
 const EDGE_SHARE = 0.001;
 

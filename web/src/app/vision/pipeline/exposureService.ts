@@ -28,7 +28,7 @@ export function createExposureService(
       case 'add-frame':
       case 'drop-frame':
       case 'add-mask':
-      case 'set-mean':
+      case 'set-trail':
       case 'crop':
       case 'stack-rows':
       case 'add-rows':
