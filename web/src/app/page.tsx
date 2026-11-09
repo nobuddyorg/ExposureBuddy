@@ -27,6 +27,7 @@ import { useShotDate } from './exposure/useShotDate';
 import { browserWorkerFactory } from './exposure/workerFactory';
 import { useLeaveWarning } from './useLeaveWarning';
 import { useWakeLock } from './useWakeLock';
+import type { DetectionDetail } from './vision/effects/tiles';
 import type { OutputQuality } from './vision/pipeline/budget';
 
 const subscribeToNothing = () => () => {};
@@ -74,8 +75,8 @@ export default function Home() {
     backToPicker();
     picked.clear();
   };
-  const singlePhoto = () => {
-    if (referencePhoto) single.start(referencePhoto.file);
+  const singlePhoto = (detail: DetectionDetail) => {
+    if (referencePhoto) single.start(referencePhoto.file, detail);
   };
 
   // Only one of the two runs is ever off idle: starting either one needs the picker, which only idle shows.

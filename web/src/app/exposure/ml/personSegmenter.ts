@@ -48,7 +48,7 @@ function segmentCategories(
 /** The mask of the people in `image`, computed on this device from a model the app serves itself. */
 export const segmentPeople: SingleSteps['segmentPeople'] = async (
   image,
-  { assetBase, onProgress },
+  { assetBase, detail, onProgress },
 ) => {
   // Before the 17 MB download: a browser that cannot run the Wasm should hear so at once.
   if (!hasWebGlInWorker(self)) throw new Error(DETECTION_UNSUPPORTED_MESSAGE);
@@ -67,7 +67,7 @@ export const segmentPeople: SingleSteps['segmentPeople'] = async (
     try {
       const person = segmenter.getLabels().indexOf(PERSON_LABEL);
       if (person < 0) throw new Error('The model does not know people.');
-      const tiles = segmentationTiles(image);
+      const tiles = segmentationTiles(image, detail);
       const votes = emptyVotes(image);
       // One pass over a downscaled photo loses everyone small or far away, so the model also sees every tile at its own size.
       for (const [index, tile] of tiles.entries()) {
@@ -77,7 +77,7 @@ export const segmentPeople: SingleSteps['segmentPeople'] = async (
         addTileVotes(votes, maskFromCategories(categories, part, person), tile);
       }
       onProgress('detect', tiles.length, tiles.length);
-      return agreedMask(votes);
+      return agreedMask(votes, detail);
     } finally {
       segmenter.close();
     }

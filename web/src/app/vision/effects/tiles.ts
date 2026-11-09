@@ -3,10 +3,23 @@ import type { GrayImage, Rect, RgbaImage, Size } from '../types';
 
 const HALF = 128;
 
-/** The segmenter sees every region at this side length, so a region smaller than it is only enlarged, never resolved better. */
-export const MODEL_SIDE = 256;
-/** Tile sizes as shares of the photo's shorter side: large tiles keep whole bodies solid, small ones resolve people far away; 0.2 and below found statues and left holes. */
-const TILE_SHARES = [0.5, 0.3];
+/** How hard the people are looked for: `thorough` also reads small sections of the photo, to find people far away. */
+export type DetectionDetail = 'fast' | 'thorough';
+export const DETECTION_DETAILS: readonly DetectionDetail[] = [
+  'fast',
+  'thorough',
+];
+
+/** Per detail: tile sizes as shares of the shorter side (large keep bodies whole, small find people far away) and the share of tiles that must agree. */
+const DETAIL_SETTINGS: Record<
+  DetectionDetail,
+  { readonly shares: readonly number[]; readonly agreement: number }
+> = {
+  fast: { shares: [0.5, 0.3], agreement: 0.25 },
+  thorough: { shares: [0.5, 0.3, 0.2, 0.14], agreement: 0.2 },
+};
+/** No tile is smaller than this: below it the model sees an enlarged blur. */
+const MIN_TILE = 96;
 
 /** Start positions along one axis that cover `length` (longer than `window`) with windows of `window`, half a window apart, the last flush with the end. */
 function starts(length: number, window: number): number[] {
@@ -17,11 +30,11 @@ function starts(length: number, window: number): number[] {
 }
 
 /** The whole photo first, then overlapping square tiles of every size over it; sizes no smaller than the photo's shorter side are left out. */
-export function segmentationTiles(size: Size): Rect[] {
+export function segmentationTiles(size: Size, detail: DetectionDetail): Rect[] {
   const shorter = Math.min(size.width, size.height);
   const sides = new Set(
-    TILE_SHARES.map((share) =>
-      Math.max(MODEL_SIDE, Math.round(shorter * share)),
+    DETAIL_SETTINGS[detail].shares.map((share) =>
+      Math.max(MIN_TILE, Math.round(shorter * share)),
     ),
   );
   const tiles = [...sides]
@@ -60,9 +73,6 @@ export interface TileVotes {
   readonly people: Uint8Array;
 }
 
-/** A pixel is a person when this share of the tiles that saw it say so: a statue one tile takes for a person is outvoted, a small person only the small tiles find is kept. */
-const AGREEMENT = 0.25;
-
 export function emptyVotes(size: Size): TileVotes {
   const count = size.width * size.height;
   return {
@@ -87,13 +97,17 @@ export function addTileVotes(
   }
 }
 
-/** 255 where enough of the tiles that saw a pixel found a person there, 0 elsewhere. */
-export function agreedMask(votes: TileVotes): GrayImage {
+/** 255 where enough of the tiles that saw a pixel found a person there (a statue one tile takes for a person is outvoted), 0 elsewhere. */
+export function agreedMask(
+  votes: TileVotes,
+  detail: DetectionDetail,
+): GrayImage {
+  const { agreement } = DETAIL_SETTINGS[detail];
   return {
     width: votes.width,
     height: votes.height,
     data: Uint8Array.from(votes.seen, (seen, at) =>
-      votes.people[at] > 0 && votes.people[at] >= seen * AGREEMENT ? 255 : 0,
+      votes.people[at] > 0 && votes.people[at] >= seen * agreement ? 255 : 0,
     ),
   };
 }

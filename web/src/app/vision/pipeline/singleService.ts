@@ -5,6 +5,7 @@ import {
   renderScene,
   type Scene,
 } from '../effects/render';
+import type { DetectionDetail } from '../effects/tiles';
 import type { GrayImage, RgbaImage } from '../types';
 import type { Served } from './protocol';
 import { transferablesOf, unexpectedRequest } from './protocol';
@@ -25,6 +26,7 @@ export interface SingleSteps {
     image: RgbaImage,
     options: {
       readonly assetBase: string;
+      readonly detail: DetectionDetail;
       readonly onProgress: (
         stage: SingleStage,
         done: number,
@@ -89,6 +91,7 @@ export function createSingleService(
     const image = await steps.decode(request.file, request.longEdge);
     const mask = await steps.segmentPeople(image, {
       assetBase: request.assetBase,
+      detail: request.detail,
       onProgress: progress,
     });
     progress('prepare', 0, 1);

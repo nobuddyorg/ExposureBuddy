@@ -1,4 +1,5 @@
 import type { EffectParams } from '../effects/effectParams';
+import type { DetectionDetail } from '../effects/tiles';
 import type { RgbaImage } from '../types';
 
 /** What the detection worker says when its browser has no WebGL off the main thread; the coordinator maps it to its own failure. */
@@ -17,6 +18,8 @@ export type SingleWorkerRequest =
       readonly longEdge: number;
       /** Absolute URL of the folder the model and the Wasm runtime are served from. */
       readonly assetBase: string;
+      /** How hard the people are looked for. */
+      readonly detail: DetectionDetail;
     }
   | {
       readonly type: 'single-render';

@@ -8,6 +8,7 @@ import {
   solidImage,
   withRect,
 } from '../effects/effects.test-support';
+import type { DetectionDetail } from '../effects/tiles';
 import type { GrayImage, RgbaImage } from '../types';
 import type { SingleStage, SingleWorkerResponse } from './singleProtocol';
 import {
@@ -25,19 +26,29 @@ const PREPARE = {
   file: FILE,
   longEdge: 1600,
   assetBase: 'https://example.test/ml',
+  detail: 'fast',
 } as const;
 
 function setup(mask: GrayImage) {
   const progress: SingleWorkerResponse[] = [];
-  const calls: { longEdge: number; assetBase: string; file: Blob }[] = [];
+  const calls: {
+    longEdge: number;
+    assetBase: string;
+    detail?: DetectionDetail;
+    file: Blob;
+  }[] = [];
   const steps: SingleSteps = {
     decode: async (file, longEdge) => {
       calls.push({ longEdge, assetBase: '', file });
       return photo;
     },
-    segmentPeople: async (image: RgbaImage, { assetBase, onProgress }) => {
+    segmentPeople: async (
+      image: RgbaImage,
+      { assetBase, detail, onProgress },
+    ) => {
       expect(image).toBe(photo);
       calls[0].assetBase = assetBase;
+      calls[0].detail = detail;
       onProgress('model', 5, 10);
       onProgress('detect', 0, 1);
       return mask;
@@ -59,11 +70,16 @@ vi.mock('../effects/render', async (importOriginal) => {
 });
 
 describe('createSingleService', () => {
-  it('decodes the photo to the asked size and segments it from the asked folder', async () => {
+  it('decodes the photo to the asked size and segments it from the asked folder, as thoroughly as asked', async () => {
     const { service, calls } = setup(rectMask(60, 40, PERSON));
     await service(PREPARE);
     expect(calls).toEqual([
-      { longEdge: 1600, assetBase: 'https://example.test/ml', file: FILE },
+      {
+        longEdge: 1600,
+        assetBase: 'https://example.test/ml',
+        detail: 'fast',
+        file: FILE,
+      },
     ]);
   });
 

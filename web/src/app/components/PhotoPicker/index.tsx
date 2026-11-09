@@ -6,6 +6,7 @@ import type { DeviceProfile } from '../../exposure/deviceProfile';
 import type { PickedPhoto, PickerNotice } from '../../exposure/pickedPhotos';
 import type { ReferenceSize } from '../../exposure/useReferenceSize';
 import { useI18n } from '../../i18n/useI18n';
+import type { DetectionDetail } from '../../vision/effects/tiles';
 import type { OutputQuality } from '../../vision/pipeline/budget';
 import { buttonClasses } from '../ui/buttonClasses';
 import { cardClasses } from '../ui/cardClasses';
@@ -32,7 +33,7 @@ export interface PhotoPickerProps {
   onClear: () => void;
   onCombine: (quality: OutputQuality) => void;
   /** Turns the people in the one picked photo into an effect; offered only while exactly one photo is picked. */
-  onSinglePhoto: () => void;
+  onSinglePhoto: (detail: DetectionDetail) => void;
 }
 
 // A stack of three frames, drawn like ui/Icon's set: 24px grid, stroked in the current colour.

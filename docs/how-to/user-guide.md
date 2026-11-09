@@ -32,6 +32,10 @@ sharp.
 - **First time:** a detection model of about 17 MB is downloaded once, with a
   progress bar, and kept on your device. After that the mode also works
   offline.
+- **Detection** has two settings on the card: _thorough_ (the default) also
+  searches small sections of the photo for people far away and takes about
+  a minute on a laptop, longer on a phone; _fast_ takes about a quarter of
+  that and finds the nearer people.
 - **On the result screen**, pick the effect and set its strength. Motion blur
   and smear also take a direction in degrees (0 is to the right, 90 is
   down); a smear trails behind the movement. The outline slider widens the

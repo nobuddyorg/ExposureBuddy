@@ -1,4 +1,5 @@
 import type { EffectParams } from '../vision/effects/effectParams';
+import type { DetectionDetail } from '../vision/effects/tiles';
 import type {
   SingleStage,
   SingleWorkerResponse,
@@ -21,6 +22,8 @@ export interface SingleInput {
   readonly longEdge: number;
   /** Absolute URL of the folder the model and the Wasm runtime are served from. */
   readonly assetBase: string;
+  /** How hard the people are looked for. */
+  readonly detail: DetectionDetail;
   readonly onProgress: (progress: SingleProgress) => void;
   readonly signal?: AbortSignal;
 }
@@ -42,7 +45,8 @@ type Rendered = Extract<SingleWorkerResponse, { type: 'single-rendered' }>;
 export async function runSinglePhoto(
   input: SingleInput,
 ): Promise<SingleResult> {
-  const { file, workers, longEdge, assetBase, onProgress, signal } = input;
+  const { file, workers, longEdge, assetBase, detail, onProgress, signal } =
+    input;
   const port = workers.createSingleWorker();
   const terminate = () => port.terminate();
   signal?.addEventListener('abort', terminate);
@@ -51,7 +55,14 @@ export async function runSinglePhoto(
   try {
     const prepared = await request<Prepared>(
       port,
-      { type: 'single-prepare', id: nextId(), file, longEdge, assetBase },
+      {
+        type: 'single-prepare',
+        id: nextId(),
+        file,
+        longEdge,
+        assetBase,
+        detail,
+      },
       {
         signal,
         onProgress: (message) => {

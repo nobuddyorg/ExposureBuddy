@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
 type Quality = 'low' | 'standard' | 'high' | 'original';
+type Detail = 'fast' | 'thorough';
 
 interface Picker {
   (): Locator;
@@ -10,7 +11,7 @@ interface Picker {
     clear(): Promise<void>;
     combine(): Promise<void>;
     open(): Promise<void>;
-    singlePhoto(): Promise<void>;
+    singlePhoto(detail?: Detail): Promise<void>;
     removePhoto(index: number): Promise<void>;
     selectQuality(quality: Quality): Promise<void>;
     thumbnailNaturalWidth(index: number): Promise<number>;
@@ -23,6 +24,7 @@ interface Picker {
       singlePhoto: Locator;
     };
     count: Locator;
+    detail: Locator;
     dropzone: Locator;
     input: Locator;
     notice: Locator;
@@ -47,6 +49,7 @@ export function initPicker(page: Page): Picker {
       singlePhoto: page.getByTestId('single-photo'),
     },
     count: page.getByTestId('photo-count'),
+    detail: page.getByTestId('detail-select'),
     dropzone: page.getByTestId('photo-dropzone'),
     input: page.getByTestId('photo-input'),
     notice: page.getByTestId('picker-notice'),
@@ -77,8 +80,9 @@ export function initPicker(page: Page): Picker {
       await page.goto('', { waitUntil: 'networkidle' });
       await expect(locators.dropzone).toBeVisible();
     },
-    // Returns when the click landed, not when people were found: the spec watches progress and result.
-    singlePhoto: async () => {
+    // Returns when the click landed, not when people were found: the spec watches progress and result. Fast by default: a thorough run takes half a minute in headless software GL.
+    singlePhoto: async (detail: Detail = 'fast') => {
+      await locators.detail.selectOption(detail);
       await locators.buttons.singlePhoto.click();
     },
     removePhoto: async (index: number) => {

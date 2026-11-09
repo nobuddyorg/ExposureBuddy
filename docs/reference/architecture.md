@@ -205,8 +205,9 @@ burst's. `useSinglePhoto` → `runSinglePhoto` starts `single.worker.ts`, which
 runs `createSingleService` over three requests: `single-prepare` (decode to
 a long edge of 1600, or 1024 below the default memory budget; segment with
 DeepLab v3 through MediaPipe on the CPU, over the whole photo and over
-overlapping tiles of it (`effects/tiles.ts`), a pixel being a person when a
-quarter of the tiles that saw it say so;
+overlapping tiles of it (`effects/tiles.ts`; the request's `detail`, `fast` or
+`thorough`, picks the tile sizes), a pixel being a person when enough of the
+tiles that saw it say so;
 reject a mask under 0.2 % of the photo; lift the people into a layer and fill the plate behind them),
 `single-render` (one effect with strength, direction and outline width; a new
 outline width rebuilds the scene from the grown mask) and

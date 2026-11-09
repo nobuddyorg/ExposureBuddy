@@ -66,6 +66,7 @@ function setup(found: boolean, renderNeverAnswers = false) {
       workers,
       longEdge: 1600,
       assetBase: 'https://example.test/ml',
+      detail: 'fast',
       onProgress: (p) => progress.push(p),
       signal,
     });

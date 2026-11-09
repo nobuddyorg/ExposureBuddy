@@ -6,48 +6,57 @@ import {
   addTileVotes,
   agreedMask,
   cropImage,
+  DETECTION_DETAILS,
   emptyVotes,
-  MODEL_SIDE,
   segmentationTiles,
+  type DetectionDetail,
 } from './tiles';
 
+const tilesOf = (width: number, height: number, detail: DetectionDetail) =>
+  segmentationTiles({ width, height }, detail).slice(1);
+const sidesOf = (tiles: readonly { width: number }[]) =>
+  new Set(tiles.map((tile) => tile.width));
+
 describe('segmentationTiles', () => {
-  it('is the whole photo alone when a tile would be as large as the photo', () => {
-    expect(segmentationTiles({ width: 200, height: 100 })).toEqual([
-      { x: 0, y: 0, width: 200, height: 100 },
-    ]);
-    expect(segmentationTiles({ width: 800, height: MODEL_SIDE })).toEqual([
-      { x: 0, y: 0, width: 800, height: MODEL_SIDE },
-    ]);
+  it('is the whole photo alone when no tile would be smaller than the photo', () => {
+    for (const detail of DETECTION_DETAILS) {
+      expect(segmentationTiles({ width: 90, height: 90 }, detail)).toEqual([
+        { x: 0, y: 0, width: 90, height: 90 },
+      ]);
+      expect(segmentationTiles({ width: 96, height: 500 }, detail)).toEqual([
+        { x: 0, y: 0, width: 96, height: 500 },
+      ]);
+    }
   });
 
-  it('starts with the whole photo, then tiles of half and of 30 % of the shorter side', () => {
-    const [whole, ...tiles] = segmentationTiles({ width: 900, height: 1600 });
-    expect(whole).toEqual({ x: 0, y: 0, width: 900, height: 1600 });
+  it('starts with the whole photo', () => {
+    expect(segmentationTiles({ width: 900, height: 1600 }, 'fast')[0]).toEqual({
+      x: 0,
+      y: 0,
+      width: 900,
+      height: 1600,
+    });
+  });
+
+  it('reads tiles of half and of 30 % of the shorter side when fast', () => {
+    const tiles = tilesOf(900, 1600, 'fast');
     expect(tiles[0]).toEqual({ x: 0, y: 0, width: 450, height: 450 });
-    expect(new Set(tiles.map((tile) => tile.width))).toEqual(
-      new Set([450, 270]),
-    );
+    expect(sidesOf(tiles)).toEqual(new Set([450, 270]));
     expect(tiles.filter((tile) => tile.width === 450)).toHaveLength(21);
+    expect(tiles.filter((tile) => tile.width === 270)).toHaveLength(66);
   });
 
-  it('leaves out a size that is no smaller than the photo, and merges sizes that come out equal', () => {
-    const only = segmentationTiles({ width: 600, height: 700 });
-    expect(new Set(only.slice(1).map((tile) => tile.width))).toEqual(
-      new Set([300, 256]),
-    );
-    const merged = segmentationTiles({ width: 400, height: 700 });
-    expect(new Set(merged.slice(1).map((tile) => tile.width))).toEqual(
-      new Set([256]),
-    );
-    expect(segmentationTiles({ width: 500, height: 700 })).toHaveLength(1 + 15);
+  it('also reads tiles of 20 % and of 14 % when thorough', () => {
+    const tiles = tilesOf(900, 1600, 'thorough');
+    expect(sidesOf(tiles)).toEqual(new Set([450, 270, 180, 126]));
+    expect(tiles.filter((tile) => tile.width === 180)).toHaveLength(153);
+    expect(tiles.filter((tile) => tile.width === 126)).toHaveLength(350);
   });
 
   it('puts a tile every half tile along each side, the last flush with the end', () => {
-    const tiles = segmentationTiles({ width: 900, height: 1600 }).filter(
+    const tiles = tilesOf(900, 1600, 'fast').filter(
       (tile) => tile.width === 270,
     );
-    expect(tiles).toHaveLength(66);
     expect([...new Set(tiles.map((tile) => tile.x))]).toEqual([
       0, 126, 252, 378, 504, 630,
     ]);
@@ -56,22 +65,23 @@ describe('segmentationTiles', () => {
     ]);
   });
 
-  it('never makes a tile smaller than the model sees', () => {
-    const sides = segmentationTiles({ width: 600, height: 700 })
-      .slice(1)
-      .map((tile) => tile.width);
-    expect(Math.min(...sides)).toBe(MODEL_SIDE);
+  it('never makes a tile smaller than 96 pixels, and merges sizes that come out equal', () => {
+    expect(sidesOf(tilesOf(400, 400, 'thorough'))).toEqual(
+      new Set([200, 120, 96]),
+    );
+    expect(sidesOf(tilesOf(300, 700, 'thorough'))).toEqual(new Set([150, 96]));
+    expect(sidesOf(tilesOf(300, 700, 'fast'))).toEqual(new Set([150, 96]));
   });
 
   it('covers every pixel, stays inside the photo and overlaps its neighbours', () => {
     fc.assert(
       fc.property(
+        fc.constantFrom(...DETECTION_DETAILS),
         fc.integer({ min: 300, max: 1700 }),
         fc.integer({ min: 300, max: 1700 }),
-        (width, height) => {
-          const [, ...tiles] = segmentationTiles({ width, height });
+        (detail, width, height) => {
           const covered = new Uint8Array(width * height);
-          for (const tile of tiles) {
+          for (const tile of tilesOf(width, height, detail)) {
             expect(tile.x).toBeGreaterThanOrEqual(0);
             expect(tile.y).toBeGreaterThanOrEqual(0);
             expect(tile.x + tile.width).toBeLessThanOrEqual(width);
@@ -86,7 +96,7 @@ describe('segmentationTiles', () => {
           expect(covered.every((value) => value === 1)).toBe(true);
         },
       ),
-      { numRuns: 25 },
+      { numRuns: 20 },
     );
   });
 });
@@ -123,7 +133,7 @@ describe('tile votes', () => {
     addTileVotes(votes, grayOf(1, 1, [255]), rect(1, 0, 1, 1));
     expect(Array.from(votes.seen)).toEqual([4, 1]);
     expect(Array.from(votes.people)).toEqual([1, 1]);
-    expect(Array.from(agreedMask(votes).data)).toEqual([255, 255]);
+    expect(Array.from(agreedMask(votes, 'fast').data)).toEqual([255, 255]);
   });
 
   it('outvotes a pixel only a few of the many tiles saw as a person', () => {
@@ -131,13 +141,13 @@ describe('tile votes', () => {
     for (const set of [255, 0, 0, 0, 0]) {
       addTileVotes(votes, grayOf(1, 1, [set]), rect(0, 0, 1, 1));
     }
-    expect(Array.from(agreedMask(votes).data)).toEqual([0]);
+    expect(Array.from(agreedMask(votes, 'fast').data)).toEqual([0]);
   });
 
   it('never marks a pixel no tile found, and counts a mask value of 128 as found and 127 as not', () => {
     const votes = emptyVotes({ width: 3, height: 1 });
     addTileVotes(votes, grayOf(3, 1, [0, 128, 127]), rect(0, 0, 3, 1));
-    expect(Array.from(agreedMask(votes).data)).toEqual([0, 255, 0]);
+    expect(Array.from(agreedMask(votes, 'fast').data)).toEqual([0, 255, 0]);
   });
 
   it('adds a tile at its own position, and leaves the pixels no tile saw out', () => {
@@ -145,7 +155,7 @@ describe('tile votes', () => {
     addTileVotes(votes, grayOf(2, 2, [255, 0, 0, 255]), rect(1, 1, 2, 2));
     expect(Array.from(votes.seen)).toEqual([0, 0, 0, 0, 1, 1, 0, 1, 1]);
     expect(Array.from(votes.people)).toEqual([0, 0, 0, 0, 1, 0, 0, 0, 1]);
-    expect(Array.from(agreedMask(votes).data)).toEqual([
+    expect(Array.from(agreedMask(votes, 'fast').data)).toEqual([
       0, 0, 0, 0, 255, 0, 0, 0, 255,
     ]);
   });

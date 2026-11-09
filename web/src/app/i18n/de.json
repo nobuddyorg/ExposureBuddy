@@ -52,6 +52,10 @@
     "single_title": "Nur ein Foto?",
     "single_body": "Verwandle die Menschen darin in Bewegungsunschärfe, einen Wischer, Flüssigkeit oder Rauch. Der Rest der Szene bleibt scharf.",
     "single_note": "Die Menschen werden auf diesem Gerät erkannt. Beim ersten Mal wird einmalig ein Erkennungsmodell von etwa 17 MB geladen und für die Offline-Nutzung gespeichert.",
+    "single_detail": "Erkennung",
+    "single_detail_fast": "Schnell",
+    "single_detail_thorough": "Gründlich",
+    "single_detail_help": "Gründlich sucht zusätzlich in kleinen Bildausschnitten nach weit entfernten Personen: etwa 40 Sekunden am Laptop, am Handy länger.",
     "single_action": "Menschen in Geister verwandeln"
   },
   "progress": {
