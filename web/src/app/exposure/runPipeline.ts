@@ -41,6 +41,11 @@ interface PipelineOptions {
   /** Align workers the device could run at once; the budget may allow fewer. The stack worker is always one more. */
   readonly poolSize: number;
   readonly budgetBytes?: number;
+  /** When set, a frame the corner-based alignment skipped gets a second try with learned keypoints (a 2.6 MB network read from this folder, only then). */
+  readonly learned?: {
+    /** Absolute URL of the folder the network's weights are served from. */
+    readonly assetBase: string;
+  };
   /** When set, what moves between the shots (people, vehicles, animals) is found in every frame and left out of the background. */
   readonly movers?: {
     /** Absolute URL of the folder the model and the Wasm runtime are served from. */
@@ -181,10 +186,11 @@ export async function runPipeline(
     port: WorkerPort,
     index: number,
     target: Size,
+    type: 'align' | 'align-learned' = 'align',
   ): Promise<FrameReport> => {
     const response = await request<AlignWorkerResponse>(
       port,
-      { type: 'align', id: nextId(), file: files[index], target },
+      { type, id: nextId(), file: files[index], target },
       { signal },
     );
     if (response.type === 'unreadable')
@@ -213,6 +219,33 @@ export async function runPipeline(
       matches: response.matches,
       inliers: response.inliers,
     };
+  };
+
+  // A second try, with learned keypoints, for every frame the corner-based alignment skipped; one worker, since the network is slow.
+  // Failing to load or run it leaves those frames skipped, as they were: this is a second chance, not a new way to fail.
+  const retryWithLearning = async (assetBase: string, target: Size) => {
+    const skippedFrames = frames.filter((frame) => frame.status === 'skipped');
+    if (skippedFrames.length === 0) return;
+    try {
+      const [port] = aligners;
+      const prepared = await request<AlignWorkerResponse>(
+        port,
+        {
+          type: 'learned-reference',
+          id: nextId(),
+          file: files[reference],
+          target,
+          assetBase,
+        },
+        { signal },
+      );
+      if (prepared.type !== 'learned-reference-set') return;
+      for (const { index } of skippedFrames) {
+        frames[index] = await alignOne(port, index, target, 'align-learned');
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error;
+    }
   };
 
   // A strip after the first: every aligned frame is decoded and warped again, only those rows, and handed to the stack worker.
@@ -345,6 +378,9 @@ export async function runPipeline(
       done += 1;
       emit('aligning', done, order.length);
     });
+
+    if (options.learned)
+      await retryWithLearning(options.learned.assetBase, working);
 
     for (const index of blurredFrames(sharpnessByFrame, reference)) {
       await request(

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { NO_LEARNING } from '../vision/pipeline/learnedSteps.test-support';
 import {
   shiftGray,
   texturedScene,
@@ -63,7 +64,7 @@ function realWorkers(): WorkerFactory {
       null;
     return createFakePort((request, post) => {
       serve ??= createExposureService(
-        createAlignService(decoders, () => false),
+        createAlignService(decoders, () => false, NO_LEARNING),
         createStackService(createStackSession(), post),
       );
       return serve(request as unknown as WorkerRequest);

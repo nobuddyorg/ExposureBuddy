@@ -233,3 +233,32 @@ each extra layer costs seconds at full size. On the synthetic burst (noise sigma
 2, 12 and 28 per frame, ten frames): residual noise 0.6, 2.9 and 7.0 levels, and
 the median against the truth goes from 42.9 dB (unchanged, skipped), 36.2 to
 37.5 dB and 30.1 to 33.2 dB. Not measured on a real night burst yet.
+
+## Why a learned alignment is the second try, and why it is XFeat in plain TypeScript
+
+Corner features (ORB) line up the burst of a facade with 90 % inliers, so a
+learned matcher gains nothing where they work, and it must not risk what works.
+It therefore runs only for frames ORB skipped: after the alignment pass the
+coordinator asks one align worker to find XFeat keypoints in the reference
+(once) and in each skipped frame, matches them both ways, and fits the same
+homography with the same checks. A frame that aligns this way is stacked like
+any other; one that does not stays skipped, and a failure to load or run the
+network leaves the frames skipped as they were. XFeat (CVPR 2024, Apache-2.0)
+because it is small (about 650 000 weights, a 2.6 MB file with batch norm
+folded in) and has no custom operators, so the forward pass is a few hundred
+lines of typed-array code in `vision/features/xfeat/` with no runtime beyond what
+the app has: ONNX Runtime Web would add a second Wasm runtime of about 10 MB.
+The weights are the published `xfeat.pt` (SHA-256
+`0f5187fd7bedd26c7fe6acc9685444493a165a35ecc087b33c2db3627f3ea10b`), read as
+plain tensors with `weights_only=True` into a network written from its
+description, then folded (`scripts/export-xfeat.py`; the served file's SHA-256
+is `1f724bd66b9881e7f6f519bbeb1cb53154c5cb1fe45aca4c6393fcf2daa9b636`). Checked
+against PyTorch on a 64 × 64 crop of a real frame: descriptors, keypoint logits
+and heatmap within 1e-3; on a 128 × 96 crop the same 40 keypoints in the same
+order, descriptors within 5e-3. The network runs at a long edge of 640 px, 1 500
+keypoints at most: about 5 s per picture in Node on a cloud machine, which
+costs the reference once and then each skipped frame; the phone is not
+measured. On a synthetic textured scene shifted by (6.5, −4.25) px it recovers
+the shift to under a pixel and skips an unrelated or a flat frame. Not measured
+on a real burst ORB gave up on, because the owner's series never needed it.
+

@@ -40,7 +40,7 @@ web/src/app/
                    single.worker.ts, the single-photo mode's, which alone carries the ML runtime
   exposure/ml/     the shared ML/WASM runtime layer: fetchBytes (progress), mlRuntime (MediaPipe runtime and model from the app's own ml/ folder), personSegmenter
 web/public/        sw.js (precaches out/precache.json at install), site.webmanifest, icons, logo.svg,
-                   ml/ (deeplab_v3.tflite committed; the MediaPipe Wasm copied in by scripts/copy-ml-assets.mjs)
+                   ml/ (deeplab_v3.tflite and xfeat-core.bin committed; the MediaPipe Wasm copied in by scripts/copy-ml-assets.mjs)
 web/e2e/           Playwright: page objects, public specs, synthetic burst fixtures
 web/scripts/       Node tools: precache-manifest (runs in `npm run build`), serve-export, make-fixtures, make-icons, lighthouse, summaries
 ```
@@ -197,6 +197,21 @@ that turned out blurred. `crop` then fixes the crop, and
 worker decode and warp its frames' rows again and `add-rows` hands them to
 the stack worker. With one strip that is `crop` and one `stack-rows`, and the
 align workers stop before it.
+
+### The learned second try
+
+`learned-reference` (the reference photo, the working size and the folder the
+weights are served from) makes an align worker read `ml/xfeat-core.bin`, decode
+the reference at the working size and keep its XFeat keypoints; `align-learned`
+then answers like `align` for one frame, with `aligned` (kernel included),
+`skipped` or `unreadable`. The coordinator (`retryWithLearning` in
+`runPipeline.ts`) sends them, to the first align worker only, for every frame the
+corner-based pass skipped, before the blurred frames are dropped. The worker
+script calls `allowOnlyOwnOrigin` because it now fetches. The network is
+`vision/features/xfeat/` (`net.ts` the forward pass, `keypoints.ts` the
+keypoints, descriptors and mutual matching, `detect.ts` the resize to a multiple
+of 32), the second alignment `vision/pipeline/learnedAlignment.ts`; the
+fit and the checks are shared with the corner-based alignment (`alignFromPairs`).
 
 ### Moving things in a burst
 

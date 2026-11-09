@@ -290,7 +290,7 @@ icon `site.webmanifest` names exists at the size it claims, and
 `npm run dev` and `npm run build` first run `scripts/copy-ml-assets.mjs`, which
 copies the MediaPipe Wasm runtime (the classic-script build) from
 `node_modules/@mediapipe/tasks-vision/wasm/` into `public/ml/`. The copies are
-gitignored; the model beside them, `deeplab_v3.tflite`, is committed. To change
+gitignored; the model beside them, `deeplab_v3.tflite`, is committed, and so is `xfeat-core.bin`, the 2.6 MB weights of the learned alignment (`scripts/export-xfeat.py` regenerates it from the published `xfeat.pt`; run by hand, it needs PyTorch). To change
 the model or the runtime: replace the file or bump the package, record the new
 SHA-256, size and licence in the
 [design decision](../explanation/design-decisions.md#why-the-kernels-are-plain-typescript-and-where-wasm-and-ml-come-in),

@@ -89,6 +89,7 @@ export function useExposure(
           quality,
           poolSize: device.poolSize,
           budgetBytes: device.budgetBytes,
+          learned: { assetBase: pageAssetBase() },
           movers: movers && {
             assetBase: pageAssetBase(),
             detail: movers.detail,

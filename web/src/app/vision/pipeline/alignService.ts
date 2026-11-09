@@ -7,7 +7,19 @@ import type {
 } from './protocol';
 import { transferablesOf, unexpectedRequest } from './protocol';
 import { warpRgba } from '../warp/warp';
-import type { FeatureSet } from '../types';
+import type { FeatureSet, RgbaImage, Size } from '../types';
+import type { AlignOutcome } from './alignment';
+import {
+  alignLearned,
+  analyseLearnedReference,
+  type DetectLearned,
+  type LearnedReference,
+} from './learnedAlignment';
+
+/** What the second, learned alignment needs from the browser: the network's weights, read from `assetBase`. */
+export interface LearnedSteps {
+  load(assetBase: string): Promise<DetectLearned>;
+}
 
 export type AlignService = (
   request: AlignWorkerRequest,
@@ -17,8 +29,13 @@ export type AlignService = (
 export function createAlignService(
   decoders: Decoders,
   isUnreadable: (error: unknown) => boolean,
+  learned: LearnedSteps,
 ): AlignService {
   let reference: FeatureSet | null = null;
+  let learnedReference: {
+    detect: DetectLearned;
+    reference: LearnedReference;
+  } | null = null;
 
   const decodeReference = async (
     request: Extract<AlignWorkerRequest, { type: 'decode-reference' }>,
@@ -53,10 +70,15 @@ export function createAlignService(
     };
   };
 
-  const align = async (
-    request: Extract<AlignWorkerRequest, { type: 'align' }>,
+  /** Decodes the frame at the request's size and lines it up with `fit`; `unreadable` when it cannot be decoded. */
+  const alignWith = async (
+    request: {
+      readonly id: number;
+      readonly file: Blob;
+      readonly target: Size;
+    },
+    fit: (image: RgbaImage) => AlignOutcome,
   ): Promise<Served<AlignWorkerResponse>> => {
-    if (!reference) throw new Error('set-reference must come before align.');
     let image;
     try {
       image = await decoders.decodeAt(request.file, request.target);
@@ -69,7 +91,7 @@ export function createAlignService(
       }
       throw error;
     }
-    const outcome = alignToReference(image, reference);
+    const outcome = fit(image);
     const { matches, inliers } = outcome;
     if (outcome.kind === 'skipped') {
       return {
@@ -90,6 +112,51 @@ export function createAlignService(
       },
       transfer: transferablesOf(outcome.frame),
     };
+  };
+
+  const align = async (
+    request: Extract<AlignWorkerRequest, { type: 'align' }>,
+  ): Promise<Served<AlignWorkerResponse>> => {
+    if (!reference) throw new Error('set-reference must come before align.');
+    const features = reference;
+    return alignWith(request, (image) => alignToReference(image, features));
+  };
+
+  const learnReference = async (
+    request: Extract<AlignWorkerRequest, { type: 'learned-reference' }>,
+  ): Promise<Served<AlignWorkerResponse>> => {
+    let image;
+    try {
+      image = await decoders.decodeAt(request.file, request.target);
+    } catch (error) {
+      if (isUnreadable(error)) {
+        return {
+          response: { type: 'unreadable', id: request.id },
+          transfer: [],
+        };
+      }
+      throw error;
+    }
+    const detect = await learned.load(request.assetBase);
+    learnedReference = {
+      detect,
+      reference: analyseLearnedReference(image, detect),
+    };
+    return {
+      response: { type: 'learned-reference-set', id: request.id },
+      transfer: [],
+    };
+  };
+
+  const alignByLearning = async (
+    request: Extract<AlignWorkerRequest, { type: 'align-learned' }>,
+  ): Promise<Served<AlignWorkerResponse>> => {
+    if (!learnedReference)
+      throw new Error('learned-reference must come before align-learned.');
+    const { detect, reference: keypoints } = learnedReference;
+    return alignWith(request, (image) =>
+      alignLearned(image, keypoints, detect),
+    );
   };
 
   const warpRows = async (
@@ -131,6 +198,10 @@ export function createAlignService(
         });
       case 'align':
         return align(request);
+      case 'learned-reference':
+        return learnReference(request);
+      case 'align-learned':
+        return alignByLearning(request);
       case 'warp-rows':
         return warpRows(request);
       default:
