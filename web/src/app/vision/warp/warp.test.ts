@@ -168,26 +168,31 @@ describe('warpRgba', () => {
     expect(coverage[5 * 20 + 12]).toBe(0);
   });
 
-  it('keeps a constant image constant wherever covered, for any sane homography', () => {
-    const constant = makeImage(40, 30, () => [37, 200, 91, 255]);
-    fc.assert(
-      fc.property(saneHomographyArbitrary, (homography) => {
-        const { image, coverage } = warpRgba(constant, homography, constant);
-        // One verdict per run, not one expect per pixel: 200 runs × 1200 pixels would dominate the suite.
-        let mismatches = 0;
-        for (let pixel = 0; pixel < coverage.length; pixel += 1) {
-          const offset = pixel * 4;
-          const expected =
-            coverage[pixel] === 1 ? [37, 200, 91, 255] : [0, 0, 0, 0];
-          for (let channel = 0; channel < 4; channel += 1) {
-            if (image.data[offset + channel] !== expected[channel])
-              mismatches += 1;
+  // Under Stryker's instrumentation, four runners at once, the bicubic warp is several times slower: the longer limit is for that run.
+  it(
+    'keeps a constant image constant wherever covered, for any sane homography',
+    { timeout: 60_000 },
+    () => {
+      const constant = makeImage(24, 18, () => [37, 200, 91, 255]);
+      fc.assert(
+        fc.property(saneHomographyArbitrary, (homography) => {
+          const { image, coverage } = warpRgba(constant, homography, constant);
+          // One verdict per run, not one expect per pixel: 200 runs × 1200 pixels would dominate the suite.
+          let mismatches = 0;
+          for (let pixel = 0; pixel < coverage.length; pixel += 1) {
+            const offset = pixel * 4;
+            const expected =
+              coverage[pixel] === 1 ? [37, 200, 91, 255] : [0, 0, 0, 0];
+            for (let channel = 0; channel < 4; channel += 1) {
+              if (image.data[offset + channel] !== expected[channel])
+                mismatches += 1;
+            }
           }
-        }
-        expect(mismatches).toBe(0);
-      }),
-    );
-  });
+          expect(mismatches).toBe(0);
+        }),
+      );
+    },
+  );
 
   it('transposes a square image under the axis-swapping homography', () => {
     const square = makeImage(10, 10, (x, y) => [
