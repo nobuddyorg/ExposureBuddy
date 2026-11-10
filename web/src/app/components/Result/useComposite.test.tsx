@@ -17,6 +17,7 @@ const PARAMS_A = {
   ghostBlur: 1,
   glow: 0.1,
   trails: false,
+  trail: 1,
 };
 const PARAMS_B = {
   background: 'median' as const,
@@ -24,6 +25,7 @@ const PARAMS_B = {
   ghostBlur: 9,
   glow: 0.9,
   trails: false,
+  trail: 1,
 };
 
 // fakeResult: 5 aligned frames, 4 × 3 px.
@@ -44,15 +46,16 @@ describe('useComposite', () => {
     expect(hook.current.error).toBe('');
   });
 
-  it('opens a result of blurred movers with the ghosts at full strength and nothing smeared over them', async () => {
+  it('opens a result of trailed movers with the ghosts at full strength and nothing smeared over them', async () => {
     const render = vi.fn(async () => rgbaImage(4, 3));
-    const result = fakeResult({ render, blurredMovers: true });
+    const result = fakeResult({ render, trailedMovers: true });
     const { result: hook } = renderHook(() => useComposite(result));
     expect(hook.current.params).toEqual({
       ...FAKE_RESULT_DEFAULTS,
       ghostStrength: 1,
       ghostBlur: 0,
       glow: 0,
+      trail: 1,
     });
     await tick();
   });

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { emptySmearSum } from '../vision/effects/smear';
 import type { WorkerMessage } from '../vision/pipeline/protocol';
 import { PipelineError } from './failure';
 import {
@@ -17,9 +18,11 @@ const FEATURES = {
   keypoints: [],
   descriptors: new Uint32Array(0),
 };
+const TRAIL = { standingBlur: 0.02 };
 const MOVERS = {
   assetBase: 'https://example.test/ml',
   detail: 'fast',
+  trail: TRAIL,
 } as const;
 
 const align: FakeHandler = async (request) => {
@@ -218,15 +221,9 @@ describe('runPipeline with movers', () => {
     );
   });
 
-  describe('with the blur', () => {
-    const BLUR = {
-      effect: 'motion',
-      strength: 0.5,
-      angle: 0,
-      grow: 0,
-    } as const;
-    const blurredImage = rgba(8, 6, 3);
-    const withBlur: FakeHandler = (request, post) => {
+  describe('with the trails', () => {
+    const trailSum = emptySmearSum({ width: 8, height: 6 });
+    const withTrail: FakeHandler = (request, post) => {
       const served = single(request, post) as {
         response: WorkerMessage;
         transfer: ArrayBuffer[];
@@ -234,51 +231,36 @@ describe('runPipeline with movers', () => {
       return {
         response: {
           ...served.response,
-          blurred: blurredImage,
+          trail: { sum: trailSum, frames: 3 },
         } as WorkerMessage,
         transfer: [],
       };
     };
 
-    it('passes the effect to the single-photo worker', async () => {
-      const { workers, result } = start(
-        { movers: { ...MOVERS, blur: BLUR } },
-        withBlur,
-      );
+    it('passes the trail settings to the single-photo worker', async () => {
+      const { workers, result } = start({ movers: MOVERS }, withTrail);
       await result;
-      expect(workers.singles[0].sent[0]).toMatchObject({ blur: BLUR });
+      expect(workers.singles[0].sent[0]).toMatchObject({ trail: TRAIL });
     });
 
-    it("puts the blurred frames' mean in place of the stack's own after the last strip", async () => {
-      const { workers, result } = start(
-        { movers: { ...MOVERS, blur: BLUR } },
-        withBlur,
-      );
+    it('hands the smeared movers to the stack after the last strip', async () => {
+      const { workers, result } = start({ movers: MOVERS }, withTrail);
       await result;
       const sent = workers.stacks[0].sent;
-      const mean = sent.findIndex((request) => request.type === 'set-mean');
-      expect(mean).toBeGreaterThan(
+      const set = sent.findIndex((request) => request.type === 'set-trail');
+      expect(set).toBeGreaterThan(
         sent.findLastIndex((request) => request.type === 'stack-rows'),
       );
-      expect(sent[mean].image).toBe(blurredImage);
+      expect(sent[set]).toMatchObject({ sum: trailSum, frames: 3 });
     });
 
-    it('tells the result its movers are blurred, and only then', async () => {
-      const blurredRun = start({ movers: { ...MOVERS, blur: BLUR } }, withBlur);
-      expect((await blurredRun.result).blurredMovers).toBe(true);
-      expect((await start({ movers: MOVERS }).result).blurredMovers).toBe(
+    it('tells the result its movers are drawn as trails, and only then', async () => {
+      const trailed = start({ movers: MOVERS }, withTrail);
+      expect((await trailed.result).trailedMovers).toBe(true);
+      expect((await start({ movers: MOVERS }).result).trailedMovers).toBe(
         false,
       );
-      expect((await start({}).result).blurredMovers).toBe(false);
-    });
-
-    it('sends no set-mean and no effect when only the background is cleaned', async () => {
-      const { workers, result } = start({ movers: MOVERS });
-      await result;
-      expect(workers.singles[0].sent[0]).not.toHaveProperty('blur');
-      expect(
-        workers.stacks[0].sent.some((request) => request.type === 'set-mean'),
-      ).toBe(false);
+      expect((await start({}).result).trailedMovers).toBe(false);
     });
   });
 });

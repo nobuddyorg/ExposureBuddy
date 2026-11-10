@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 type Quality = 'low' | 'standard' | 'high' | 'original';
 type Detail = 'fast' | 'thorough';
-type Movers = 'off' | 'remove' | 'blur';
+type Movers = 'classic' | 'blur';
 
 interface Picker {
   (): Locator;
@@ -97,7 +97,8 @@ export function initPicker(page: Page): Picker {
     // The detail, fast unless asked, is chosen only once there is something to search for.
     selectMovers: async (movers: Movers, detail: Detail = 'fast') => {
       await locators.movers.selectOption(movers);
-      if (movers !== 'off') await locators.moversDetail.selectOption(detail);
+      if (movers !== 'classic')
+        await locators.moversDetail.selectOption(detail);
     },
     selectQuality: async (quality: Quality) => {
       await locators.quality.selectOption(quality);

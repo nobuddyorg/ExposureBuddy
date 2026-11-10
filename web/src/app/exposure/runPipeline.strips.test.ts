@@ -134,6 +134,7 @@ describe('a burst stacked in strips', () => {
         ghostBlur: 0,
         glow: 0,
         trails: false,
+        trail: 1,
       },
       {
         background: 'mode',
@@ -141,6 +142,7 @@ describe('a burst stacked in strips', () => {
         ghostBlur: 4,
         glow: 0.6,
         trails: false,
+        trail: 1,
       },
     ];
     for (const params of looks)

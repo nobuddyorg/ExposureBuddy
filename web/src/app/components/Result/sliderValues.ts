@@ -4,11 +4,12 @@ import {
   MAX_GHOST_BLUR,
 } from '../../vision/stack/compositeParams';
 
-/** The three sliders as the visitor sees them: ghosts and glow in percent, blur in pixels. */
+/** The sliders as the visitor sees them: ghosts, glow and trail length in percent, blur in pixels. */
 export interface SliderValues {
   readonly ghost: number;
   readonly blur: number;
   readonly glow: number;
+  readonly trail: number;
 }
 
 export type SliderName = keyof SliderValues;
@@ -26,10 +27,11 @@ export function sliderMax(longEdge: number): Record<SliderName, number> {
       Math.max(MIN_MAX_BLUR_PX, Math.round(longEdge * MAX_BLUR_PER_LONG_EDGE)),
     ),
     glow: PERCENT,
+    trail: PERCENT,
   };
 }
 
-/** `current` with the sliders' values in place of its strength, blur and glow, clamped to what the compositor accepts. */
+/** `current` with the sliders' values in place of its strength, blur, glow and trail, clamped to what the compositor accepts. */
 export function toCompositeParams(
   values: SliderValues,
   current: CompositeParams,
@@ -39,6 +41,7 @@ export function toCompositeParams(
     ghostStrength: values.ghost / PERCENT,
     ghostBlur: values.blur,
     glow: values.glow / PERCENT,
+    trail: values.trail / PERCENT,
   });
 }
 
@@ -48,5 +51,6 @@ export function toSliderValues(params: CompositeParams): SliderValues {
     ghost: Math.round(params.ghostStrength * PERCENT),
     blur: Math.round(params.ghostBlur),
     glow: Math.round(params.glow * PERCENT),
+    trail: Math.round(params.trail * PERCENT),
   };
 }

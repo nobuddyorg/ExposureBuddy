@@ -33,6 +33,7 @@ describe('clampCompositeParams', () => {
       ghostBlur: MAX_GHOST_BLUR,
       glow: 0,
       trails: false,
+      trail: 1,
     };
     expect(clampCompositeParams(edge)).toEqual(edge);
   });
@@ -45,6 +46,7 @@ describe('clampCompositeParams', () => {
         ghostBlur: 200,
         glow: -1,
         trails: false,
+        trail: 1,
       }),
     ).toEqual({
       background: 'median' as const,
@@ -52,6 +54,7 @@ describe('clampCompositeParams', () => {
       ghostBlur: 128,
       glow: 0,
       trails: false,
+      trail: 1,
     });
     expect(
       clampCompositeParams({
@@ -60,6 +63,7 @@ describe('clampCompositeParams', () => {
         ghostBlur: -3,
         glow: 7,
         trails: false,
+        trail: 1,
       }),
     ).toEqual({
       background: 'median' as const,
@@ -67,6 +71,7 @@ describe('clampCompositeParams', () => {
       ghostBlur: 0,
       glow: 1,
       trails: false,
+      trail: 1,
     });
   });
 
@@ -78,6 +83,7 @@ describe('clampCompositeParams', () => {
         ghostBlur: 2.5,
         glow: 0,
         trails: false,
+        trail: 1,
       }).ghostBlur,
     ).toBe(3);
     expect(
@@ -87,8 +93,17 @@ describe('clampCompositeParams', () => {
         ghostBlur: 2.4,
         glow: 0,
         trails: false,
+        trail: 1,
       }).ghostBlur,
     ).toBe(2);
+  });
+
+  it('clamps the trail length to [0, 1] and replaces NaN with a full trail', () => {
+    const base = { ...DEFAULT_COMPOSITE_PARAMS };
+    expect(clampCompositeParams({ ...base, trail: 3 }).trail).toBe(1);
+    expect(clampCompositeParams({ ...base, trail: -1 }).trail).toBe(0);
+    expect(clampCompositeParams({ ...base, trail: 0.4 }).trail).toBe(0.4);
+    expect(clampCompositeParams({ ...base, trail: NaN }).trail).toBe(1);
   });
 
   it('keeps light trails on only for a true switch', () => {
@@ -108,6 +123,7 @@ describe('clampCompositeParams', () => {
         ghostBlur: NaN,
         glow: NaN,
         trails: false,
+        trail: 1,
       }),
     ).toEqual(DEFAULT_COMPOSITE_PARAMS);
     expect(
@@ -117,6 +133,7 @@ describe('clampCompositeParams', () => {
         ghostBlur: 2,
         glow: 0.1,
         trails: false,
+        trail: 1,
       }),
     ).toEqual({
       background: 'median' as const,
@@ -124,6 +141,7 @@ describe('clampCompositeParams', () => {
       ghostBlur: 2,
       glow: 0.1,
       trails: false,
+      trail: 1,
     });
   });
 });
@@ -136,6 +154,7 @@ describe('defaultCompositeParams', () => {
       ghostBlur: 4,
       glow: 0.25,
       trails: false,
+      trail: 1,
     });
     expect(defaultCompositeParams({ frameCount: 40, longEdge: 1600 })).toEqual({
       background: 'median' as const,
@@ -143,6 +162,7 @@ describe('defaultCompositeParams', () => {
       ghostBlur: 4,
       glow: 0.25,
       trails: false,
+      trail: 1,
     });
   });
 
@@ -153,6 +173,7 @@ describe('defaultCompositeParams', () => {
       ghostBlur: 5,
       glow: 0.25,
       trails: false,
+      trail: 1,
     });
     expect(defaultCompositeParams({ frameCount: 4, longEdge: 1600 })).toEqual({
       background: 'median' as const,
@@ -160,6 +181,7 @@ describe('defaultCompositeParams', () => {
       ghostBlur: 10,
       glow: 0.25,
       trails: false,
+      trail: 1,
     });
   });
 
@@ -170,6 +192,7 @@ describe('defaultCompositeParams', () => {
       ghostBlur: 12,
       glow: 0.25,
       trails: false,
+      trail: 1,
     });
   });
 

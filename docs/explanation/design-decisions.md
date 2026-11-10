@@ -184,10 +184,26 @@ headless Chromium on a cloud machine): the empty foreground comes out clean in
 about 100 s with `fast`; where somebody stands in all 14 frames nothing of the
 ground behind them was ever seen, so those pixels are filled from their
 surroundings, which leaves smooth patches. No setting makes a standing crowd
-disappear, and the picker says so. That is why `Blur` exists: a soft trail
-needs no ground behind anyone, and the faces are blurred before frames are
-combined. Prototype on the same series: six frames at 2252 × 4000, the effect
-at about 40 s per frame in Node. Rejected: a model-free motion mask (a crowd
+disappear, and the picker says so. That is why `Blur` exists: a trail
+needs no ground behind anyone, and faces are smeared before frames are
+combined. It replaced an earlier blur, which gave each frame the single-photo
+motion effect at a fixed strength and direction: it cost about 40 s per frame at
+2252 × 4000 in Node and drew no direction from the movement. `Blur` follows
+each mover from one sampled frame to the next and streaks it along that step, so
+the direction and the length come from where the person went, and the smear costs
+a stamp per pixel under the mask and per pixel of the step, not an effect pass.
+Standing people have no step; the picker offers a sideways blur of 1.5 % or 4 %
+of the long edge for them. The model takes statues for people too, and on the
+14-frame facade series a first version blurred them: the facade's statues showed
+a deviation from the per-pixel median of 5.9 to 12.1 levels, walking people 33
+and up. So a still area is blurred as a standing person only from 14 levels
+(`STATUE_LEVEL`) up to the 18 that call it still; below that it is a statue and
+stays sharp. Someone who stands perfectly still is not told from a statue and is
+left alone; people who shift a little show up as movers with a very small step,
+and are blurred as standing people. The result is not a reconstruction of
+the scene during the exposure: the matching goes by mask areas, so a crowd that
+merges into one area moves as one blob, and a mover seen in one sample only
+stays a single copy. Rejected: a model-free motion mask (a crowd
 that stands in most frames _is_ the median, so it finds nothing there), and
 filling holes with texture from other frames (those pixels show people).
 

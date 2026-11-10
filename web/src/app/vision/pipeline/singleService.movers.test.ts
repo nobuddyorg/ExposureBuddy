@@ -162,33 +162,31 @@ describe('createSingleService, movers', () => {
     expect(transfer).toContain(response.masks[0].data.buffer);
   });
 
-  describe('with the blur asked for', () => {
+  describe('with the trails asked for', () => {
     const working = { width: 100, height: 50 };
-    const blur = {
-      effect: 'motion',
-      strength: 0.5,
-      angle: 0,
-      grow: 0,
-    } as const;
+    const trail = { standingBlur: 0 };
 
-    it('answers with the mean of the frames with their movers blurred, at the working size', async () => {
+    it('answers with the smeared movers of the chosen frames at the working size', async () => {
       const { service } = setup(decoded, found);
-      const { response } = await service(movers({ working, blur }));
+      const { response } = await service(movers({ working, trail }));
       if (response.type !== 'movers-masked') throw new Error('wrong response');
-      expect(response.blurred).toMatchObject({ width: 100, height: 50 });
-      expect(response.blurred?.data).toHaveLength(100 * 50 * 4);
+      expect(response.trail).toMatchObject({
+        frames: 2,
+        sum: { width: 100, height: 50 },
+      });
+      expect(response.trail?.sum.coverage).toHaveLength(100 * 50);
     });
 
     it('decodes each chosen frame at exactly the working size', async () => {
       const { service, seen } = setup(decoded, found);
-      await service(movers({ working, blur }));
+      await service(movers({ working, trail }));
       const exact = seen.filter((call) => call.longEdge === -100);
       expect(exact.map((call) => call.file)).toEqual([FIRST, SECOND]);
     });
 
-    it('counts the blurred frames in the progress, after the searched ones', async () => {
+    it('counts the smeared frames in the progress, after the searched ones', async () => {
       const { service, progress } = setup(decoded, found);
-      await service(movers({ working, blur }));
+      await service(movers({ working, trail }));
       expect(
         progress.map((m) =>
           m.type === 'movers-progress' ? [m.done, m.total] : [],
@@ -202,19 +200,52 @@ describe('createSingleService, movers', () => {
       ]);
     });
 
-    it('moves the blurred image out of the worker with the masks', async () => {
-      const { service } = setup(decoded, found);
-      const { transfer, response } = await service(movers({ working, blur }));
-      if (response.type !== 'movers-masked') throw new Error('wrong response');
-      expect(transfer).toContain(response.blurred?.data.buffer);
-      expect(transfer).toHaveLength(3);
+    it('blurs people who stand about, when asked to, and never a statue that does not change at all', async () => {
+      const still = [0, 1].map(() =>
+        rectMask(100, 50, { x: 10, y: 10, width: 20, height: 10 }),
+      );
+      const covered = async (secondLevel: number, standingBlur: number) => {
+        const imageOf = (file: Blob) =>
+          solidImage(
+            100,
+            50,
+            file === FIRST
+              ? [100, 100, 100]
+              : [secondLevel, secondLevel, secondLevel],
+          );
+        const steps: SingleSteps = {
+          decode: async (file) => imageOf(file),
+          decodeAt: async (file) => imageOf(file),
+          segmentPeople: async () => still[0],
+          segmentMovers: async () => still,
+        };
+        const { response } = await createSingleService(steps, () => {})(
+          movers({ working, trail: { standingBlur } }),
+        );
+        if (response.type !== 'movers-masked')
+          throw new Error('wrong response');
+        return response.trail?.sum.coverage.some((value) => value > 0);
+      };
+      // A statue: both frames agree. A person who shifts a little: the frames differ by 32 levels, a deviation of 16.
+      expect(await covered(100, 0.05)).toBe(false);
+      expect(await covered(132, 0)).toBe(false);
+      expect(await covered(132, 0.05)).toBe(true);
     });
 
-    it('answers without a blurred image when none was asked for', async () => {
+    it('moves the sums out of the worker with the masks', async () => {
+      const { service } = setup(decoded, found);
+      const { transfer, response } = await service(movers({ working, trail }));
+      if (response.type !== 'movers-masked') throw new Error('wrong response');
+      expect(transfer).toContain(response.trail?.sum.colour.buffer);
+      expect(transfer).toContain(response.trail?.sum.coverage.buffer);
+      expect(transfer).toHaveLength(4);
+    });
+
+    it('answers without a trail when none was asked for', async () => {
       const { service } = setup(decoded, found);
       const { response } = await service(movers({ working }));
       if (response.type !== 'movers-masked') throw new Error('wrong response');
-      expect('blurred' in response).toBe(false);
+      expect('trail' in response).toBe(false);
     });
   });
 

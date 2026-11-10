@@ -15,6 +15,7 @@ const CURRENT = {
   ghostBlur: 0,
   glow: 0,
   trails: false,
+  trail: 1,
 };
 
 describe('slider values', () => {
@@ -23,39 +24,53 @@ describe('slider values', () => {
       ghost: 60,
       blur: 4,
       glow: 25,
+      trail: 100,
     });
   });
 
   it('maps percent to a 0–1 strength and keeps the blur in pixels', () => {
     expect(
-      toCompositeParams({ ghost: 50, blur: 12, glow: 100 }, CURRENT),
+      toCompositeParams(
+        { ghost: 50, blur: 12, glow: 100, trail: 100 },
+        CURRENT,
+      ),
     ).toEqual({
       background: 'median',
       ghostStrength: 0.5,
       ghostBlur: 12,
       glow: 1,
       trails: false,
+      trail: 1,
     });
   });
 
   it('keeps the background and the trails switch of the current look', () => {
     expect(
       toCompositeParams(
-        { ghost: 50, blur: 12, glow: 100 },
+        { ghost: 50, blur: 12, glow: 100, trail: 100 },
         { ...CURRENT, background: 'mode', trails: true },
       ),
-    ).toMatchObject({ background: 'mode', trails: true, ghostStrength: 0.5 });
+    ).toMatchObject({
+      background: 'mode',
+      trails: true,
+      trail: 1,
+      ghostStrength: 0.5,
+    });
   });
 
   it('clamps a value past the slider range instead of passing it on', () => {
     expect(
-      toCompositeParams({ ghost: 150, blur: -3, glow: 200 }, CURRENT),
+      toCompositeParams(
+        { ghost: 150, blur: -3, glow: 200, trail: 250 },
+        CURRENT,
+      ),
     ).toEqual({
       background: 'median',
       ghostStrength: 1,
       ghostBlur: 0,
       glow: 1,
       trails: false,
+      trail: 1,
     });
   });
 
@@ -64,6 +79,7 @@ describe('slider values', () => {
       ghost: fc.integer({ min: 0, max: sliderMax(1600).ghost }),
       blur: fc.integer({ min: 0, max: sliderMax(1600).blur }),
       glow: fc.integer({ min: 0, max: sliderMax(1600).glow }),
+      trail: fc.integer({ min: 0, max: sliderMax(1600).trail }),
     });
     fc.assert(
       fc.property(values, (sliders) => {
@@ -77,7 +93,12 @@ describe('slider values', () => {
 
 describe('slider ranges', () => {
   it('keeps 0–100 % for ghosts and glow and at least 32 px for blur', () => {
-    expect(sliderMax(500)).toEqual({ ghost: 100, blur: 32, glow: 100 });
+    expect(sliderMax(500)).toEqual({
+      ghost: 100,
+      blur: 32,
+      glow: 100,
+      trail: 100,
+    });
     expect(sliderMax(1600).blur).toBe(32);
   });
 

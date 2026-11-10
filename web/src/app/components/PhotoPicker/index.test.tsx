@@ -207,15 +207,17 @@ describe('PhotoPicker, with photos', () => {
 
     await user.click(combine);
     expect(onCombine).toHaveBeenLastCalledWith('standard', {
-      mode: 'off',
+      mode: 'classic',
       detail: 'fast',
+      standing: 'keep',
     });
 
     await user.selectOptions(screen.getByTestId('quality-select'), 'high');
     await user.click(combine);
     expect(onCombine).toHaveBeenLastCalledWith('high', {
-      mode: 'off',
+      mode: 'classic',
       detail: 'fast',
+      standing: 'keep',
     });
   });
 
@@ -224,14 +226,14 @@ describe('PhotoPicker, with photos', () => {
     const { onCombine } = renderPicker({ photos: picked(['a.jpg', 'b.jpg']) });
     const select = screen.getByRole('combobox', { name: 'Moving things' });
     expect(select).toHaveAttribute('data-testid', 'movers-select');
-    expect(select).toHaveValue('off');
+    expect(select).toHaveValue('classic');
     expect(
       within(select)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Keep', 'Remove', 'Blur']);
+    ).toEqual(['Classic', 'Blur']);
     expect(select).toHaveAccessibleDescription(
-      expect.stringContaining('soft trail'),
+      expect.stringContaining('Classic needs no model'),
     );
     // Nothing is searched for while the moving things are kept, so there is nothing to say how hard.
     expect(screen.queryByTestId('movers-detail-select')).toBeNull();
@@ -245,13 +247,24 @@ describe('PhotoPicker, with photos', () => {
         .map((option) => option.textContent),
     ).toEqual(['Fast', 'Thorough']);
     await user.selectOptions(detail, 'thorough');
+    const standing = screen.getByRole('combobox', { name: 'Standing people' });
+    expect(standing).toHaveValue('keep');
+    expect(
+      within(standing)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Unchanged', 'Blur a little', 'Blur a lot']);
+    await user.selectOptions(standing, 'soft');
     await user.click(screen.getByTestId('combine'));
     expect(onCombine).toHaveBeenLastCalledWith('standard', {
       mode: 'blur',
       detail: 'thorough',
+      standing: 'soft',
     });
 
-    await user.selectOptions(select, 'off');
+    // Only the blur has anything to do with people who stand about.
+    await user.selectOptions(select, 'classic');
+    expect(screen.queryByTestId('standing-select')).toBeNull();
     expect(screen.queryByTestId('movers-detail-select')).toBeNull();
   });
 

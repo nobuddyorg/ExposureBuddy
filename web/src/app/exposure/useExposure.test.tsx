@@ -3,7 +3,6 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_BUDGET_BYTES } from '../vision/pipeline/budget';
-import { BURST_BLUR } from '../vision/effects/effectParams';
 import type { WorkerMessage } from '../vision/pipeline/protocol';
 import type { DeviceProfile } from './deviceProfile';
 import {
@@ -150,7 +149,7 @@ describe('useExposure', () => {
       result.current.start(
         {
           ...burst([file('ok'), file('ok')]),
-          movers: { look: 'remove', detail: 'fast' },
+          movers: { detail: 'fast', standingBlur: 0 },
         },
         'low',
       ),
@@ -163,7 +162,7 @@ describe('useExposure', () => {
     });
   });
 
-  it('asks for the effect on the movers when the look is blur', async () => {
+  it('asks for the trails with the standing blur chosen', async () => {
     const single: FakeHandler = (request) => ({
       response: {
         type: 'movers-masked',
@@ -182,7 +181,7 @@ describe('useExposure', () => {
       result.current.start(
         {
           ...burst([file('ok'), file('ok')]),
-          movers: { look: 'blur', detail: 'thorough' },
+          movers: { detail: 'thorough', standingBlur: 0.04 },
         },
         'low',
       ),
@@ -190,7 +189,7 @@ describe('useExposure', () => {
     await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
     expect(factory.singles[0].sent[0]).toMatchObject({
       detail: 'thorough',
-      blur: BURST_BLUR,
+      trail: { standingBlur: 0.04 },
     });
   });
 

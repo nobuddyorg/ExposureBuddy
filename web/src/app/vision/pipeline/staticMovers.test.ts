@@ -8,6 +8,8 @@ import {
 import {
   MIN_JUDGED_AREA,
   STATIC_LEVEL,
+  STATUE_LEVEL,
+  standingAreas,
   temporalDeviation,
   withoutStaticAreas,
 } from './staticMovers';
@@ -142,5 +144,34 @@ describe('withoutStaticAreas', () => {
     expect(
       withoutStaticAreas(everything, flat).data.every((value) => value === 0),
     ).toBe(true);
+  });
+});
+
+describe('standingAreas', () => {
+  const BOX = { x: 5, y: 5, width: 20, height: 12 };
+  const levelled = (level: number) => new Float32Array(W * H).fill(level);
+  const none = () => new Uint8Array(W * H);
+
+  it('takes an area that is still but livelier than a statue', () => {
+    const mask = rectMask(W, H, BOX);
+    expect([...standingAreas(mask, levelled(16)).data]).toEqual([...mask.data]);
+  });
+
+  it('leaves a statue, a mover, and an area too small to judge', () => {
+    const mask = rectMask(W, H, BOX);
+    expect([...standingAreas(mask, levelled(10)).data]).toEqual([...none()]);
+    expect([...standingAreas(mask, levelled(20)).data]).toEqual([...none()]);
+    const tiny = rectMask(W, H, { x: 2, y: 2, width: 4, height: 4 });
+    expect([...standingAreas(tiny, levelled(16)).data]).toEqual([...none()]);
+  });
+
+  it('draws the line at the statue level, inclusive, and below the static level', () => {
+    const mask = rectMask(W, H, BOX);
+    const kept = (level: number) =>
+      standingAreas(mask, levelled(level)).data.some((value) => value > 0);
+    expect(kept(STATUE_LEVEL - 0.1)).toBe(false);
+    expect(kept(STATUE_LEVEL)).toBe(true);
+    expect(kept(STATIC_LEVEL - 0.1)).toBe(true);
+    expect(kept(STATIC_LEVEL)).toBe(false);
   });
 });

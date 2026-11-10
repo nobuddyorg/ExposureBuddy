@@ -17,6 +17,7 @@ const MEDIAN: CompositeParams = {
   ghostBlur: 0,
   glow: 0,
   trails: false,
+  trail: 1,
 };
 
 function gaussian(random: () => number): number {

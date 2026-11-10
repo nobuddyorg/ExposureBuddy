@@ -6,8 +6,10 @@ import type { DeviceProfile } from '../../exposure/deviceProfile';
 import {
   DETECTION_DETAILS_IN_ORDER,
   MOVERS_MODES,
+  STANDING_PEOPLE_IN_ORDER,
   type MoversChoice,
   type MoversMode,
+  type StandingPeople,
 } from '../../exposure/moversChoice';
 import { MIN_PHOTOS } from '../../exposure/pickedPhotos';
 import type { ReferenceSize } from '../../exposure/useReferenceSize';
@@ -40,11 +42,13 @@ export function CombineControls({
 }: CombineControlsProps) {
   const { t, tCount } = useI18n();
   const [quality, setQuality] = useState<OutputQuality>('standard');
-  const [mode, setMode] = useState<MoversMode>('off');
+  const [mode, setMode] = useState<MoversMode>('classic');
   const [detail, setDetail] = useState<DetectionDetail>('fast');
+  const [standing, setStanding] = useState<StandingPeople>('keep');
   const selectId = useId();
   const moversId = useId();
   const detailId = useId();
+  const standingId = useId();
   const reasonId = useId();
   const sizeId = useId();
   const tooFew = count < MIN_PHOTOS;
@@ -80,9 +84,13 @@ export function CombineControls({
   ];
 
   const modeNames: Record<MoversMode, string> = {
-    off: t('picker.movers_off'),
-    remove: t('picker.movers_remove'),
+    classic: t('picker.movers_classic'),
     blur: t('picker.movers_blur'),
+  };
+  const standingNames: Record<StandingPeople, string> = {
+    keep: t('picker.standing_keep'),
+    soft: t('picker.standing_soft'),
+    strong: t('picker.standing_strong'),
   };
   const detailNames: Record<DetectionDetail, string> = {
     fast: t('picker.movers_detail_fast'),
@@ -143,7 +151,7 @@ export function CombineControls({
             </option>
           ))}
         </select>
-        {mode !== 'off' && (
+        {mode !== 'classic' && (
           <select
             id={detailId}
             data-testid="movers-detail-select"
@@ -162,9 +170,31 @@ export function CombineControls({
           </select>
         )}
       </div>
+      {mode === 'blur' && (
+        <div className="mt-2 sm:col-start-1 sm:row-start-6">
+          <label htmlFor={standingId} className={labelClasses('mb-1.5')}>
+            {t('picker.standing')}
+          </label>
+          <select
+            id={standingId}
+            data-testid="standing-select"
+            value={standing}
+            onChange={(event) =>
+              setStanding(event.target.value as StandingPeople)
+            }
+            className={fieldClasses()}
+          >
+            {STANDING_PEOPLE_IN_ORDER.map((value) => (
+              <option key={value} value={value}>
+                {standingNames[value]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <p
         id={`${moversId}-help`}
-        className="mt-1.5 text-xs text-muted-foreground sm:col-start-1 sm:row-start-6"
+        className="mt-1.5 text-xs text-muted-foreground sm:col-start-1 sm:row-start-7"
       >
         {t('picker.movers_help')}
       </p>
@@ -173,7 +203,7 @@ export function CombineControls({
         data-testid="combine"
         disabled={tooFew || unsupported}
         aria-describedby={tooFew ? reasonId : undefined}
-        onClick={() => onCombine(quality, { mode, detail })}
+        onClick={() => onCombine(quality, { mode, detail, standing })}
         className={buttonClasses({
           className: 'mt-4 w-full sm:col-start-2 sm:row-start-2 sm:mt-0',
         })}

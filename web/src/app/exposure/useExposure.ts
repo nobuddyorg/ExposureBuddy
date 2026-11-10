@@ -14,7 +14,6 @@ import type { FailedRun } from './diagnostics';
 import { toPipelineFailure } from './failure';
 import { pageAssetBase } from './ml/assetBase';
 import type { BurstMovers } from './moversChoice';
-import { BURST_BLUR } from '../vision/effects/effectParams';
 import {
   runPipeline,
   type ExposureResult,
@@ -93,7 +92,7 @@ export function useExposure(
           movers: movers && {
             assetBase: pageAssetBase(),
             detail: movers.detail,
-            ...(movers.look === 'blur' && { blur: BURST_BLUR }),
+            trail: { standingBlur: movers.standingBlur },
           },
         },
         workers,

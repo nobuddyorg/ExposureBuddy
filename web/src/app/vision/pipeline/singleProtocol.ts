@@ -1,6 +1,8 @@
 import type { EffectParams } from '../effects/effectParams';
+import type { SmearSum } from '../effects/smear';
 import type { DetectionDetail } from '../effects/tiles';
 import type { GrayImage, Homography, RgbaImage, Size } from '../types';
+import type { TrailSettings } from './trail';
 
 /** What the detection worker says when its browser has no WebGL off the main thread; the coordinator maps it to its own failure. */
 export const DETECTION_UNSUPPORTED_MESSAGE =
@@ -38,8 +40,8 @@ export type SingleWorkerRequest =
       readonly working: Size;
       readonly assetBase: string;
       readonly detail: DetectionDetail;
-      /** When set, a few frames are also turned into the trail of their movers at the working size; see `blurred` in the answer. */
-      readonly blur?: EffectParams;
+      /** When set, a few frames also get their movers smeared along their paths at the working size; see `trail` in the answer. */
+      readonly trail?: TrailSettings;
     };
 
 export type SingleWorkerResponse =
@@ -76,6 +78,6 @@ export type SingleWorkerResponse =
       readonly id: number;
       /** One per item, in order, laid over the reference: 255 where a person, a vehicle or an animal was found. */
       readonly masks: readonly GrayImage[];
-      /** With `blur` asked for: the mean of those frames with their movers blurred, at the working size. */
-      readonly blurred?: RgbaImage;
+      /** With `trail` asked for: the smeared movers of those frames added up, at the working size. */
+      readonly trail?: { readonly sum: SmearSum; readonly frames: number };
     };

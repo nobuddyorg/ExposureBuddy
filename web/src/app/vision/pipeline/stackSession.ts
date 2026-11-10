@@ -6,7 +6,9 @@ import {
   toRgba,
 } from '../image/banded';
 import { fillHole } from '../effects/inpaint';
+import type { SmearSum } from '../effects/smear';
 import { composite } from '../stack/composite';
+import { trailMean } from '../stack/trailMean';
 import { DENOISE_FROM, denoiseBanded, stackedNoise } from '../stack/denoise';
 import { applyGain, estimateGain, type Gain } from '../stack/exposure';
 import { emptyStack, fullCoverageRect, stackRows } from '../stack/stack';
@@ -36,8 +38,8 @@ export interface StackSession {
   addFrame: (index: number, frame: AlignedFrame) => void;
   /** Where something moves in frame `index` (or the reference), laid over the reference at any size; once every frame has one, the background leaves them out. */
   addMask: (index: number | 'reference', mask: GrayImage) => void;
-  /** Replaces the long exposure (the mean) with `image`, at the working size; after the rows are stacked, before the first render. */
-  setMean: (image: RgbaImage) => void;
+  /** The movers of `frames` sampled frames, smeared along their paths at the working size; after the rows are stacked, before the first render. */
+  setTrail: (sum: SmearSum, frames: number) => void;
   /** Forgets frame `index` again, so it neither decides the crop nor is stacked; only before `crop()`. */
   dropFrame: (index: number) => void;
   readonly frameCount: number;
@@ -82,6 +84,7 @@ export function createStackSession(): StackSession {
   // The burst's own noise, sampled while it is stacked: what decides whether the long exposure is smoothed.
   const noise = new Uint32Array(256);
   let cropped: Cropped | null = null;
+  let trail: { readonly sum: SmearSum; readonly frames: number } | null = null;
 
   const requireReference = (): AlignedFrame => {
     if (!reference) throw new Error('The reference frame must be added first.');
@@ -144,6 +147,26 @@ export function createStackSession(): StackSession {
     };
   };
 
+  // With trails, the long exposure is redrawn for the background asked for and the trail slider.
+  const trailed = (
+    result: StackResult,
+    rect: Rect,
+    params: CompositeParams,
+  ): StackResult =>
+    trail
+      ? {
+          ...result,
+          mean: trailMean({
+            background: result.backgrounds[params.background],
+            mean: result.mean,
+            sum: trail.sum,
+            frames: trail.frames,
+            rect,
+            amount: params.trail,
+          }),
+        }
+      : result;
+
   return {
     addReference(image, rows) {
       if (reference) throw new Error('The reference frame was already added.');
@@ -172,16 +195,8 @@ export function createStackSession(): StackSession {
         throw new Error(`Frame ${index} was never added.`);
       masks.delete(index);
     },
-    setMean(image) {
-      const current = requireCropped();
-      const { rect } = current;
-      cropped = {
-        ...current,
-        result: {
-          ...current.result,
-          mean: cropBanded(bandedFromRgba(image), rect),
-        },
-      };
+    setTrail(sum, frames) {
+      trail = { sum, frames };
     },
     addMask(index, mask) {
       masks.set(index, mask);
@@ -238,12 +253,14 @@ export function createStackSession(): StackSession {
     render(params) {
       fillHoles();
       denoiseOnce();
-      return composite(requireCropped().result, params);
+      const { result, rect } = requireCropped();
+      return composite(trailed(result, rect, params), params);
     },
     renderReference() {
       return toRgba(requireCropped().reference);
     },
     dispose() {
+      trail = null;
       frames.clear();
       masks.clear();
       reference = null;
