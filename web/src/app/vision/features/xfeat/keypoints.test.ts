@@ -150,3 +150,25 @@ describe('mutualMatches', () => {
     );
   });
 });
+
+describe('extractKeypoints with equal scores', () => {
+  it('orders keypoints that score alike by where they were found', () => {
+    // Three cells in a column with the same logits and heat: the middle and the last see the same heat around them and tie;
+    // the first reaches past the map's edge, where the heat is taken as 0, and scores lower.
+    const size = { width: 8, height: 24 };
+    const cells = 3;
+    const logits = new Float32Array(65 * cells);
+    for (let cell = 0; cell < cells; cell += 1) logits[9 * cells + cell] = 8;
+    const same = {
+      width: 1,
+      height: cells,
+      features: new Float32Array(64 * cells).fill(1),
+      keypointLogits: logits,
+      heatmap: new Float32Array(cells).fill(0.5),
+    };
+    const found = extractKeypoints(same, size, 10, 0.01);
+    expect(found.points.map((point) => point.y)).toEqual([9, 17, 1]);
+    expect(found.scores[0]).toBeCloseTo(found.scores[1], 6);
+    expect(found.scores[1]).toBeGreaterThan(found.scores[2]);
+  });
+});

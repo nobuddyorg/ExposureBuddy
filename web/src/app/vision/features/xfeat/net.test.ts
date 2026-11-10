@@ -64,6 +64,25 @@ describe('runXFeat', () => {
     expect(worstDifference(maps.heatmap, reference.hm)).toBeLessThan(1e-3);
   });
 
+  it('skips weights that are zero, in every layer, without a different answer to the rest', () => {
+    const silent = new Map(
+      [...weights].map(([name, layer]) => [
+        name,
+        { ...layer, weights: new Float32Array(layer.weights.length) },
+      ]),
+    );
+    const result = runXFeat(silent, input);
+    // With every weight zero only the folded biases are left, the same everywhere: the maps are flat per channel.
+    expect(result.features.every((value) => Number.isFinite(value))).toBe(true);
+    expect(new Set(result.heatmap).size).toBe(1);
+  });
+
+  it('names a layer the weights lack', () => {
+    expect(() => runXFeat(new Map(), input)).toThrow(
+      'The XFeat weights have no layer',
+    );
+  });
+
   it('refuses an image whose sides are not multiples of 32', () => {
     expect(() =>
       runXFeat(weights, { width: 40, height: 32, data: new Uint8Array(1280) }),
