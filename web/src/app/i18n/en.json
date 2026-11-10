@@ -176,7 +176,7 @@
     "photos_title": "Your photos",
     "photos_body": "Photos are read into this browser tab's memory, combined there and shown. They are not uploaded, not stored and not shared; reloading or closing the page forgets them. The app could not send them anywhere even by mistake: its security policy only lets it connect to its own address.",
     "stored_title": "What stays on your device",
-    "stored_body": "Your choice of language and theme, in the browser's local storage, and a copy of the app itself, in the browser's cache, so it opens offline. If you use the single-photo mode, the detection model and its runtime (about 17 MB) are kept in the same cache, so people can be found offline too. There are no cookies and nothing else. Clearing this site's data in your browser removes all of it.",
+    "stored_body": "Your choice of language and theme, in the browser's local storage, and a copy of the app itself, in the browser's cache, so it opens offline. If you use the single-photo mode or the moving-things setting, the detection model and its runtime (about 17 MB) are kept in the same cache, so people can be found offline too. If a photo of a burst cannot be lined up the usual way, a second small network (about 3 MB) is kept there as well. There are no cookies and nothing else. Clearing this site's data in your browser removes all of it.",
     "saved_title": "The image you save",
     "saved_body": "The JPEG you save or share carries the date and time the reference photo was taken, so your gallery sorts it next to the burst. Nothing else from your photos goes into it: no location, no camera model, no serial number.",
     "reports_title": "Bug reports",

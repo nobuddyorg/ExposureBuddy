@@ -14,8 +14,8 @@ camera app can lock focus and exposure, do that first.
 ## 2. Open the app
 
 Open ExposureBuddy in the browser. The first screen is the picker, with a
-short reminder of how to shoot and the footer line *Your photos never leave
-this device*, which is literally true: everything that follows happens inside
+short reminder of how to shoot and the footer line _Your photos never leave
+this device_, which is literally true: everything that follows happens inside
 the browser.
 
 To run it from source instead, `cd web && npm install && npm run dev` from a
@@ -29,9 +29,9 @@ drop the files onto the dotted area. Thumbnails and a count appear. Leave
 **Output size** on **Standard** for now.
 
 Tap **Combine**. The progress screen names each stage and lists every photo
-with its status: *reference* for the one the others line up on (the middle
-one, unless you tapped another thumbnail), *aligned* with its match
-count for the rest. A photo marked *skipped* did not line up well enough and
+with its status: _reference_ for the one the others line up on (the middle
+one, unless you tapped another thumbnail), _aligned_ with its match
+count for the rest. A photo marked _skipped_ did not line up well enough and
 was left out; one or two in a hand-held burst is normal.
 
 ## 4. Look at the result

@@ -39,6 +39,21 @@ export type AlignWorkerRequest =
       readonly target: Size;
     }
   | {
+      readonly type: 'learned-reference';
+      readonly id: number;
+      /** The reference photo, decoded at `target` and searched for learned keypoints once, for the frames the corner-based alignment gave up on. */
+      readonly file: Blob;
+      readonly target: Size;
+      /** Absolute URL of the folder the network's weights are served from. */
+      readonly assetBase: string;
+    }
+  | {
+      readonly type: 'align-learned';
+      readonly id: number;
+      readonly file: Blob;
+      readonly target: Size;
+    }
+  | {
       readonly type: 'warp-rows';
       readonly id: number;
       readonly file: Blob;
@@ -63,6 +78,7 @@ export type AlignWorkerResponse =
       readonly sharpness: number;
     }
   | { readonly type: 'reference-set'; readonly id: number }
+  | { readonly type: 'learned-reference-set'; readonly id: number }
   | {
       readonly type: 'aligned';
       readonly id: number;

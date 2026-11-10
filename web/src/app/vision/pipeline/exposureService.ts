@@ -20,6 +20,8 @@ export function createExposureService(
       case 'decode-reference':
       case 'set-reference':
       case 'align':
+      case 'learned-reference':
+      case 'align-learned':
       case 'warp-rows':
         return align(request);
       case 'add-reference':

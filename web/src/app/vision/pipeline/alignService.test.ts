@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { NO_LEARNING, gridLearning } from './learnedSteps.test-support';
 import { rowOf } from '../image/banded';
 import { shiftGray, texturedScene } from '../features/synthetic.test-support';
 import type { AlignWorkerResponse, Decoders } from './protocol';
@@ -45,7 +46,7 @@ const sizing = {
 };
 
 async function primed() {
-  const serve = createAlignService(decoders, isUnreadable);
+  const serve = createAlignService(decoders, isUnreadable, NO_LEARNING);
   const decoded = await serve({
     type: 'decode-reference',
     id: 1,
@@ -70,7 +71,7 @@ async function primed() {
 
 describe('createAlignService', () => {
   it('decodes the reference, describes it, and moves its pixels', async () => {
-    const serve = createAlignService(decoders, isUnreadable);
+    const serve = createAlignService(decoders, isUnreadable, NO_LEARNING);
     const { response, transfer } = await serve({
       type: 'decode-reference',
       id: 1,
@@ -101,6 +102,7 @@ describe('createAlignService', () => {
         decodeReference: () => Promise.reject(new Error('disk on fire')),
       },
       isUnreadable,
+      NO_LEARNING,
     );
     await expect(
       serve({ type: 'decode-reference', id: 1, file: blob('scene'), sizing }),
@@ -108,7 +110,7 @@ describe('createAlignService', () => {
   });
 
   it('reports an unreadable reference instead of failing', async () => {
-    const serve = createAlignService(decoders, isUnreadable);
+    const serve = createAlignService(decoders, isUnreadable, NO_LEARNING);
     await expect(
       serve({ type: 'decode-reference', id: 1, file: blob('bad'), sizing }),
     ).resolves.toEqual({
@@ -118,14 +120,14 @@ describe('createAlignService', () => {
   });
 
   it('rejects a request meant for another worker, naming it', async () => {
-    const serve = createAlignService(decoders, isUnreadable);
+    const serve = createAlignService(decoders, isUnreadable, NO_LEARNING);
     await expect(serve({ type: 'add-frame', id: 9 } as never)).rejects.toThrow(
       'The align service got a request it does not know: add-frame.',
     );
   });
 
   it('refuses to align before the reference is set', async () => {
-    const serve = createAlignService(decoders, isUnreadable);
+    const serve = createAlignService(decoders, isUnreadable, NO_LEARNING);
     await expect(
       serve({ type: 'align', id: 3, file: blob('shifted'), target: SCENE }),
     ).rejects.toThrow(/set-reference/);
@@ -255,5 +257,119 @@ describe('createAlignService', () => {
     await expect(
       serve({ ...request, id: 10, file: blob('crash') }),
     ).rejects.toThrow('disk on fire');
+  });
+
+  describe('the learned alignment', () => {
+    const ASSETS = 'https://example.test/ml';
+
+    async function withLearnedReference(count = 30) {
+      const learning = gridLearning(count);
+      const serve = createAlignService(decoders, isUnreadable, learning);
+      const answer = await serve({
+        type: 'learned-reference',
+        id: 20,
+        file: blob('scene'),
+        target: SCENE,
+        assetBase: ASSETS,
+      });
+      return { serve, learning, answer };
+    }
+
+    it("reads the network from the asked folder and keeps the reference's keypoints", async () => {
+      const { learning, answer } = await withLearnedReference();
+      expect(answer).toEqual({
+        response: { type: 'learned-reference-set', id: 20 },
+        transfer: [],
+      });
+      expect(learning.loaded).toEqual([ASSETS]);
+    });
+
+    it('aligns a frame the corner-based alignment skipped, and answers like align does', async () => {
+      const { serve } = await withLearnedReference();
+      const { response, transfer } = await serve({
+        type: 'align-learned',
+        id: 21,
+        file: blob('shifted'),
+        target: SCENE,
+      });
+      expect(response).toMatchObject({
+        type: 'aligned',
+        id: 21,
+        matches: 30,
+        inliers: 30,
+      });
+      if (response.type !== 'aligned') throw new Error('unreachable');
+      expect(response.kernel).toBeDefined();
+      expect(transfer.length).toBeGreaterThan(0);
+    });
+
+    it('skips a frame with too few learned matches', async () => {
+      const { serve } = await withLearnedReference(10);
+      const { response } = await serve({
+        type: 'align-learned',
+        id: 22,
+        file: blob('shifted'),
+        target: SCENE,
+      });
+      expect(response).toEqual({
+        type: 'skipped',
+        id: 22,
+        matches: 10,
+        inliers: 0,
+      });
+    });
+
+    it('reports an unreadable reference and an unreadable frame instead of failing', async () => {
+      const serve = createAlignService(decoders, isUnreadable, gridLearning());
+      await expect(
+        serve({
+          type: 'learned-reference',
+          id: 23,
+          file: blob('bad'),
+          target: SCENE,
+          assetBase: ASSETS,
+        }),
+      ).resolves.toEqual({
+        response: { type: 'unreadable', id: 23 },
+        transfer: [],
+      });
+      const { serve: ready } = await withLearnedReference();
+      await expect(
+        ready({
+          type: 'align-learned',
+          id: 24,
+          file: blob('bad'),
+          target: SCENE,
+        }),
+      ).resolves.toEqual({
+        response: { type: 'unreadable', id: 24 },
+        transfer: [],
+      });
+    });
+
+    it('lets a decode error that is not an unreadable file through', async () => {
+      const serve = createAlignService(decoders, isUnreadable, gridLearning());
+      await expect(
+        serve({
+          type: 'learned-reference',
+          id: 25,
+          file: blob('crash'),
+          target: SCENE,
+          assetBase: ASSETS,
+        }),
+      ).rejects.toThrow('disk on fire');
+    });
+
+    it('needs the reference first', async () => {
+      const serve = createAlignService(decoders, isUnreadable, gridLearning());
+      await expect(
+        serve({
+          type: 'align-learned',
+          id: 26,
+          file: blob('shifted'),
+          target: SCENE,
+        }),
+      ).rejects.toThrow('learned-reference must come before align-learned');
+    });
   });
 });

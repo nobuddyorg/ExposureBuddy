@@ -5,19 +5,19 @@ below is read by a build, a test run or a CI job.
 
 ## Environment variables
 
-| Variable | Read by | Effect |
-| --- | --- | --- |
-| `PAGES_BASE_URL` | `web/next.config.ts` (build) | Unset: the export is built for `/ExposureBuddy`, the Pages project URL. `pages-deploy.yml` sets it to the Pages site URL from `actions/configure-pages`, whose path becomes `basePath`; empty on a custom domain. `next dev` always serves from `/`. |
-| `E2E_BASE_URL` | `web/playwright.config.ts` | Unset: the suite serves `web/out` under the base path and tests it. Set: tests that origin instead, starts no server, `retries: 2`. |
-| `E2E_PORT` | `web/playwright.config.ts` | Port of the local export server, default `4173`. |
-| `E2E_ALL_ENGINES` | `web/playwright.config.ts` | Set (as `CI` always is): the `firefox` and `webkit-mobile` projects join the run. Unset: the Chromium projects only, so a checkout without those browsers still runs the suite. |
-| `CHROMIUM_EXECUTABLE_PATH` | `web/playwright.config.ts`, `web/scripts/lighthouse.mjs`, `web/scripts/make-icons.mjs` | A Chromium binary to launch instead of the one Playwright downloaded, for a machine where that download is blocked. |
-| `E2E_COVERAGE` | `web/e2e/coverage.ts` | `true` collects JS/CSS coverage on the Chromium projects and applies the floor in the global teardown. Only worth it on a build made with `E2E_COVERAGE_SOURCEMAPS`. |
-| `E2E_COVERAGE_SOURCEMAPS` | `web/next.config.ts` (build) | `true` makes `next build` emit browser source maps so the coverage report maps to `src/app/**`. The deploy build never sets it. |
-| `FC_SEED` | `web/vitest.setup.ts` | Replaces fast-check's fixed seed for one run ([Replay a property-test failure](../how-to/developer-guide.md#replay-a-property-test-failure)). |
-| `CHROME_PATH` | `web/scripts/lighthouse.mjs` | The browser Lighthouse launches; defaults to Playwright's Chromium so no second browser is downloaded. |
-| `STRYKER_DASHBOARD_API_KEY` | `web/stryker.config.mjs` | Present: Stryker adds its `dashboard` reporter. CI passes it on `main` only. |
-| `CODECOV_TOKEN` | `ci.yml` (`build_and_test`) | Codecov's upload token; when it is set a refused upload fails the job (`fail_ci_if_error`), when it is missing the upload is best effort. |
+| Variable                    | Read by                                                                                | Effect                                                                                                                                                                                                                                               |
+| --------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PAGES_BASE_URL`            | `web/next.config.ts` (build)                                                           | Unset: the export is built for `/ExposureBuddy`, the Pages project URL. `pages-deploy.yml` sets it to the Pages site URL from `actions/configure-pages`, whose path becomes `basePath`; empty on a custom domain. `next dev` always serves from `/`. |
+| `E2E_BASE_URL`              | `web/playwright.config.ts`                                                             | Unset: the suite serves `web/out` under the base path and tests it. Set: tests that origin instead, starts no server, `retries: 2`.                                                                                                                  |
+| `E2E_PORT`                  | `web/playwright.config.ts`                                                             | Port of the local export server, default `4173`.                                                                                                                                                                                                     |
+| `E2E_ALL_ENGINES`           | `web/playwright.config.ts`                                                             | Set (as `CI` always is): the `firefox` and `webkit-mobile` projects join the run. Unset: the Chromium projects only, so a checkout without those browsers still runs the suite.                                                                      |
+| `CHROMIUM_EXECUTABLE_PATH`  | `web/playwright.config.ts`, `web/scripts/lighthouse.mjs`, `web/scripts/make-icons.mjs` | A Chromium binary to launch instead of the one Playwright downloaded, for a machine where that download is blocked.                                                                                                                                  |
+| `E2E_COVERAGE`              | `web/e2e/coverage.ts`                                                                  | `true` collects JS/CSS coverage on the Chromium projects and applies the floor in the global teardown. Only worth it on a build made with `E2E_COVERAGE_SOURCEMAPS`.                                                                                 |
+| `E2E_COVERAGE_SOURCEMAPS`   | `web/next.config.ts` (build)                                                           | `true` makes `next build` emit browser source maps so the coverage report maps to `src/app/**`. The deploy build never sets it.                                                                                                                      |
+| `FC_SEED`                   | `web/vitest.setup.ts`                                                                  | Replaces fast-check's fixed seed for one run ([Replay a property-test failure](../how-to/developer-guide.md#replay-a-property-test-failure)).                                                                                                        |
+| `CHROME_PATH`               | `web/scripts/lighthouse.mjs`                                                           | The browser Lighthouse launches; defaults to Playwright's Chromium so no second browser is downloaded.                                                                                                                                               |
+| `STRYKER_DASHBOARD_API_KEY` | `web/stryker.config.mjs`                                                               | Present: Stryker adds its `dashboard` reporter. CI passes it on `main` only.                                                                                                                                                                         |
+| `CODECOV_TOKEN`             | `ci.yml` (`build_and_test`)                                                            | Codecov's upload token; when it is set a refused upload fails the job (`fail_ci_if_error`), when it is missing the upload is best effort.                                                                                                            |
 
 Two values `next.config.ts` derives and bakes into the bundle, not inputs:
 `NEXT_PUBLIC_BASE_PATH` (the base path, for the service-worker registration
@@ -26,10 +26,10 @@ the service worker's cache).
 
 ## GitHub Actions secrets
 
-| Secret | Used by | Notes |
-| --- | --- | --- |
-| `CODECOV_TOKEN` | `ci.yml` (`build_and_test`) | Optional: the repository's upload token from codecov.io. Without it the upload is best effort and never fails the job; with it, set it as a **Dependabot** secret too, or every Dependabot PR fails `build_and_test`. |
-| `STRYKER_DASHBOARD_API_KEY` | `mutation.yml` (`mutation_test`, on `main` only) | Optional; without it Stryker writes a local HTML report only. |
+| Secret                      | Used by                                          | Notes                                                                                                                                                                                                                 |
+| --------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CODECOV_TOKEN`             | `ci.yml` (`build_and_test`)                      | Optional: the repository's upload token from codecov.io. Without it the upload is best effort and never fails the job; with it, set it as a **Dependabot** secret too, or every Dependabot PR fails `build_and_test`. |
+| `STRYKER_DASHBOARD_API_KEY` | `mutation.yml` (`mutation_test`, on `main` only) | Optional; without it Stryker writes a local HTML report only.                                                                                                                                                         |
 
 Nothing else: the deploy needs only the `github-pages` environment's OIDC
 token, which `deploy-pages` mints itself. gitleaks
@@ -40,9 +40,9 @@ the commit from the branch.
 
 ## Ports
 
-| Port | Used by |
-| --- | --- |
-| `3000` | `npm run dev` |
+| Port   | Used by                                                                                                     |
+| ------ | ----------------------------------------------------------------------------------------------------------- |
+| `3000` | `npm run dev`                                                                                               |
 | `4173` | The export server for the e2e suite (`E2E_PORT`), Lighthouse (`web/lighthouserc.json`) and the ZAP baseline |
 
 ## Coverage, mutation and performance thresholds
@@ -51,14 +51,14 @@ Every value is a **floor set from measurement**, raised by hand when a real run
 reports a higher number and never lowered to make a change fit
 ([CLAUDE.md](../../CLAUDE.md), hard rules).
 
-| Gate | Where | Value |
-| --- | --- | --- |
-| Unit coverage, global | `web/vitest.config.mts` `GLOBAL_COVERAGE_THRESHOLDS` | 95% statements, 90% branches, 95% functions, 95% lines |
-| Unit coverage, per file | same file, `PER_FILE_FLOOR`, over every file in `web/mutation-targets.mjs` | 100% on all four |
-| Unit coverage, what counts | same file, `coverage.exclude` | Product code only: `*.test-support.*` fakes and fixtures, `types.ts` and the dictionaries are excluded, as are the routing glue (`layout.tsx`, `page.tsx`), the worker entry point and the browser-only steps it runs (`decode.ts`, `workerScope.ts`, `workerFactory.ts`), which Playwright verifies instead |
-| Mutation score | `web/stryker.config.mjs` `thresholds` | `break: 99`, `low: 99`, `high: 100`: one below a measured 100, so a single new equivalent mutant cannot block unrelated work |
-| E2E JS/CSS coverage | `web/e2e/coverage.ts` `COVERAGE_THRESHOLDS` | Floors a few points under a measured `E2E_COVERAGE=true` run on chromium + mobile: statements 73%, branches 64%, functions 84%, lines 87% |
-| Lighthouse | `web/lighthouserc.json` `assert` | Performance at 0.85 (measured 0.93–0.94), best-practices and SEO at 0.9; accessibility at exactly 1.0; LCP ≤ 4000 ms (measured ~2.9 s under Lighthouse's mobile throttling), TBT ≤ 300 ms (measured ~150), CLS ≤ 0.1; median of 3 runs |
+| Gate                       | Where                                                                      | Value                                                                                                                                                                                                                                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unit coverage, global      | `web/vitest.config.mts` `GLOBAL_COVERAGE_THRESHOLDS`                       | 95% statements, 90% branches, 95% functions, 95% lines                                                                                                                                                                                                                                                       |
+| Unit coverage, per file    | same file, `PER_FILE_FLOOR`, over every file in `web/mutation-targets.mjs` | 100% on all four                                                                                                                                                                                                                                                                                             |
+| Unit coverage, what counts | same file, `coverage.exclude`                                              | Product code only: `*.test-support.*` fakes and fixtures, `types.ts` and the dictionaries are excluded, as are the routing glue (`layout.tsx`, `page.tsx`), the worker entry point and the browser-only steps it runs (`decode.ts`, `workerScope.ts`, `workerFactory.ts`), which Playwright verifies instead |
+| Mutation score             | `web/stryker.config.mjs` `thresholds`                                      | `break: 99`, `low: 99`, `high: 100`: one below a measured 100, so a single new equivalent mutant cannot block unrelated work                                                                                                                                                                                 |
+| E2E JS/CSS coverage        | `web/e2e/coverage.ts` `COVERAGE_THRESHOLDS`                                | Floors a few points under a measured `E2E_COVERAGE=true` run on chromium + mobile: statements 73%, branches 64%, functions 84%, lines 87%                                                                                                                                                                    |
+| Lighthouse                 | `web/lighthouserc.json` `assert`                                           | Performance at 0.85 (measured 0.93–0.94), best-practices and SEO at 0.9; accessibility at exactly 1.0; LCP ≤ 4000 ms (measured ~2.9 s under Lighthouse's mobile throttling), TBT ≤ 300 ms (measured ~150), CLS ≤ 0.1; median of 3 runs                                                                       |
 
 `autoUpdate` is off in Vitest: it would write the local measurement back into
 the config after every run, so a green local run produced a red PR. Stryker
@@ -73,20 +73,20 @@ workflow annotation.
 
 The numbers the pipeline is sized by, each in the module that owns it.
 
-| Limit | Where | Value |
-| --- | --- | --- |
-| Photos per burst | the picker | 100; extra files are dropped with a notice (`picker.too_many`) |
-| Minimum photos | `web/src/app/exposure/runPipeline.ts` | 2; the picker's Combine button says how many it still needs |
-| Memory budget | `web/src/app/vision/pipeline/deviceBudget.ts` `deviceBudgetBytes` | A quarter of the memory Chromium reports (`navigator.deviceMemory`), within 256 MiB…2 GiB; where none is reported, 768 MiB on a touch device and 1.5 GiB on a desktop. `DEFAULT_BUDGET_BYTES` (256 MiB) where no device budget is given. Provisional until measured on real phones |
-| Peak memory | `web/src/app/vision/pipeline/budget.ts` `peakBytes` | One pass: the larger of aligning, `(frameCount × 3 + 5 + workers × 8) × working pixels + workers × 6 × photo pixels`, and rendering, `37 × working pixels`. In strips: `(24 + workers × 8) × working pixels + (frameCount + workers) × 3 × strip rows × width + workers × 6 × photo pixels`, or rendering |
-| Output long edge | same file, `qualityLongEdge` | Small 1024, Standard 1600, Large 2400 px, Original the photo's own; never upscaled |
-| Largest working size | same file, `MAX_WORKING_PIXELS` | 4096 × 4096 pixels, the largest canvas Safari draws; the Original size stops there |
-| Strips | same file, `MAX_PASSES`, `stripRowsFor` | A burst that does not fit whole is stacked in at most 8 strips of whole 64-row bands; each strip after the first decodes every photo again |
-| Smallest working long edge | same file, `MIN_LONG_EDGE` | 640 px: the budget never pushes below it; a burst that still does not fit is refused, not crashed |
-| Alignment long edge | same file, `ALIGNMENT_LONG_EDGE` | 960 px: the grayscale copy features are detected on |
-| Align workers | same file, `workerPoolSize` and `alignWorkersFor` | `hardwareConcurrency − 1`, clamped to 1…4; 2 when unknown; fewer when their full-size decodes would take more than a quarter of the budget; the stack worker is always one more |
-| RANSAC inlier threshold | `web/src/app/vision/geometry/ransac.ts` `DEFAULT_RANSAC_OPTIONS` | 3 px in alignment coordinates ([Architecture](architecture.md#the-pipeline)) |
-| Frame accepted as aligned | `web/src/app/vision/pipeline/alignment.ts` `MIN_INLIERS`, `MIN_INLIER_RATIO` | At least 20 inliers and at least 25% of the matches; otherwise the frame is skipped and reported |
+| Limit                      | Where                                                                        | Value                                                                                                                                                                                                                                                                                                     |
+| -------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Photos per burst           | the picker                                                                   | 100; extra files are dropped with a notice (`picker.too_many`)                                                                                                                                                                                                                                            |
+| Minimum photos             | `web/src/app/exposure/runPipeline.ts`                                        | 2; the picker's Combine button says how many it still needs                                                                                                                                                                                                                                               |
+| Memory budget              | `web/src/app/vision/pipeline/deviceBudget.ts` `deviceBudgetBytes`            | A quarter of the memory Chromium reports (`navigator.deviceMemory`), within 256 MiB…2 GiB; where none is reported, 768 MiB on a touch device and 1.5 GiB on a desktop. `DEFAULT_BUDGET_BYTES` (256 MiB) where no device budget is given. Provisional until measured on real phones                        |
+| Peak memory                | `web/src/app/vision/pipeline/budget.ts` `peakBytes`                          | One pass: the larger of aligning, `(frameCount × 3 + 5 + workers × 8) × working pixels + workers × 6 × photo pixels`, and rendering, `37 × working pixels`. In strips: `(24 + workers × 8) × working pixels + (frameCount + workers) × 3 × strip rows × width + workers × 6 × photo pixels`, or rendering |
+| Output long edge           | same file, `qualityLongEdge`                                                 | Small 1024, Standard 1600, Large 2400 px, Original the photo's own; never upscaled                                                                                                                                                                                                                        |
+| Largest working size       | same file, `MAX_WORKING_PIXELS`                                              | 4096 × 4096 pixels, the largest canvas Safari draws; the Original size stops there                                                                                                                                                                                                                        |
+| Strips                     | same file, `MAX_PASSES`, `stripRowsFor`                                      | A burst that does not fit whole is stacked in at most 8 strips of whole 64-row bands; each strip after the first decodes every photo again                                                                                                                                                                |
+| Smallest working long edge | same file, `MIN_LONG_EDGE`                                                   | 640 px: the budget never pushes below it; a burst that still does not fit is refused, not crashed                                                                                                                                                                                                         |
+| Alignment long edge        | same file, `ALIGNMENT_LONG_EDGE`                                             | 960 px: the grayscale copy features are detected on                                                                                                                                                                                                                                                       |
+| Align workers              | same file, `workerPoolSize` and `alignWorkersFor`                            | `hardwareConcurrency − 1`, clamped to 1…4; 2 when unknown; fewer when their full-size decodes would take more than a quarter of the budget; the stack worker is always one more                                                                                                                           |
+| RANSAC inlier threshold    | `web/src/app/vision/geometry/ransac.ts` `DEFAULT_RANSAC_OPTIONS`             | 3 px in alignment coordinates ([Architecture](architecture.md#the-pipeline))                                                                                                                                                                                                                              |
+| Frame accepted as aligned  | `web/src/app/vision/pipeline/alignment.ts` `MIN_INLIERS`, `MIN_INLIER_RATIO` | At least 20 inliers and at least 25% of the matches; otherwise the frame is skipped and reported                                                                                                                                                                                                          |
 
 ## Browser support
 
@@ -106,16 +106,16 @@ Each job writes its report to its own Actions summary (`$GITHUB_STEP_SUMMARY`);
 nothing posts a PR comment, and Codecov's comment is off in
 [`codecov.yml`](../../codecov.yml).
 
-| Job | Summary | Source |
-| --- | --- | --- |
-| `build_and_test` | Coverage against the thresholds above | `davelosert/vitest-coverage-report-action` over the `json-summary` reporter |
-| `build_and_test` | e2e results, and the e2e coverage summary | `daun/playwright-report-summary` over the `json` reporter; `web/coverage-e2e/coverage-summary.md` |
-| `build_and_test` | `depcruise` and `knip` output | The step's text, `tee`'d into the summary; Knip prints nothing when clean, so the summary says so |
-| `build_and_test` | Non-blocking accessibility findings | `web/e2e/axe.ts`, from inside the test, CI only |
-| `mutation_test` | Mutation score, overall and per file | `web/scripts/mutation-summary.mjs` over Stryker's `json` reporter |
-| `opengrep` | Finding count, total and by rule; every partially analyzed file | `jq` over the uploaded SARIF; `jq` over the same scan's `--json-output` `errors[]` |
-| `lighthouse` | Scores, LCP, CLS against the thresholds | `web/scripts/lighthouse-summary.mjs` over `manifest.json` |
-| `zap_baseline` | Every alert with its verdict; an alert `.zap/rules.tsv` ignores shows its reason | `web/scripts/zap-summary.mjs` over `report_json.json` from `zaproxy/action-baseline` |
+| Job              | Summary                                                                          | Source                                                                                            |
+| ---------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `build_and_test` | Coverage against the thresholds above                                            | `davelosert/vitest-coverage-report-action` over the `json-summary` reporter                       |
+| `build_and_test` | e2e results, and the e2e coverage summary                                        | `daun/playwright-report-summary` over the `json` reporter; `web/coverage-e2e/coverage-summary.md` |
+| `build_and_test` | `depcruise` and `knip` output                                                    | The step's text, `tee`'d into the summary; Knip prints nothing when clean, so the summary says so |
+| `build_and_test` | Non-blocking accessibility findings                                              | `web/e2e/axe.ts`, from inside the test, CI only                                                   |
+| `mutation_test`  | Mutation score, overall and per file                                             | `web/scripts/mutation-summary.mjs` over Stryker's `json` reporter                                 |
+| `opengrep`       | Finding count, total and by rule; every partially analyzed file                  | `jq` over the uploaded SARIF; `jq` over the same scan's `--json-output` `errors[]`                |
+| `lighthouse`     | Scores, LCP, CLS against the thresholds                                          | `web/scripts/lighthouse-summary.mjs` over `manifest.json`                                         |
+| `zap_baseline`   | Every alert with its verdict; an alert `.zap/rules.tsv` ignores shows its reason | `web/scripts/zap-summary.mjs` over `report_json.json` from `zaproxy/action-baseline`              |
 
 ## End-to-end tests
 

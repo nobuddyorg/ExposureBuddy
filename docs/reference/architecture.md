@@ -40,7 +40,7 @@ web/src/app/
                    single.worker.ts, the single-photo mode's, which alone carries the ML runtime
   exposure/ml/     the shared ML/WASM runtime layer: fetchBytes (progress), mlRuntime (MediaPipe runtime and model from the app's own ml/ folder), personSegmenter
 web/public/        sw.js (precaches out/precache.json at install), site.webmanifest, icons, logo.svg,
-                   ml/ (deeplab_v3.tflite committed; the MediaPipe Wasm copied in by scripts/copy-ml-assets.mjs)
+                   ml/ (deeplab_v3.tflite and xfeat-core.bin committed; the MediaPipe Wasm copied in by scripts/copy-ml-assets.mjs)
 web/e2e/           Playwright: page objects, public specs, synthetic burst fixtures
 web/scripts/       Node tools: precache-manifest (runs in `npm run build`), serve-export, make-fixtures, make-icons, lighthouse, summaries
 ```
@@ -63,7 +63,7 @@ One burst goes through five stages. Each stage reports progress to the UI as
 
 1. **Decode.** Every file is decoded in a worker with `createImageBitmap`
    (`imageOrientation: 'from-image'`, so EXIF rotation is applied) and drawn
-   onto an `OffscreenCanvas` at the *working size*. The working size comes
+   onto an `OffscreenCanvas` at the _working size_. The working size comes
    from the reference photo's dimensions, the frame count and the device's
    memory budget (`vision/pipeline/deviceBudget.ts`, `budget.ts`): the
    pipeline's peak,
@@ -75,28 +75,28 @@ One burst goes through five stages. Each stage reports progress to the UI as
 2. **Reference features.** The middle frame of the burst is the reference
    unless the picker marked another (`usePickedPhotos`, `referencePosition`):
    it minimises the largest camera drift to any other frame. Its grayscale
-   copy at the *alignment size* (long edge ≤ 960) goes through ORB:
+   copy at the _alignment size_ (long edge ≤ 960) goes through ORB:
    FAST-9 corners with non-maximum suppression, bucketed on a grid so the
    corners spread over the whole frame, an intensity-centroid orientation,
    and 256-bit rotated BRIEF descriptors.
 3. **Align.** A pool of workers (`min(hardwareConcurrency - 1, 4)`, at least
-   1) takes one frame each: same ORB features, brute-force Hamming matching
-   with Lowe's ratio test and cross-check, RANSAC over a normalised-DLT
-   homography with a 3 px inlier threshold, least-squares refinement on the
-   inliers, and a sanity check on the model (scale, skew and perspective
-   bounds). The homography is scaled to working coordinates and the frame is
-   inverse-warped into the reference frame with bicubic sampling (Catmull-Rom for clean frames, Mitchell–Netravali for noisy ones), producing
-   an RGB image in bands of 64 rows and, per row, the one run of columns the
-   source covers (a warped rectangle is convex, so a row never covers two
-   runs). A per-channel gain estimated over the
-   overlap flattens auto-exposure flicker between frames. While stacking, a sample of pixels also records how noisy the burst is (`noise` histogram in `stackRows`); the first render smooths the median background and the mean with a guided filter when the stacked result keeps 1.5 levels of noise or more. A frame with too
-   few inliers is **skipped**, not guessed at. Every aligned frame, and the
-   reference, also reports its **sharpness** at the alignment size
-   (`vision/image/sharpness.ts`: the variance of the 4-neighbour Laplacian
-   over the variance of the pixels, so exposure does not count). Once all
-   are aligned, a frame below 0.7 of the burst's lower median is
-   **blurred** (`vision/pipeline/blurred.ts`) and dropped from the stack
-   worker before the crop; the reference never is.
+   1. takes one frame each: same ORB features, brute-force Hamming matching
+      with Lowe's ratio test and cross-check, RANSAC over a normalised-DLT
+      homography with a 3 px inlier threshold, least-squares refinement on the
+      inliers, and a sanity check on the model (scale, skew and perspective
+      bounds). The homography is scaled to working coordinates and the frame is
+      inverse-warped into the reference frame with bicubic sampling (Catmull-Rom for clean frames, Mitchell–Netravali for noisy ones), producing
+      an RGB image in bands of 64 rows and, per row, the one run of columns the
+      source covers (a warped rectangle is convex, so a row never covers two
+      runs). A per-channel gain estimated over the
+      overlap flattens auto-exposure flicker between frames. While stacking, a sample of pixels also records how noisy the burst is (`noise` histogram in `stackRows`); the first render smooths the median background and the mean with a guided filter when the stacked result keeps 1.5 levels of noise or more. A frame with too
+      few inliers is **skipped**, not guessed at. Every aligned frame, and the
+      reference, also reports its **sharpness** at the alignment size
+      (`vision/image/sharpness.ts`: the variance of the 4-neighbour Laplacian
+      over the variance of the pixels, so exposure does not count). Once all
+      are aligned, a frame below 0.7 of the burst's lower median is
+      **blurred** (`vision/pipeline/blurred.ts`) and dropped from the stack
+      worker before the crop; the reference never is.
 4. **Stack.** A dedicated worker keeps every aligned frame. The largest
    rectangle every aligned frame covers, found from the row runs alone,
    becomes the output crop, and only its pixels are stacked: per pixel over
@@ -119,9 +119,10 @@ One burst goes through five stages. Each stage reports progress to the UI as
    the same, bit for bit, as one pass (`runPipeline.strips.test.ts` runs the
    real services both ways); the price is one more decode of every photo
    per strip.
+
 5. **Composite.** From those buffers the result is rendered for the current
    background choice and slider values: `background + ghostStrength ×
-   blur(moved − background) + glow × blur(max(moved − background, 0))`, where
+blur(moved − background) + glow × blur(max(moved − background, 0))`, where
    `background` is the estimate picked in `CompositeParams.background` and
    `moved` is the mean, or the brightest value with `CompositeParams.trails`. It
    works one colour channel at a time with the blur done in place, so only
@@ -198,6 +199,21 @@ worker decode and warp its frames' rows again and `add-rows` hands them to
 the stack worker. With one strip that is `crop` and one `stack-rows`, and the
 align workers stop before it.
 
+### The learned second try
+
+`learned-reference` (the reference photo, the working size and the folder the
+weights are served from) makes an align worker read `ml/xfeat-core.bin`, decode
+the reference at the working size and keep its XFeat keypoints; `align-learned`
+then answers like `align` for one frame, with `aligned` (kernel included),
+`skipped` or `unreadable`. The coordinator (`retryWithLearning` in
+`runPipeline.ts`) sends them, to the first align worker only, for every frame the
+corner-based pass skipped, before the blurred frames are dropped. The worker
+script calls `allowOnlyOwnOrigin` because it now fetches. The network is
+`vision/features/xfeat/` (`net.ts` the forward pass, `keypoints.ts` the
+keypoints, descriptors and mutual matching, `detect.ts` the resize to a multiple
+of 32), the second alignment `vision/pipeline/learnedAlignment.ts`; the
+fit and the checks are shared with the corner-based alignment (`alignFromPairs`).
+
 ### Moving things in a burst
 
 The picker's **Moving things** setting (`Keep`, `Remove`, `Blur`, and how hard to
@@ -251,13 +267,13 @@ second, static route, `/privacy/` (`privacy/page.tsx`, test ids `privacy`,
 `privacy-hosting`, `privacy-back`), says in both languages what stays on the
 device and what the host sees.
 
-| State | Component | Test ids |
-| --- | --- | --- |
-| Picking photos | `PhotoPicker` | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-tile` (with `data-reference`), `photo-thumb`, `choose-reference`, `remove-photo`, `reference-badge`, `reference-hint`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
-| Combining | `Progress` | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel` |
-| Result | `Result` | `result-canvas`, `result-stats`, `result-skipped`, `result-blurred`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over` |
-| One photo | `SinglePhotoCard` in the picker, then `SingleProgress` and `SingleResult` | `single-photo-card`, `single-photo`; the progress and result ids above, plus `effect-select`, `strength-slider`, `angle-slider` (`single-result` is the result's root) |
-| Failed | `PipelineError` | `pipeline-error`, `retry`, `copy-diagnostics`, `copy-status`, `diagnostics`, `diagnostics-toggle`, `diagnostics-text` |
+| State          | Component                                                                 | Test ids                                                                                                                                                                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Picking photos | `PhotoPicker`                                                             | `photo-dropzone`, `photo-input`, `pick-photos`, `photo-tile` (with `data-reference`), `photo-thumb`, `choose-reference`, `remove-photo`, `reference-badge`, `reference-hint`, `photo-count`, `clear-photos`, `quality-select`, `result-size`, `combine`, `picker-notice` |
+| Combining      | `Progress`                                                                | `progress`, `progress-stage`, `progress-bar`, `frame-status`, `cancel`                                                                                                                                                                                                   |
+| Result         | `Result`                                                                  | `result-canvas`, `result-stats`, `result-skipped`, `result-blurred`, `adjust-toggle`, `background-select`, `trails-toggle`, `ghost-slider`, `blur-slider`, `glow-slider`, `compare-toggle`, `download`, `share`, `start-over`                                            |
+| One photo      | `SinglePhotoCard` in the picker, then `SingleProgress` and `SingleResult` | `single-photo-card`, `single-photo`; the progress and result ids above, plus `effect-select`, `strength-slider`, `angle-slider` (`single-result` is the result's root)                                                                                                   |
+| Failed         | `PipelineError`                                                           | `pipeline-error`, `retry`, `copy-diagnostics`, `copy-status`, `diagnostics`, `diagnostics-toggle`, `diagnostics-text`                                                                                                                                                    |
 
 Always present: `Header` (`theme-toggle`, `language-toggle`, `open-help`),
 `Help` dialog (`help-dialog`, `help-close`, `app-version`), the footer privacy
