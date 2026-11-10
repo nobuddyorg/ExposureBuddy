@@ -252,14 +252,14 @@ Dependabot's `github-actions` ecosystem scans both and moves those pins. It
 does not see what a job downloads at run time, so these pins move only by
 hand, in a reviewed PR:
 
-| Tool | Pinned in | Pin |
-| --- | --- | --- |
-| gitleaks | `ci.yml` (`prek`) | `GITLEAKS_VERSION`, `GITLEAKS_SHA256`: the `linux_x64` line of the release's `gitleaks_<version>_checksums.txt`. Keep it equal to the hook's `rev` in `.pre-commit-config.yaml`. |
-| Opengrep | `ci.yml` (`opengrep`) | `OPENGREP_VERSION`, `OPENGREP_SHA256`: `sha256sum` of the release's `opengrep_manylinux_x86` asset (the release publishes no checksum file), once `cosign verify-blob --cert <asset>.cert --signature <asset>.sig --certificate-identity-regexp 'https://github.com/opengrep/opengrep/.+' --certificate-oidc-issuer https://token.actions.githubusercontent.com <asset>` accepts it. Also the version in [Run Opengrep](#run-opengrep). |
-| prek | `ci.yml` (`prek`) | `prek-version` on `j178/prek-action`. |
-| ZAP | `ci.yml` (`zap_baseline`) | `ZAP_IMAGE`: a release tag plus its digest, from `docker buildx imagetools inspect ghcr.io/zaproxy/zaproxy:<tag>`. Also the tag in [Run the OWASP ZAP baseline scan](#run-the-owasp-zap-baseline-scan). |
-| Node.js | `.github/actions/setup-web` | `node-version`; also the prerequisite in CONTRIBUTING.md. |
-| Playwright browsers | `web/package-lock.json` | Move with `@playwright/test`; `npx playwright install` fetches the matching builds. |
+| Tool                | Pinned in                   | Pin                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| gitleaks            | `ci.yml` (`prek`)           | `GITLEAKS_VERSION`, `GITLEAKS_SHA256`: the `linux_x64` line of the release's `gitleaks_<version>_checksums.txt`. Keep it equal to the hook's `rev` in `.pre-commit-config.yaml`.                                                                                                                                                                                                                                                        |
+| Opengrep            | `ci.yml` (`opengrep`)       | `OPENGREP_VERSION`, `OPENGREP_SHA256`: `sha256sum` of the release's `opengrep_manylinux_x86` asset (the release publishes no checksum file), once `cosign verify-blob --cert <asset>.cert --signature <asset>.sig --certificate-identity-regexp 'https://github.com/opengrep/opengrep/.+' --certificate-oidc-issuer https://token.actions.githubusercontent.com <asset>` accepts it. Also the version in [Run Opengrep](#run-opengrep). |
+| prek                | `ci.yml` (`prek`)           | `prek-version` on `j178/prek-action`.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ZAP                 | `ci.yml` (`zap_baseline`)   | `ZAP_IMAGE`: a release tag plus its digest, from `docker buildx imagetools inspect ghcr.io/zaproxy/zaproxy:<tag>`. Also the tag in [Run the OWASP ZAP baseline scan](#run-the-owasp-zap-baseline-scan).                                                                                                                                                                                                                                 |
+| Node.js             | `.github/actions/setup-web` | `node-version`; also the prerequisite in CONTRIBUTING.md.                                                                                                                                                                                                                                                                                                                                                                               |
+| Playwright browsers | `web/package-lock.json`     | Move with `@playwright/test`; `npx playwright install` fetches the matching builds.                                                                                                                                                                                                                                                                                                                                                     |
 
 The hook revisions in `.pre-commit-config.yaml` are commit SHAs with a
 `# frozen:` tag, which Dependabot's `pre-commit` ecosystem bumps together.
@@ -290,7 +290,7 @@ icon `site.webmanifest` names exists at the size it claims, and
 `npm run dev` and `npm run build` first run `scripts/copy-ml-assets.mjs`, which
 copies the MediaPipe Wasm runtime (the classic-script build) from
 `node_modules/@mediapipe/tasks-vision/wasm/` into `public/ml/`. The copies are
-gitignored; the model beside them, `deeplab_v3.tflite`, is committed, and so is `xfeat-core.bin`, the 2.6 MB weights of the learned alignment (`scripts/export-xfeat.py` regenerates it from the published `xfeat.pt`; run by hand, it needs PyTorch). To change
+gitignored; the model beside them, `deeplab_v3.tflite`, is committed, and so is `xfeat-core.bin`, the 2.6 MB weights of the learned alignment (a one-off conversion of the published `xfeat.pt`, batch norm folded in; `parseXFeatWeights` reads its layout and design-decisions.md records both SHA-256 values). To change
 the model or the runtime: replace the file or bump the package, record the new
 SHA-256, size and licence in the
 [design decision](../explanation/design-decisions.md#why-the-kernels-are-plain-typescript-and-where-wasm-and-ml-come-in),
@@ -337,8 +337,8 @@ deploys from a developer machine.
 - **A CI run started with `GITHUB_TOKEN`** (a dispatch from another workflow)
   starts no `workflow_run`; the deploy's own hourly run (`41 * * * *`) deploys
   `main`'s tip once CI passed on it and no run has tried it. To run it sooner:
-  Actions → *CI* → *Run workflow* from `main`.
-- **By hand:** Actions → *Deploy Pages* → *Run workflow* from `main`
+  Actions → _CI_ → _Run workflow_ from `main`.
+- **By hand:** Actions → _Deploy Pages_ → _Run workflow_ from `main`
   redeploys `main`'s tip, and only if CI passed on it. Nothing redeploys an
   older commit: going back is a new commit on `main`
   ([Roll back a bad deploy](#roll-back-a-bad-deploy)).
@@ -375,8 +375,8 @@ One-time setup for a fork:
 9. In a public repository, GitHub disables a workflow with a `schedule`
    trigger after 60 days without a commit; `pages-deploy.yml` has one, and a
    disabled workflow also ignores CI's `workflow_run`. GitHub emails a warning;
-   `gh workflow enable pages-deploy.yml` or Actions → the workflow → *Enable
-   workflow* puts it back.
+   `gh workflow enable pages-deploy.yml` or Actions → the workflow → _Enable
+   workflow_ puts it back.
 
 ## Roll back a bad deploy
 
@@ -395,7 +395,7 @@ passes on `main`. Two things to know:
   reloads; on the next navigation the shell is fetched network-first, so the
   reverted build replaces it, and the new worker deletes the bad build's cache
   ([why](../explanation/design-decisions.md#why-the-service-worker-fetches-the-shell-network-first)).
-- **Nothing redeploys an older commit** by hand: *Run workflow* on Deploy
+- **Nothing redeploys an older commit** by hand: _Run workflow_ on Deploy
   Pages deploys `main`'s tip, which after the revert is what you want.
 
 ## Move to a custom domain
