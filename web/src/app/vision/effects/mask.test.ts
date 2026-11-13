@@ -217,6 +217,20 @@ describe('resizeMask', () => {
     expect(values.some((value) => value > 0 && value < 255)).toBe(true);
   });
 
+  it('stretches a single row into rows that are all the same', () => {
+    const tall = resizeMask(grayOf(2, 1, [224, 89]), { width: 5, height: 3 });
+    const row = [224, 210, 157, 102, 89];
+    expect([...tall.data]).toEqual([...row, ...row, ...row]);
+  });
+
+  it('interpolates between rows below the first, too', () => {
+    const tall = resizeMask(grayOf(1, 3, [0, 0, 255]), {
+      width: 1,
+      height: 6,
+    });
+    expect([...tall.data]).toEqual([0, 0, 0, 64, 191, 255]);
+  });
+
   it('keeps the position of an area: a block in the left half stays on the left', () => {
     const block = grayOf(4, 1, [255, 255, 0, 0]);
     const wide = resizeMask(block, { width: 16, height: 1 });
