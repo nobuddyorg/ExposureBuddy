@@ -1,5 +1,8 @@
 import { MUTATE_TARGETS } from './mutation-targets.mjs';
 
+// Over the whole target list; below 100 so a single new equivalent mutant cannot block unrelated work.
+export const BREAK_THRESHOLD = 99;
+
 // MUTATION_SHARD="i/n" mutates every n-th target from the i-th on, so CI's matrix jobs split the list between them.
 function shardOf(targets, shard) {
   if (!shard) return targets;
@@ -54,11 +57,11 @@ const config = {
   mutate: shardOf(MUTATE_TARGETS, process.env.MUTATION_SHARD),
   // Blind to non-mutated, non-test files and dependencies, so the weekly run forces a full one.
   incremental: true,
-  // One below the measured 100, so a single new equivalent mutant cannot block unrelated work.
+  // A shard's share is too small to judge alone, so it never breaks; mutation-summary.mjs breaks on the merged score.
   thresholds: {
     high: 100,
     low: 99,
-    break: 99,
+    break: process.env.MUTATION_SHARD ? null : BREAK_THRESHOLD,
   },
 };
 

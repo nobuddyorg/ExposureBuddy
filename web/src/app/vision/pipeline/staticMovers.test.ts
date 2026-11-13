@@ -165,6 +165,14 @@ describe('standingAreas', () => {
     expect([...standingAreas(tiny, levelled(16)).data]).toEqual([...none()]);
   });
 
+  it('judges an area of exactly the minimum size', () => {
+    const exact = rectMask(W, H, { x: 2, y: 2, width: 20, height: 10 });
+    expect(20 * 10).toBe(MIN_JUDGED_AREA);
+    expect([...standingAreas(exact, levelled(16)).data]).toEqual([
+      ...exact.data,
+    ]);
+  });
+
   it('draws the line at the statue level, inclusive, and below the static level', () => {
     const mask = rectMask(W, H, BOX);
     const kept = (level: number) =>

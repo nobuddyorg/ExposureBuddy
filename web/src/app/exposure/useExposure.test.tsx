@@ -193,6 +193,23 @@ describe('useExposure', () => {
     });
   });
 
+  it("gives a skipped frame a second try with the learned keypoints from the page's own model folder", async () => {
+    const factory = createFakeFactory(alignHandler(), stackHandler);
+    const { result } = renderHook(() => useExposure(factory, device(1)));
+    act(() =>
+      result.current.start(
+        burst([file('skip'), file('ok'), file('ok')]),
+        'low',
+      ),
+    );
+    await vi.waitFor(() => expect(result.current.state.status).toBe('ready'));
+    expect(
+      factory.aligners[0].sent.find(
+        (message) => message.type === 'learned-reference',
+      ),
+    ).toMatchObject({ assetBase: `${window.location.origin}/ml` });
+  });
+
   it('starts no movers search for a burst that does not ask', async () => {
     const factory = createFakeFactory(alignHandler(), stackHandler);
     const { result } = renderHook(() => useExposure(factory, device(2)));

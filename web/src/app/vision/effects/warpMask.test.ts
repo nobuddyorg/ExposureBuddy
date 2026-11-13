@@ -1,7 +1,11 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { identityHomography } from '../geometry/homography';
+import {
+  applyHomography,
+  identityHomography,
+  invertHomography,
+} from '../geometry/homography';
 import type { GrayImage, Homography } from '../types';
 import { warpMask } from './warpMask';
 
@@ -46,6 +50,41 @@ describe('warpMask', () => {
     ]);
     expect(setPixels(warpMask(mask, translation(1, 0)))).toEqual([[1, 0]]);
     expect(setPixels(warpMask(mask, translation(-1, -1)))).toEqual([[3, 3]]);
+  });
+
+  it('drops what leaves past the right edge instead of wrapping it into the row above', () => {
+    const mask = maskOf(5, 5, [[0, 2]]);
+    expect(setPixels(warpMask(mask, translation(-1, 0)))).toEqual([]);
+  });
+
+  it('samples a perspective warp at the nearest source pixel', () => {
+    const targetToSource = Float64Array.from([
+      1, 0.2, 0, 0.1, 1, 0, 0.02, 0.03, 1,
+    ]);
+    const homography = invertHomography(targetToSource);
+    expect(homography).not.toBeNull();
+    if (homography === null) return;
+    const size = 12;
+    const mask: GrayImage = {
+      width: size,
+      height: size,
+      data: Uint8Array.from({ length: size * size }, (_, index) => index + 1),
+    };
+    const warped = warpMask(mask, homography);
+    let inside = 0;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const source = applyHomography(targetToSource, { x, y });
+        const sourceX = Math.round(source.x);
+        const sourceY = Math.round(source.y);
+        const within =
+          sourceX >= 0 && sourceX < size && sourceY >= 0 && sourceY < size;
+        if (within) inside += 1;
+        const expected = within ? mask.data[sourceY * size + sourceX] : 0;
+        expect(warped.data[y * size + x]).toBe(expected);
+      }
+    }
+    expect(inside).toBeGreaterThan(50);
   });
 
   it('keeps the size and never changes the values it copies', () => {

@@ -24,6 +24,8 @@ const ALIGN_REQUESTS: readonly WorkerRequest['type'][] = [
   'decode-reference',
   'set-reference',
   'align',
+  'learned-reference',
+  'align-learned',
   'warp-rows',
 ];
 const STACK_REQUESTS: readonly WorkerRequest['type'][] = [

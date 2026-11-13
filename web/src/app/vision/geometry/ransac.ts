@@ -125,18 +125,14 @@ function refineModel(problem: Problem, model: Model): Model {
     inlierSource.push(problem.source[index]);
     inlierTarget.push(problem.target[index]);
   }
-  // The inliers contain the non-degenerate sample, so the estimate only fails in theory; a null candidate is simply not in the running.
-  const candidates = [estimateHomography(inlierSource, inlierTarget)].filter(
-    (candidate): candidate is Homography => candidate !== null,
-  );
-  let best = model;
-  for (const homography of candidates) {
-    const inlierMask = new Uint8Array(problem.source.length);
-    const inlierCount = countInliers(problem, homography, inlierMask);
-    if (inlierCount >= best.inlierCount)
-      best = { homography, inlierMask, inlierCount };
-  }
-  return best;
+  // The refit can be degenerate where the sample was not (one far inlier collapses the rest under normalisation); then the model stands.
+  const homography =
+    estimateHomography(inlierSource, inlierTarget) ?? model.homography;
+  const inlierMask = new Uint8Array(problem.source.length);
+  const inlierCount = countInliers(problem, homography, inlierMask);
+  return inlierCount >= model.inlierCount
+    ? { homography, inlierMask, inlierCount }
+    : model;
 }
 
 /** Returns the RANSAC homography mapping `source` onto `target` with its inlier mask, or null for fewer than 4 correspondences or no usable sample. */

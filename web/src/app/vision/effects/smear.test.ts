@@ -5,10 +5,10 @@ import type { GrayImage, RgbaImage } from '../types';
 
 const SIZE = { width: 40, height: 10 };
 
-function frameOf(red: number): RgbaImage {
+function frameOf(red: number, green = 0, blue = 0): RgbaImage {
   const data = new Uint8ClampedArray(SIZE.width * SIZE.height * 4);
   for (let pixel = 0; pixel < SIZE.width * SIZE.height; pixel += 1)
-    data.set([red, 0, 0, 255], pixel * 4);
+    data.set([red, green, blue, 255], pixel * 4);
   return { ...SIZE, data };
 }
 
@@ -82,6 +82,33 @@ describe('addSmear', () => {
     });
     expect(coverageRow(sum, 3)[39]).toBeGreaterThan(0);
     expect(sum.coverage.length).toBe(SIZE.width * SIZE.height);
+  });
+
+  it('keeps a path that runs off the left or the right edge in its own row', () => {
+    for (const [x, dx] of [
+      [38, 30],
+      [1, -30],
+    ]) {
+      const sum = emptySmearSum(SIZE);
+      addSmear(sum, frameOf(100), dotAt(x, 3), { dx, dy: 0, centred: false });
+      expect(coverageRow(sum, 2).every((value) => value === 0)).toBe(true);
+      expect(coverageRow(sum, 4).every((value) => value === 0)).toBe(true);
+      expect(
+        sum.coverage.reduce((total, value) => total + value, 0),
+      ).toBeCloseTo(2 / 31);
+    }
+  });
+
+  it('adds each colour channel, weighted by its share of the streak, to its own place only', () => {
+    const sum = emptySmearSum(SIZE);
+    addSmear(sum, frameOf(10, 20, 30), dotAt(5, 3), {
+      dx: 1,
+      dy: 0,
+      centred: false,
+    });
+    const expected = new Array(SIZE.width * SIZE.height * 3).fill(0);
+    expected.splice((3 * SIZE.width + 5) * 3, 6, 5, 10, 15, 5, 10, 15);
+    expect(Array.from(sum.colour)).toEqual(expected);
   });
 
   it('caps the copies of a very long path', () => {

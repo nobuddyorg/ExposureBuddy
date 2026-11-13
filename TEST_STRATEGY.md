@@ -542,7 +542,8 @@ the seed is replayable through one environment variable.
   dependency bump. Key the saved results on the test configuration it cannot
   see; a dependency-only change waits for the scheduled run.
 - Split the list across parallel jobs once a full run outgrows a CI job's time
-  limit; every shard enforces the threshold on its own.
+  limit; the threshold applies to the merged score, as it did to the single
+  run, not to each shard's share.
 
 Kernels produce a particular survivor class: **a boundary mutant at an image
 edge** (`<` to `<=` on the last row, a radius off by one) that no test at the

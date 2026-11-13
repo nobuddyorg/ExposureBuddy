@@ -136,17 +136,21 @@ function stackRow(
   const { y, rect, layers, hidden, holes, noise } = row;
   const sourceRows = frames.map((frame) => rowOf(frame.image, rect.y + y));
   const outputs = layers.map((layer) => rowOf(layer, y));
-  const maskRows = hidden?.map((mask, frame) =>
-    maskRowOffset(mask, frames[frame].image, rect.y + y),
-  );
+  const masks = hidden && {
+    hidden,
+    maskRows: hidden.map((mask, frame) =>
+      maskRowOffset(mask, frames[frame].image, rect.y + y),
+    ),
+    flags: work.flags,
+  };
   for (const x of indices(rect.width)) {
-    if (hidden && maskRows) {
+    if (masks) {
       // Every frame has the working size, so one width places the pixel in every mask.
-      const visible = flagHiddenFrames(
-        { hidden, maskRows, flags: work.flags },
+      const shown = flagHiddenFrames(
+        masks,
         (rect.x + x + 0.5) / frames[0].image.width,
       );
-      if (holes && visible === 0) holes.data[y * rect.width + x] = HOLE;
+      if (holes && !shown) holes.data[y * rect.width + x] = HOLE;
     }
     for (let channel = 0; channel < RGB; channel += 1) {
       stackSample(work, {
@@ -234,7 +238,7 @@ function stackSample(
   modeRow[target] = estimates[2];
 }
 
-/** Sets `flags[frame]` to 1 where the frame's mask hides the pixel at `across` (0–1) of the row; returns how many frames show it. */
+/** Sets `flags[frame]` to 1 where the frame's mask hides the pixel at `across` (0–1) of the row; returns whether any frame shows it. */
 function flagHiddenFrames(
   masks: {
     readonly hidden: readonly GrayImage[];
@@ -242,31 +246,25 @@ function flagHiddenFrames(
     readonly flags: Uint8Array;
   },
   across: number,
-): number {
-  let visible = 0;
+): boolean {
   masks.hidden.forEach((mask, frame) => {
     masks.flags[frame] = isHidden(mask, masks.maskRows[frame], across) ? 1 : 0;
-    visible += 1 - masks.flags[frame];
   });
-  return visible;
+  // One flag per frame: stackRows sizes `flags` to the frame count and the masks to match it.
+  return masks.flags.includes(0);
 }
 
-// Where row `y` of a frame starts in a mask of any size laid over it.
+// Where row `y` of a frame starts in a mask of any size laid over it; a pixel centre lies below the far edge, so no clamp is needed.
 function maskRowOffset(
   mask: GrayImage,
   image: { height: number },
   y: number,
 ): number {
-  return (
-    Math.min(
-      mask.height - 1,
-      Math.floor(((y + 0.5) / image.height) * mask.height),
-    ) * mask.width
-  );
+  return Math.floor(((y + 0.5) / image.height) * mask.height) * mask.width;
 }
 
 function isHidden(mask: GrayImage, rowOffset: number, across: number): boolean {
-  const column = Math.min(mask.width - 1, Math.floor(across * mask.width));
+  const column = Math.floor(across * mask.width);
   return mask.data[rowOffset + column] >= HIDDEN_FROM;
 }
 

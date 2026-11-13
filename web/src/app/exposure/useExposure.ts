@@ -124,10 +124,10 @@ export function useExposure(
     [device, workers],
   );
 
-  const reset = useCallback(() => {
+  const reset = () => {
     disposeRun(activeRun);
     setState({ status: 'idle' });
-  }, []);
+  };
 
   return { state, start, reset };
 }

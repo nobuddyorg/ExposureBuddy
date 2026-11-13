@@ -400,6 +400,14 @@ describe('the sampling kernels', () => {
     ]);
   });
 
+  it('blur the sample 1:16:1 with its neighbours at fraction 0 with the soft kernel, and give the tap two away nothing', () => {
+    cubicWeights(0, weights, SOFT_KERNEL);
+    expect(weights[0]).toBeCloseTo(1 / 18, 12);
+    expect(weights[1]).toBeCloseTo(16 / 18, 12);
+    expect(weights[2]).toBeCloseTo(1 / 18, 12);
+    expect(Math.abs(weights[3])).toBe(0);
+  });
+
   it('keep a hard edge crisper with the sharp kernel than with the soft one, at a half-pixel shift', () => {
     const edge = makeImage(32, 8, (x) =>
       x < 16 ? [40, 40, 40, 255] : [200, 200, 200, 255],

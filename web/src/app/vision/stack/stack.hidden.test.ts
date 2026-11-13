@@ -126,7 +126,30 @@ describe('stackFrames with people masks', () => {
   it('refuses a number of masks that is not the number of frames', () => {
     expect(() =>
       stackFrames(crowd(standing), { rect: RECT, hidden: [noOne] }),
-    ).toThrow(RangeError);
+    ).toThrow(new RangeError('1 masks for 5 frames.'));
+  });
+
+  it('lays the last cell of a coarser mask over the last row and column of the frame', () => {
+    // A 3 × 3 mask over 8 × 8 pixels: cell (2, 2) covers pixels 5–7, whose centres lie in the last third.
+    const corner = (hidden: boolean): GrayImage => {
+      const data = new Uint8Array(9);
+      if (hidden) data[2 * 3 + 2] = 255;
+      return { width: 3, height: 3, data };
+    };
+    const atCorner: Rect = { x: 4, y: 4, width: 4, height: 4 };
+    const frames = (): AlignedFrame[] =>
+      Array.from({ length: 5 }, (_, index) => {
+        const frame = flatFrame(SIZE, SCENE, 3);
+        if (standing.includes(index)) paintRect(frame.image, atCorner, PERSON);
+        return frame;
+      });
+    const cornerMasks = [0, 1, 2, 3, 4].map((index) =>
+      corner(standing.includes(index)),
+    );
+    expect(backgroundAt(frames(), cornerMasks, 7, 7)).toEqual([...SCENE]);
+    expect(backgroundAt(frames(), cornerMasks, 5, 5)).toEqual([...SCENE]);
+    // Pixel 4 has its centre at 4.5 / 8 of the way, inside cell 1, which is clear.
+    expect(backgroundAt(frames(), cornerMasks, 4, 4)).toEqual([...PERSON]);
   });
 
   it('marks as holes the pixels where every frame shows someone, and only those', () => {

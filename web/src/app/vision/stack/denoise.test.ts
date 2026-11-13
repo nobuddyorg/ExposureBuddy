@@ -127,6 +127,15 @@ describe('stackedNoise', () => {
     expect(stackedNoise(histogramOf([3]), 0)).toBe(0);
   });
 
+  it('takes the lower of the two middle deviations when the samples split evenly', () => {
+    const level = stackedNoise(histogramOf([2, 2, 9, 9]), 1);
+    expect(level).toBeCloseTo(1.4826 * 2 * 1.25, 6);
+  });
+
+  it('is the deviation of the single frame itself for a burst of one', () => {
+    expect(stackedNoise(histogramOf([4]), 1)).toBeCloseTo(1.4826 * 4 * 1.25, 6);
+  });
+
   it('falls as frames are added', () => {
     const histogram = histogramOf([6, 6, 6]);
     expect(stackedNoise(histogram, 16)).toBeLessThan(
@@ -164,6 +173,18 @@ describe('denoiseBanded', () => {
     expect([out.width, out.height, out.bandRows]).toEqual([W, H, 8]);
     expect(out).not.toBe(layer);
     expect([...toRgba(layer).data]).toEqual([...before]);
+  });
+
+  it('reaches as far as the long edge asks, however short the other edge', () => {
+    // 3000 pixels wide asks for a radius of 2: two box passes spread a bright dot 4 pixels, radius 1 only 2.
+    const wide = { width: 3000, height: 5 };
+    const data = new Uint8ClampedArray(wide.width * wide.height * 4).fill(255);
+    const at = (x: number, y: number) => (y * wide.width + x) * 4;
+    for (let i = 0; i < data.length; i += 4) data.fill(0, i, i + 3);
+    data.fill(255, at(1500, 2), at(1500, 2) + 3);
+    const out = toRgba(denoiseBanded(bandedFromRgba({ ...wide, data }), 1e4));
+    expect(out.data[at(1503, 2)]).toBeGreaterThan(0);
+    expect(out.data[at(1505, 2)]).toBe(0);
   });
 
   it('smooths each channel on its own: the noisy red channel gets closer to its truth', () => {
