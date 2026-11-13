@@ -536,10 +536,13 @@ the seed is replayable through one environment variable.
   thousand. A file that can't split into logic and rendering is the problem.
 - Run on every change touching scoped files. A scoped run is fast; learning
   after the merge that a test asserts nothing is too late.
-- Incremental reuse of earlier results is fine on a change, provided the
-  branch that deploys reruns everything: the tool's diff sees mutated code and
-  tests, not what the mutated code imports, nor a dependency bump. Key the
-  saved results on what it cannot see.
+- Incremental reuse of earlier results is fine on a change, provided a
+  scheduled run on the branch that deploys reruns everything: the tool's diff
+  sees mutated code and tests, not what the mutated code imports, nor a
+  dependency bump. Key the saved results on the test configuration it cannot
+  see; a dependency-only change waits for the scheduled run.
+- Split the list across parallel jobs once a full run outgrows a CI job's time
+  limit; every shard enforces the threshold on its own.
 
 Kernels produce a particular survivor class: **a boundary mutant at an image
 edge** (`<` to `<=` on the last row, a radius off by one) that no test at the

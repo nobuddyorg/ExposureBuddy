@@ -53,7 +53,7 @@ async function buildSummary() {
     toRow('**All files**', root.metrics),
     ...fileRows.map(({ path, metrics }) => toRow(`\`${path}\``, metrics)),
     '',
-    'Full interactive report: download the `mutation-report` workflow artifact.',
+    "Full interactive report: download a shard's `mutation-report-<shard>` workflow artifact.",
     '',
   ];
   return lines.join('\n');
