@@ -274,6 +274,22 @@ describe('createSingleService, movers', () => {
       ).toBe(true);
     });
 
+    it('is judged on the frames laid over the reference: a statue the camera moved past is no mover', async () => {
+      // A texture that repeats nowhere, and the second photo shifted by the 10 px its transform undoes.
+      const textured = (shift: number) => {
+        const image = solidImage(100, 50, [0, 0, 0]);
+        for (let pixel = 0; pixel < 100 * 50; pixel += 1) {
+          const level = (((pixel % 100) + shift) * 37) % 256;
+          image.data.set([level, level, level], pixel * 4);
+        }
+        return image;
+      };
+      const masks = await run((file) => textured(file === FIRST ? 0 : 10));
+      expect(
+        masks.every((mask) => mask.data.every((value) => value === 0)),
+      ).toBe(true);
+    });
+
     it('stays where the frames do change there', async () => {
       const changing = (file: Blob) =>
         file === FIRST ? still : solidImage(100, 50, [220, 40, 40]);
