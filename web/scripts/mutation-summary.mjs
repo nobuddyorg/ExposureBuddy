@@ -1,11 +1,11 @@
-// Stryker's JSON report as a markdown table, scored by mutation-testing-metrics as Stryker's own reporters are.
+// Stryker's JSON report as a markdown table, scored by mutation-testing-metrics as Stryker's own reporters are; exits 1 below the break threshold.
 import { readFile, appendFile } from 'node:fs/promises';
 
 import { calculateMutationTestMetrics } from 'mutation-testing-metrics';
 
+import { BREAK_THRESHOLD } from '../stryker.config.mjs';
+
 const REPORT_PATH = 'reports/mutation/mutation.json';
-// Must match stryker.config.mjs's thresholds.break.
-const BREAK_THRESHOLD = 99;
 
 function formatScore(score) {
   return Number.isFinite(score) ? `${score.toFixed(2)}%` : 'n/a';
@@ -56,14 +56,17 @@ async function buildSummary() {
     "Full interactive report: download a shard's `mutation-report-<shard>` workflow artifact.",
     '',
   ];
-  return lines.join('\n');
+  // No mutants at all scores NaN, which breaks nothing.
+  const passed = !(root.metrics.mutationScore < BREAK_THRESHOLD);
+  return { summary: lines.join('\n'), passed };
 }
 
 async function main() {
   const summaryPath = process.env.GITHUB_STEP_SUMMARY;
   let summary;
+  let passed = false;
   try {
-    summary = await buildSummary();
+    ({ summary, passed } = await buildSummary());
   } catch (error) {
     console.error('Could not read %s:', REPORT_PATH, error);
     summary = [
@@ -78,6 +81,13 @@ async function main() {
     await appendFile(summaryPath, summary);
   } else {
     console.log(summary);
+  }
+  if (!passed) {
+    console.error(
+      'Mutation score below the break threshold of %d%%, or no report.',
+      BREAK_THRESHOLD,
+    );
+    process.exitCode = 1;
   }
 }
 

@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Scoped to mutation-targets.mjs, split round-robin across the matrix by MUTATION_SHARD (stryker.config.mjs); each shard enforces the break threshold.
+  # Scoped to mutation-targets.mjs, split round-robin across the matrix by MUTATION_SHARD (stryker.config.mjs); mutation_report judges the merged score.
   mutation_test:
     name: mutation_test (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
@@ -74,7 +74,7 @@ jobs:
           path: web/reports/mutation
           retention-days: 30
 
-  # One summary and one dashboard report for the whole run; the console logs are mostly expected per-mutant failures.
+  # One verdict, summary and dashboard report for the whole run; the console logs are mostly expected per-mutant failures.
   mutation_report:
     needs: mutation_test
     if: ${{ !cancelled() }}
@@ -99,11 +99,7 @@ jobs:
       - name: Merge the shard reports
         run: npm run mutation:merge -- reports/shards
 
-      - name: Add mutation report to job summary
-        if: always()
-        run: npm run mutation:summary
-
-      # Only a complete run on main, so the badge never shows a partial score.
+      # Only a complete run on main, so the badge never shows a partial score; it shows a failing one.
       - name: Publish to the Stryker dashboard
         if: github.ref == 'refs/heads/main' && needs.mutation_test.result == 'success'
         env:
@@ -115,3 +111,8 @@ jobs:
             -H 'Content-Type: application/json' \
             -H "X-Api-Key: ${STRYKER_DASHBOARD_API_KEY}" \
             --data-binary @reports/mutation/mutation.json
+
+      # The break threshold applies to the merged score (stryker.config.mjs); a shard never breaks on its own.
+      - name: Judge the merged score and add it to the job summary
+        if: always()
+        run: npm run mutation:summary

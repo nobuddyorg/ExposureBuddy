@@ -125,10 +125,11 @@ for a human to fix.
 
 The target list is split round-robin across six parallel `mutation_test`
 jobs: `MUTATION_SHARD=i/n` makes `stryker.config.mjs` mutate every n-th target
-from the i-th on, and each shard has its own incremental cache and enforces
-the break threshold on its own. `mutation_report` then merges the shards'
-JSON reports (`npm run mutation:merge`) into one job summary. To reproduce one
-shard locally:
+from the i-th on, and each shard has its own incremental cache but never
+breaks on its own score. `mutation_report` merges the shards' JSON reports
+(`npm run mutation:merge`), and `npm run mutation:summary` fails the run when
+the merged score is under the break threshold in `stryker.config.mjs`. To
+reproduce one shard locally:
 
 ```bash
 MUTATION_SHARD=2/6 npm run test:mutation
