@@ -49,6 +49,35 @@ describe('trailMean', () => {
     expect(valuesOf(trailMean(input(0.5)), 0)).toEqual([85, 123, 85, 85]);
   });
 
+  it('keeps each channel of each pixel in its own place', () => {
+    const coloured = (rgb: readonly number[]): RgbaImage => {
+      const data = new Uint8ClampedArray(RECT.width * RECT.height * 4);
+      for (let pixel = 0; pixel < RECT.width * RECT.height; pixel += 1)
+        data.set([...rgb, 255], pixel * 4);
+      return { ...RECT, data };
+    };
+    const result = trailMean({
+      ...input(0.5),
+      background: bandedFromRgba(coloured([10, 20, 30])),
+      mean: bandedFromRgba(coloured([110, 120, 130])),
+    });
+    // Uncovered pixels lie halfway between mean and background; at crop x 1 the trail is half background, half the mover's 200.
+    expect(Array.from(rowOf(result, 0))).toEqual([
+      ...[60, 70, 80],
+      ...[108, 115, 123],
+      ...[60, 70, 80],
+      ...[60, 70, 80],
+    ]);
+    expect(Array.from(rowOf(result, 1))).toEqual(
+      Array.from({ length: 4 }, () => [60, 70, 80]).flat(),
+    );
+  });
+
+  it('fills the last row of a crop whose rows end on a band edge', () => {
+    const banded = { ...input(1), mean: bandedFromRgba(flat(120), 1) };
+    expect(valuesOf(trailMean(banded), 1)).toEqual([50, 50, 50, 50]);
+  });
+
   it('caps the coverage at one frame’s worth', () => {
     const crowded = input(1);
     crowded.sum.coverage[2] = 5;

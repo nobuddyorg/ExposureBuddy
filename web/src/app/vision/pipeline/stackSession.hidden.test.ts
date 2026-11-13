@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   pixelOf,
+  paintRect,
   flatBanded,
   rectSpans,
   type Rgb,
@@ -122,6 +123,26 @@ describe('createStackSession, masks', () => {
       Array.from(image.data.subarray((y * 4 + x) * 4, (y * 4 + x) * 4 + 3));
     // The neighbours are the plain two-frame median; the hole takes their colour, not a mix of person and scene.
     expect(at(1, 1)).toEqual(at(2, 1));
+  });
+
+  it('replaces a mover every frame shows on the same pixel with the scene around it', () => {
+    const session = createStackSession();
+    const withPerson = reference();
+    withPerson.data.set(PERSON, (1 * 4 + 1) * 4);
+    session.addReference(withPerson, 4);
+    const personToo = frame(SCENE);
+    paintRect(personToo.image, { x: 1, y: 1, width: 1, height: 1 }, PERSON);
+    session.addFrame(1, personToo);
+    const oneSpot: GrayImage = { ...SIZE, data: new Uint8Array(16) };
+    oneSpot.data[1 * 4 + 1] = 255;
+    session.addMask('reference', oneSpot);
+    session.addMask(1, oneSpot);
+    session.crop();
+    session.stackRows(ALL_ROWS);
+    const image = session.render(MEDIAN);
+    expect(Array.from(image.data.subarray(5 * 4, 5 * 4 + 3))).toEqual([
+      ...SCENE,
+    ]);
   });
 
   it('leaves the median alone when no masks were given', () => {

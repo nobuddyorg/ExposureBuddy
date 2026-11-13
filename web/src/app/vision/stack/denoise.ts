@@ -24,7 +24,7 @@ export function stackedNoise(
   frameCount: number,
 ): number {
   const total = histogram.reduce((sum, count) => sum + count, 0);
-  if (total === 0 || frameCount < 1) return 0;
+  if (frameCount < 1) return 0;
   let seen = 0;
   let deviation = 0;
   for (const level of indices(histogram.length)) {
