@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:mutation": "rm -rf reports/mutation && stryker run",
+    "mutation:merge": "node scripts/mutation-merge.mjs",
     "mutation:summary": "node scripts/mutation-summary.mjs",
     "icons": "node scripts/make-icons.mjs",
     "fixtures": "node scripts/make-fixtures.mjs",

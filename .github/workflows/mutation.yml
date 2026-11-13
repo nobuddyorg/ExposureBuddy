@@ -1,21 +1,26 @@
 name: Mutation testing
 
-# Not part of CI: a full run takes about 2.5 hours, and Deploy Pages waits for the whole CI run. A pull request still gets the incremental run.
+# Not part of CI, so Deploy Pages never waits for it. Lockfile-only changes (Dependabot) skip it; the weekly full run covers dependencies.
 on:
   pull_request:
     branches: [ main ]
     paths:
       - 'web/**'
+      - '!web/package.json'
+      - '!web/package-lock.json'
       - '.github/workflows/mutation.yml'
       - '.github/actions/**'
-  # main reruns every mutant, which seeds every pull request's incremental cache.
+  # main runs incrementally too and seeds every pull request's cache.
   push:
     branches: [ main ]
     paths:
       - 'web/**'
+      - '!web/package.json'
+      - '!web/package-lock.json'
       - '.github/workflows/mutation.yml'
       - '.github/actions/**'
   workflow_dispatch:
+  # The full run: incremental mode is blind to dependencies and to modules a target imports.
   schedule:
     - cron: '17 3 * * 1'
 
@@ -27,10 +32,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Scoped to mutation-targets.mjs (stryker.config.mjs): the kernels and the pipeline orchestration, never the rendering layer.
+  # Scoped to mutation-targets.mjs, split round-robin across the matrix by MUTATION_SHARD (stryker.config.mjs); each shard enforces the break threshold.
   mutation_test:
+    name: mutation_test (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [ 1, 2, 3, 4, 5, 6 ]
+    env:
+      MUTATION_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
     defaults:
       run:
         working-directory: ./web
@@ -41,31 +53,65 @@ jobs:
 
       - uses: ./.github/actions/setup-web
 
-      # Stryker's incremental file; a PR restores main's latest. Keyed on what incremental mode cannot see: dependencies and test config.
+      # One incremental file per shard; a PR restores main's latest. Keyed on the test config, which incremental mode cannot see.
       - name: Restore the incremental mutation report
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: web/reports/stryker-incremental.json
-          key: stryker-incremental-${{ hashFiles('web/package-lock.json', 'web/stryker.config.mjs', 'web/vitest.config.mts', 'web/vitest.mutation.config.mts', 'web/vitest.setup.ts') }}-${{ github.run_id }}
-          restore-keys: stryker-incremental-${{ hashFiles('web/package-lock.json', 'web/stryker.config.mjs', 'web/vitest.config.mts', 'web/vitest.mutation.config.mts', 'web/vitest.setup.ts') }}-
+          key: stryker-incremental-${{ matrix.shard }}-of-${{ strategy.job-total }}-${{ hashFiles('web/stryker.config.mjs', 'web/vitest.config.mts', 'web/vitest.mutation.config.mts', 'web/vitest.setup.ts') }}-${{ github.run_id }}
+          restore-keys: stryker-incremental-${{ matrix.shard }}-of-${{ strategy.job-total }}-${{ hashFiles('web/stryker.config.mjs', 'web/vitest.config.mts', 'web/vitest.mutation.config.mts', 'web/vitest.setup.ts') }}-
 
-      # Dashboard key only on main, so the published report and badge track one branch.
-      # main reruns every mutant (--force): incremental is blind to modules a target imports, and main's run seeds every PR's cache.
       - name: Run mutation testing
         run: npx stryker run ${FULL_RUN:+--force}
         env:
-          FULL_RUN: ${{ github.ref == 'refs/heads/main' && 'true' || '' }}
-          STRYKER_DASHBOARD_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.STRYKER_DASHBOARD_API_KEY || '' }}
+          FULL_RUN: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'true' || '' }}
 
-      # Built from reports/mutation/mutation.json (scripts/mutation-summary.mjs); the console log is mostly expected per-mutant failures.
+      - name: Upload the shard's mutation report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report-${{ matrix.shard }}
+          path: web/reports/mutation
+          retention-days: 30
+
+  # One summary and one dashboard report for the whole run; the console logs are mostly expected per-mutant failures.
+  mutation_report:
+    needs: mutation_test
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ./web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-web
+
+      - name: Download the shard reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: mutation-report-*
+          path: web/reports/shards
+
+      - name: Merge the shard reports
+        run: npm run mutation:merge -- reports/shards
+
       - name: Add mutation report to job summary
         if: always()
         run: npm run mutation:summary
 
-      - name: Upload mutation report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: mutation-report
-          path: web/reports/mutation
-          retention-days: 30
+      # Only a complete run on main, so the badge never shows a partial score.
+      - name: Publish to the Stryker dashboard
+        if: github.ref == 'refs/heads/main' && needs.mutation_test.result == 'success'
+        env:
+          STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
+        run: |
+          if [ -z "$STRYKER_DASHBOARD_API_KEY" ]; then echo "No STRYKER_DASHBOARD_API_KEY; not publishing."; exit 0; fi
+          curl --fail-with-body --silent --show-error -X PUT \
+            "https://dashboard.stryker-mutator.io/api/reports/github.com/${GITHUB_REPOSITORY}/main" \
+            -H 'Content-Type: application/json' \
+            -H "X-Api-Key: ${STRYKER_DASHBOARD_API_KEY}" \
+            --data-binary @reports/mutation/mutation.json

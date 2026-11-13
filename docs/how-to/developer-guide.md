@@ -116,9 +116,23 @@ E2E_COVERAGE=true npm run e2e -- --project=chromium --project=mobile
 
 ## Run mutation testing
 
-In CI this is `mutation.yml`, separate from `ci.yml`: a pull request gets the
-incremental run, `main` a full one (about 2.5 hours) on every push and weekly.
-Deploy Pages does not wait for it; a failing run on `main` is for a human to fix.
+In CI this is `mutation.yml`, separate from `ci.yml`: pull requests and pushes
+to `main` get the incremental run, and a weekly scheduled run (or a manual
+dispatch) reruns everything. A change to only `package.json` or
+`package-lock.json` (a Dependabot bump) skips it; the weekly run covers
+dependencies. Deploy Pages does not wait for it; a failing run on `main` is
+for a human to fix.
+
+The target list is split round-robin across six parallel `mutation_test`
+jobs: `MUTATION_SHARD=i/n` makes `stryker.config.mjs` mutate every n-th target
+from the i-th on, and each shard has its own incremental cache and enforces
+the break threshold on its own. `mutation_report` then merges the shards'
+JSON reports (`npm run mutation:merge`) into one job summary. To reproduce one
+shard locally:
+
+```bash
+MUTATION_SHARD=2/6 npm run test:mutation
+```
 
 ```bash
 cd web
@@ -145,8 +159,9 @@ reproduce `main`, rerun everything:
 npm run test:mutation -- --force
 ```
 
-CI runs this on every PR, restoring `main`'s incremental file; `main` itself
-always runs with `--force`. Only `main` publishes to the
+CI runs this on every PR, restoring `main`'s incremental file; only the
+weekly run uses `--force`. Only a run on `main` where every shard passed
+publishes the merged report to the
 [Stryker dashboard](https://dashboard.stryker-mutator.io/reports/github.com/nobuddyorg/ExposureBuddy/main);
 locally, the report is `web/reports/mutation/index.html`.
 
