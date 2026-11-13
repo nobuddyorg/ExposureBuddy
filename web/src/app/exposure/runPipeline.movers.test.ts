@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { emptySmearSum } from '../vision/effects/smear';
-import type { WorkerMessage } from '../vision/pipeline/protocol';
+import {
+  transferablesOf,
+  type WorkerMessage,
+} from '../vision/pipeline/protocol';
 import { PipelineError } from './failure';
 import {
   createFakeFactory,
@@ -158,6 +161,22 @@ describe('runPipeline with movers', () => {
     );
   });
 
+  it('moves every mask to the stack worker instead of copying it', async () => {
+    const { workers, result } = start({ movers: MOVERS });
+    await result;
+    const stack = workers.stacks[0];
+    const masks = stack.sent.flatMap((request, position) =>
+      request.type === 'add-mask' ? [position] : [],
+    );
+    expect(masks).toHaveLength(3);
+    for (const position of masks) {
+      const { mask } = stack.sent[position] as unknown as {
+        mask: { data: Uint8Array };
+      };
+      expect(stack.transfers[position]).toEqual([mask.data.buffer]);
+    }
+  });
+
   it('reports the photos searched as the movers stage', async () => {
     const { progress, result } = start({ movers: MOVERS });
     await result;
@@ -252,6 +271,17 @@ describe('runPipeline with movers', () => {
         sent.findLastIndex((request) => request.type === 'stack-rows'),
       );
       expect(sent[set]).toMatchObject({ sum: trailSum, frames: 3 });
+    });
+
+    it('moves the smeared movers to the stack instead of copying them', async () => {
+      const { workers, result } = start({ movers: MOVERS }, withTrail);
+      await result;
+      const stack = workers.stacks[0];
+      const set = stack.sent.findIndex(
+        (request) => request.type === 'set-trail',
+      );
+      expect(stack.transfers[set]).toEqual(transferablesOf(trailSum));
+      expect(stack.transfers[set].length).toBeGreaterThan(0);
     });
 
     it('tells the result its movers are drawn as trails, and only then', async () => {

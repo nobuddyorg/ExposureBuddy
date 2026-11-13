@@ -103,6 +103,14 @@ describe('matchDescriptors', () => {
     expect(matchDescriptors(query, train)).toEqual([]);
   });
 
+  it('matches the first of two equally close train descriptors when the ratio test lets ties through', () => {
+    const query = featureSet([[lowBits(4)]]);
+    const train = featureSet([[lowBits(3)], [lowBits(5)]]);
+    expect(
+      matchDescriptors(query, train, { ratio: 2, crossCheck: false }),
+    ).toEqual([{ queryIndex: 0, trainIndex: 0, distance: 1 }]);
+  });
+
   it('keeps a query whose best is clearly closer than its second best', () => {
     const query = featureSet([[lowBits(4)]]);
     const train = featureSet([[lowBits(3)], [lowBits(20)]]);

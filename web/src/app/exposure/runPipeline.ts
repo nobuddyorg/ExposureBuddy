@@ -289,8 +289,7 @@ export async function runPipeline(
     working: Size,
   ) => {
     const finder = workers.createSingleWorker();
-    const stop = () => finder.terminate();
-    signal?.addEventListener('abort', stop);
+    // An abort rejects the request in flight, so the finally block also stops the finder on a cancel.
     try {
       const keys = ['reference' as const, ...homographies.keys()];
       const masks = await request<
@@ -333,7 +332,6 @@ export async function runPipeline(
       }
       return masks.trail;
     } finally {
-      signal?.removeEventListener('abort', stop);
       finder.terminate();
     }
   };

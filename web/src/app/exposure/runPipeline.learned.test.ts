@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SHARP_KERNEL } from '../vision/warp/warp';
 import { PipelineError } from './failure';
@@ -200,6 +200,49 @@ describe('runPipeline, learned alignment', () => {
     const exposure = await result;
     expect(exposure.frames[0].status).toBe('skipped');
     expect(exposure.alignedCount).toBe(2);
+  });
+
+  it('leaves the frames skipped, and tries none of them, when the reference cannot be read for the second try', async () => {
+    const unreadableReference: FakeHandler = (request, post) =>
+      request.type === 'learned-reference'
+        ? {
+            response: { type: 'unreadable', id: request.id },
+            transfer: [],
+          }
+        : alignHandler()(request, post);
+    const { workers, result } = start(
+      ['rescue', 'ok', 'ok'],
+      { learned: LEARNED },
+      unreadableReference,
+    );
+    const exposure = await result;
+    expect(sentTypes(workers.aligners[0])).not.toContain('align-learned');
+    expect(exposure.frames[0].status).toBe('skipped');
+  });
+
+  it('ends a run cancelled during the second try as cancelled, even with too few frames aligned without it', async () => {
+    const controller = new AbortController();
+    const stalled: FakeHandler = (request, post) =>
+      request.type === 'learned-reference'
+        ? new Promise<void>(() => {})
+        : alignHandler()(request, post);
+    const { workers, result } = start(
+      ['rescue', 'ok', 'skip'],
+      { learned: LEARNED },
+      stalled,
+      controller.signal,
+    );
+    const outcome = result.then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() =>
+      expect(sentTypes(workers.aligners[0])).toContain('learned-reference'),
+    );
+    controller.abort();
+    const error = await outcome;
+    expect(error).toBeInstanceOf(PipelineError);
+    expect((error as PipelineError).failure).toEqual({ kind: 'cancelled' });
   });
 
   it('ends a cancelled run as cancelled, not as a frame skipped', async () => {

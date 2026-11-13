@@ -2,7 +2,11 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import type { Point } from '../types';
-import { transferError } from './homography';
+import {
+  applyHomography,
+  estimateHomography,
+  transferError,
+} from './homography';
 import {
   homographyFromMotion,
   mapPoints,
@@ -157,6 +161,46 @@ describe('ransacHomography', () => {
     expect(result?.inlierMask[4]).toBe(0);
   });
 
+  it('keeps the first of two models that explain equally many correspondences', () => {
+    const source = scatterPoints(8, 400, 300, 9);
+    const target = [
+      ...mapPoints(translationHomography(3, -2), source.slice(0, 4)),
+      ...mapPoints(translationHomography(-60, 45), source.slice(4)),
+    ];
+    // The first draw takes points 0-3, the second points 4-7; each sample explains only itself.
+    const draws = [0, 0, 0, 0, 4.5 / 8, 4.5 / 7, 4.5 / 6, 4.5 / 5];
+    let call = 0;
+    const random = () => draws[call++] ?? 0;
+    const result = ransacHomography(source, target, {
+      random,
+      maxIterations: 2,
+    });
+    expect(Array.from(result?.inlierMask ?? [])).toEqual([
+      1, 1, 1, 1, 0, 0, 0, 0,
+    ]);
+    expect(call).toBe(8);
+  });
+
+  it('counts a correspondence exactly at the threshold as an outlier', () => {
+    const source = scatterPoints(5, 400, 300, 9);
+    const target = mapPoints(translationHomography(3, -2), source);
+    target[4] = { x: target[4].x + 4, y: target[4].y + 3 };
+    // A generator stuck at 0 always draws points 0-3, so the threshold can be the fifth point's exact error under their model.
+    const sampleModel = estimateHomography(
+      source.slice(0, 4),
+      target.slice(0, 4),
+    );
+    if (sampleModel === null) throw new Error('the sample is not degenerate');
+    const threshold = transferError(sampleModel, source[4], target[4]);
+    expect(threshold).toBeCloseTo(5, 6);
+    const result = ransacHomography(source, target, {
+      random: () => 0,
+      threshold,
+    });
+    expect(result?.inlierCount).toBe(4);
+    expect(result?.inlierMask[4]).toBe(0);
+  });
+
   it('returns null when no sample can be estimated', () => {
     const line = Array.from({ length: 6 }, (_, index) => ({
       x: index,
@@ -250,6 +294,24 @@ describe('ransacHomography', () => {
     expect(
       maxTransferDifference(result.homography, shift, source),
     ).toBeLessThan(1e-6);
+  });
+
+  it('keeps the sample model when the least-squares refit over its inliers cannot be computed', () => {
+    const source = scatterPoints(4, 400, 300, 12);
+    const target = mapPoints(translationHomography(5, 5), source);
+    const sampleModel = estimateHomography(source, target);
+    if (sampleModel === null) throw new Error('the sample is not degenerate');
+    // Next to this point the four others coincide after normalisation, so the refit is rank-deficient.
+    const allSource = [...source, { x: 1e200, y: 1e200 }];
+    const allTarget = [...target, applyHomography(sampleModel, allSource[4])];
+    expect(estimateHomography(allSource, allTarget)).toBeNull();
+    const result = ransacHomography(allSource, allTarget, {
+      random: () => 0,
+    });
+    expect(result?.inlierCount).toBe(5);
+    expect(Array.from(result?.homography ?? [])).toEqual(
+      Array.from(sampleModel),
+    );
   });
 
   it('returns null when the threshold admits not even the sample itself', () => {
