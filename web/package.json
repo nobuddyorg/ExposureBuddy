@@ -23,9 +23,9 @@
     "zap:summary": "node scripts/zap-summary.mjs"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^1.2.2",
+    "@mediapipe/tasks-vision": "^1.2.3",
     "@tailwindcss/postcss": "^4",
-    "next": "16.4.5",
+    "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "tailwindcss": "^4",
