@@ -52,11 +52,11 @@
     "eslint-plugin-sonarjs": "^4.2.2",
     "fast-check": "^4.10.2",
     "jsdom": "^31.0.0",
-    "knip": "^6.44.2",
+    "knip": "^6.45.1",
     "monocart-coverage-reports": "^3.2.1",
     "mutation-testing-metrics": "^3.9.0",
     "playwright": "^1.63.0",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.1",
     "serve": "^14.2.7",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.0.2"
